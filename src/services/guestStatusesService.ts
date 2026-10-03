@@ -1,39 +1,56 @@
 import db from "./database";
 import type { GuestStatus } from "./database";
 
+export type GuestStatusValue =
+  | "booked"
+  | "checked_in"
+  | "registered"
+  | "not_coming";
+
+export type LatestGuestStatus = {
+  guestId: number;
+  status: GuestStatusValue;
+  room: string | null;
+  changedAt: string;
+};
+
 const guestStatusesService = {
-  getGuestStatuses: async (): Promise<GuestStatus[]> => {
-    return db.guestStatuses.getAll();
+  getGuestStatusesByRetreatId: async (retreatId: number): Promise<GuestStatus[]> => {
+    return db.guestStatuses.getByRetreatId(retreatId);
   },
 
-  getGuestStatusHistory: async (guestId: number): Promise<GuestStatus[]> => {
-    return db.guestStatuses.getByGuestId(guestId);
-  },
-
-  getLatestGuestStatus: async (guestId: number): Promise<GuestStatus | null> => {
-    return db.guestStatuses.getLatestByGuestId(guestId);
-  },
-
-  getLatestStatuses: (statuses: GuestStatus[]): Map<number, GuestStatus> => {
-    const latestStatuses = new Map<number, GuestStatus>();
+  getLatestForRetreat: async (retreatId: number): Promise<Map<number, LatestGuestStatus>> => {
+    const statuses = await db.guestStatuses.getByRetreatId(retreatId);
+    const latestStatuses = new Map<number, LatestGuestStatus>();
 
     statuses.forEach((status) => {
-      const currentStatus = latestStatuses.get(status.guest_id);
-
-      if (!currentStatus) {
-        latestStatuses.set(status.guest_id, status);
+      if (latestStatuses.has(status.guest_id)) {
         return;
       }
 
-      const currentDate = new Date(currentStatus.changed_at).getTime();
-      const statusDate = new Date(status.changed_at).getTime();
-
-      if (statusDate > currentDate) {
-        latestStatuses.set(status.guest_id, status);
-      }
+      latestStatuses.set(status.guest_id, {
+        guestId: status.guest_id,
+        status: status.status as GuestStatusValue,
+        room: status.room,
+        changedAt: status.changed_at,
+      });
     });
 
     return latestStatuses;
+  },
+
+  createStatus: async (
+    guestId: number,
+    status: GuestStatusValue,
+    room: string | null,
+    updatedBy: number
+  ): Promise<GuestStatus> => {
+    return db.guestStatuses.create({
+      guest_id: guestId,
+      status,
+      room,
+      updated_by: updatedBy,
+    });
   },
 };
 

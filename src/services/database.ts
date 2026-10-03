@@ -164,7 +164,7 @@ export type UpdateGuest = Partial<CreateGuest>;
 export type CreateGuestStatus = {
   guest_id: number;
   status: string;
-  room: string;
+  room: string | null;
   updated_by: number;
 };
 
@@ -933,62 +933,24 @@ const db = {
   */
 
   guestStatuses: {
-    getAll: async (): Promise<GuestStatus[]> => {
+    getByRetreatId: async (retreatId: number): Promise<GuestStatus[]> => {
       const { data, error } = await supabase
         .from("guest_statuses")
-        .select("*")
+        .select(`
+          *,
+          guests!inner(retreat_id)
+        `)
+        .eq("guests.retreat_id", retreatId)
         .order("changed_at", { ascending: false });
 
       if (error) {
-        throwDatabaseError("Failed to get guest statuses", error);
+        throwDatabaseError("Failed to get guest statuses by retreat", error);
       }
 
       return data as GuestStatus[];
     },
 
-    getByGuestId: async (
-      guestId: number
-    ): Promise<GuestStatus[]> => {
-      const { data, error } = await supabase
-        .from("guest_statuses")
-        .select("*")
-        .eq("guest_id", guestId)
-        .order("changed_at", { ascending: false });
-
-      if (error) {
-        throwDatabaseError(
-          "Failed to get guest status history",
-          error
-        );
-      }
-
-      return data as GuestStatus[];
-    },
-
-    getLatestByGuestId: async (
-      guestId: number
-    ): Promise<GuestStatus | null> => {
-      const { data, error } = await supabase
-        .from("guest_statuses")
-        .select("*")
-        .eq("guest_id", guestId)
-        .order("changed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        throwDatabaseError(
-          "Failed to get latest guest status",
-          error
-        );
-      }
-
-      return data as GuestStatus | null;
-    },
-
-    create: async (
-      guestStatus: CreateGuestStatus
-    ): Promise<GuestStatus> => {
+    create: async (guestStatus: CreateGuestStatus): Promise<GuestStatus> => {
       const { data, error } = await supabase
         .from("guest_statuses")
         .insert(guestStatus)

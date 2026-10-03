@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ActionBar from "@/components/common/ActionBar";
 import RetreatForm from "@/components/retreats/RetreatForm";
+import RetreatRoomsForm from "@/components/retreats/RetreatRoomsForm";
 import type { CreateRetreat, Retreat } from "@/services/database";
 import retreatsService from "@/services/retreatsService";
 
@@ -12,6 +13,7 @@ export default function RetreatsList() {
   const strColumnStartDate = "Start date";
   const strColumnEndDate = "End date";
   const strColumnActive = "Active";
+  const strRoomsAction = "Rooms";
   const strYes = "Yes";
   const strNo = "No";
   const strDeleteConfirm = "Delete selected retreat?";
@@ -21,6 +23,7 @@ export default function RetreatsList() {
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [selectedRetreat, setSelectedRetreat] = useState<Retreat | null>(null);
   const [editingRetreat, setEditingRetreat] = useState<Retreat | null>(null);
+  const [roomsRetreat, setRoomsRetreat] = useState<Retreat | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadError, setIsLoadError] = useState(false);
@@ -40,11 +43,13 @@ export default function RetreatsList() {
   };
 
   const onAddActionClick = () => {
+    setRoomsRetreat(null);
     setEditingRetreat(null);
     setIsFormOpen(true);
   };
 
   const onEditActionClick = (retreat: Retreat) => {
+    setRoomsRetreat(null);
     setEditingRetreat(retreat);
     setIsFormOpen(true);
   };
@@ -59,6 +64,16 @@ export default function RetreatsList() {
     await retreatsService.deleteRetreat(retreat.id);
     setSelectedRetreat(null);
     await loadRetreats();
+  };
+
+  const onRoomsActionClick = (retreat: Retreat) => {
+    setIsFormOpen(false);
+    setEditingRetreat(null);
+    setRoomsRetreat(retreat);
+  };
+
+  const onRoomsCloseActionClick = () => {
+    setRoomsRetreat(null);
   };
 
   const onCancelActionClick = () => {
@@ -80,6 +95,13 @@ export default function RetreatsList() {
     setSelectedRetreat(null);
     await loadRetreats();
   };
+
+  const extraActions = [
+    {
+      label: strRoomsAction,
+      onClickHandler: onRoomsActionClick,
+    },
+  ];
 
   const retreatRows = retreats.map((retreat) => {
     const isSelected = selectedRetreat?.id === retreat.id;
@@ -111,6 +133,7 @@ export default function RetreatsList() {
         onAddActionClick={onAddActionClick}
         onEditActionClick={onEditActionClick}
         onDeleteActionClick={onDeleteActionClick}
+        extraActions={extraActions}
       />
       {isLoading ? <div>{strLoading}</div> : null}
       {isLoadError ? <div>{strLoadError}</div> : null}
@@ -127,11 +150,7 @@ export default function RetreatsList() {
             </thead>
             <tbody>
               {retreatRows.map((retreat) => (
-                <tr
-                  key={retreat.id}
-                  onClick={retreat.onRowClick}
-                  className={retreat.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}
-                >
+                <tr key={retreat.id} onClick={retreat.onRowClick} className={retreat.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}>
                   <td className="px-4 py-3">{retreat.title}</td>
                   <td className="px-4 py-3">{retreat.startDate}</td>
                   <td className="px-4 py-3">{retreat.endDate}</td>
@@ -147,6 +166,12 @@ export default function RetreatsList() {
           retreat={editingRetreat}
           onSaveActionClick={onSaveActionClick}
           onCancelActionClick={onCancelActionClick}
+        />
+      ) : null}
+      {roomsRetreat ? (
+        <RetreatRoomsForm
+          retreat={roomsRetreat}
+          onCloseActionClick={onRoomsCloseActionClick}
         />
       ) : null}
     </div>

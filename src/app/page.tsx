@@ -1,5 +1,10 @@
 import AppShell from "@/components/layout/AppShell";
+import { CurrentUserProvider } from "@/contexts/CurrentUserContext";
 
 export default function HomePage() {
-  return <AppShell />;
+  return (
+    <CurrentUserProvider>
+      <AppShell />
+    </CurrentUserProvider>
+  );
 }

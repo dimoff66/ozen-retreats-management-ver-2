@@ -15,11 +15,18 @@ import type {
 } from "@/services/database";
 import guestsService from "@/services/guestsService";
 import guestStatusesService from "@/services/guestStatusesService";
+import { getAvailableGuestActions } from "@/services/guestActionsService";
+import type { GuestAction } from "@/services/guestActionsService";
+import type { GuestStatusValue } from "@/services/guestStatusesService";
 import housesService from "@/services/housesService";
 import retreatsService from "@/services/retreatsService";
 import roomsService from "@/services/roomsService";
 
-export default function GuestsList() {
+type GuestsListProps = {
+  retreatId?: number;
+};
+
+export default function GuestsList({ retreatId }: GuestsListProps) {
   const strTitle = "Guests";
   const strRetreat = "Retreat";
   const strColumnName = "Name";
@@ -27,11 +34,11 @@ export default function GuestsList() {
   const strColumnDiet = "Diet";
   const strColumnRoom = "Room";
   const strColumnStatus = "Status";
+  const strColumnActions = "Actions";
   const strOrganizer = "organizer";
   const strNoRoom = "-";
   const strNoDiet = "-";
   const strDefaultArrival = "-";
-  const strNoStatus = "-";
   const strStatusBooked = "Booked";
   const strStatusCheckedIn = "Checked in";
   const strStatusRegistered = "Registered";
@@ -40,6 +47,15 @@ export default function GuestsList() {
   const strLoadError = "Failed to load guests.";
   const strSaveRoomError = "Failed to change room.";
   const strDeleteConfirm = "Delete selected guest?";
+  const actionLabels: Record<GuestAction, string> = {
+    move_room: "Change room",
+    swap_room: "Swap rooms",
+    check_in: "Check in",
+    not_coming: "Not coming",
+    register: "Register",
+    cancel_check_in: "Cancel check-in",
+    cancel_registration: "Cancel registration",
+  };
 
   const { currentUser: user } = useCurrentUser();
 
@@ -47,18 +63,19 @@ export default function GuestsList() {
   const [houses, setHouses] = useState<House[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [guestStatuses, setGuestStatuses] = useState<Map<number, string>>(new Map());
+  const [guestStatuses, setGuestStatuses] = useState<Map<number, GuestStatusValue>>(new Map());
   const [selectedRetreatId, setSelectedRetreatId] = useState<number | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [mapGuest, setMapGuest] = useState<Guest | null>(null);
+  const [mapSelectionMode, setMapSelectionMode] = useState<"room" | "guest">("room");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadError, setIsLoadError] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const isOrganizerRole = user?.role === "organizer";
+  const canManageGuestRecords = user?.role === "admin" || user?.role === "organizer";
 
   const getStatusLabel = (status: string): string => {
     if (status === "booked") {
@@ -96,6 +113,11 @@ export default function GuestsList() {
 
       setHouses(housesData);
       setRooms(roomsData);
+
+      if (retreatId !== undefined) {
+        setSelectedRetreatId(retreatId);
+        return;
+      }
 
       if (user.role === "organizer") {
         if (!user.retreat_id) {
@@ -135,10 +157,10 @@ export default function GuestsList() {
         guestStatusesService.getLatestForRetreat(retreatId),
       ]);
 
-      const preparedStatuses = new Map<number, string>();
+      const preparedStatuses = new Map<number, GuestStatusValue>();
 
       statusesData.forEach((guestStatus, guestId) => {
-        preparedStatuses.set(guestId, getStatusLabel(guestStatus.status));
+        preparedStatuses.set(guestId, guestStatus.status);
       });
 
       setGuests(guestsData);
@@ -259,6 +281,87 @@ export default function GuestsList() {
     }
   };
 
+  const onGuestSwapActionClick = async (targetGuest: Guest) => {
+    if (!mapGuest || !selectedRetreatId || !mapGuest.room_id || !targetGuest.room_id) {
+      return;
+    }
+
+    setActionError("");
+
+    try {
+      await Promise.all([
+        guestsService.updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+        guestsService.updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+      ]);
+      setIsMapOpen(false);
+      setMapGuest(null);
+      setSelectedGuest(null);
+      await loadGuests(selectedRetreatId);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : strSaveRoomError);
+    }
+  };
+
+  const onGuestActionClick = async (
+    event: MouseEvent<HTMLButtonElement>,
+    guest: Guest,
+    action: GuestAction
+  ) => {
+    event.stopPropagation();
+    event.currentTarget.closest("details")?.removeAttribute("open");
+
+    if (!user) {
+      return;
+    }
+
+    if (action === "move_room" || action === "swap_room") {
+      setActionError("");
+      setSelectedGuest(guest);
+      setEditingGuest(null);
+      setIsFormOpen(false);
+      setMapGuest(guest);
+      setMapSelectionMode(action === "move_room" ? "room" : "guest");
+      setIsMapOpen(true);
+      return;
+    }
+
+    const statusByAction: Partial<Record<GuestAction, GuestStatusValue>> = {
+      check_in: "checked_in",
+      not_coming: "not_coming",
+      register: "registered",
+      cancel_check_in: "booked",
+      cancel_registration: "checked_in",
+    };
+    const nextStatus = statusByAction[action];
+
+    if (!nextStatus) {
+      return;
+    }
+
+    setActionError("");
+
+    try {
+      const room = rooms.find((item) => item.id === guest.room_id);
+      const house = houses.find((item) => item.id === room?.house_id);
+      const roomName = room && house
+        ? roomsService.getRoomDisplayName(room, house)
+        : null;
+
+      await guestStatusesService.createStatus(
+        guest.id,
+        nextStatus,
+        roomName,
+        user.id
+      );
+
+      if (selectedRetreatId) {
+        await loadGuests(selectedRetreatId);
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : strLoadError);
+    }
+  };
+
   const retreatOptions = retreats.map((retreat) => {
     return {
       id: retreat.id,
@@ -280,8 +383,12 @@ export default function GuestsList() {
 
     const arrivalText = guest.arrival_date ?? strDefaultArrival;
     const dietText = guest.diet_notes ?? strNoDiet;
-    const statusText = guestStatuses.get(guest.id) ?? strNoStatus;
+    const status = guestStatuses.get(guest.id) ?? "booked";
+    const statusText = getStatusLabel(status);
     const isSelected = selectedGuest?.id === guest.id;
+    const availableActions = user
+      ? getAvailableGuestActions(user.role, status, guest.room_id !== null)
+      : [];
 
     const onRowClick = () => {
       setSelectedGuest(guest);
@@ -290,11 +397,16 @@ export default function GuestsList() {
     const onRoomClick = (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
 
+      if (!canManageGuestRecords) {
+        return;
+      }
+
       setActionError("");
       setSelectedGuest(guest);
       setEditingGuest(null);
       setIsFormOpen(false);
       setMapGuest(guest);
+      setMapSelectionMode("room");
       setIsMapOpen(true);
     };
 
@@ -306,6 +418,8 @@ export default function GuestsList() {
       roomName,
       statusText,
       isSelected,
+      availableActions,
+      guest,
       onRowClick,
       onRoomClick,
     };
@@ -313,7 +427,7 @@ export default function GuestsList() {
 
   useEffect(() => {
     loadInitialData();
-  }, [user?.id]);
+  }, [user?.id, retreatId]);
 
   useEffect(() => {
     if (!selectedRetreatId) {
@@ -335,7 +449,9 @@ export default function GuestsList() {
         retreatId={selectedRetreatId}
         openMode="selection"
         guest={mapGuest}
+        initialSelectionMode={mapSelectionMode}
         onRoomSelectActionClick={onRoomSelectActionClick}
+        onGuestSwapActionClick={onGuestSwapActionClick}
         onCancelActionClick={onMapCancelActionClick}
       />
     );
@@ -344,24 +460,25 @@ export default function GuestsList() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1>
-      <div className="mb-4 max-w-md">
+      {retreatId === undefined ? <div className="mb-4 max-w-md">
         <label className="mb-1 block text-sm font-medium">{strRetreat}</label>
         <select
           value={selectedRetreatId ?? ""}
           onChange={onRetreatChange}
-          disabled={isOrganizerRole}
+          disabled={user.role === "organizer"}
           className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 disabled:bg-gray-100"
         >
           {retreatOptions.map((retreat) => (
             <option key={retreat.id} value={retreat.id}>{retreat.title}</option>
           ))}
         </select>
-      </div>
+      </div> : null}
       <ActionBar
         selectedItem={selectedGuest}
         onAddActionClick={onAddActionClick}
         onEditActionClick={onEditActionClick}
         onDeleteActionClick={onDeleteActionClick}
+        disabled={!canManageGuestRecords}
       />
       {actionError ? <div className="mb-4 text-red-600">{actionError}</div> : null}
       {isLoading ? <div>{strLoading}</div> : null}
@@ -376,6 +493,7 @@ export default function GuestsList() {
                 <th className="px-4 py-3 text-left">{strColumnDiet}</th>
                 <th className="px-4 py-3 text-left">{strColumnRoom}</th>
                 <th className="px-4 py-3 text-left">{strColumnStatus}</th>
+                <th className="px-4 py-3 text-left">{strColumnActions}</th>
               </tr>
             </thead>
             <tbody>
@@ -385,9 +503,32 @@ export default function GuestsList() {
                   <td className="px-4 py-3">{guest.arrivalText}</td>
                   <td className="px-4 py-3">{guest.dietText}</td>
                   <td className="px-4 py-3">
-                    <button type="button" onClick={guest.onRoomClick} className="font-semibold text-blue-600 hover:underline">{guest.roomName}</button>
+                    {!canManageGuestRecords ? guest.roomName : (
+                      <button type="button" onClick={guest.onRoomClick} className="font-semibold text-blue-600 hover:underline">{guest.roomName}</button>
+                    )}
                   </td>
                   <td className="px-4 py-3">{guest.statusText}</td>
+                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
+                    {guest.availableActions.length > 0 ? (
+                      <details className="relative">
+                        <summary className="cursor-pointer list-none rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50">
+                          Actions
+                        </summary>
+                        <div className="absolute right-0 z-20 mt-1 min-w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg">
+                          {guest.availableActions.map((action) => (
+                            <button
+                              key={action}
+                              type="button"
+                              onClick={(event) => onGuestActionClick(event, guest.guest, action)}
+                              className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                            >
+                              {actionLabels[action]}
+                            </button>
+                          ))}
+                        </div>
+                      </details>
+                    ) : <span className="text-gray-400">-</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

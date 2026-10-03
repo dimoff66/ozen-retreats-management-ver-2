@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
-import GuestsList from "@/components/guests/GuestsList";
-import HouseMapWorkspace from "@/components/houseMaps/HouseMapWorkspace";
+import { useState } from "react";
 import HousesList from "@/components/houses/HousesList";
+import RetreatWorkspace from "@/components/retreats/RetreatWorkspace";
 import RetreatsList from "@/components/retreats/RetreatsList";
 import RoomsList from "@/components/rooms/RoomsList";
 import Sidebar from "@/components/layout/Sidebar";
@@ -13,87 +11,39 @@ import { useCurrentUser } from "@/contexts/CurrentUserContext";
 
 export default function AppShell() {
   const strRetreats = "Retreats";
-  const strGuests = "Guests";
-  const strView = "View";
-  const strCheckIn = "Check-in";
-  const strRegistration = "Registration";
-  const strHouses = "Houses";
-  const strRooms = "Rooms";
-  const strNotImplemented = "This interface is not implemented yet.";
   const strLoadingUser = "Loading user...";
 
   const { currentUser: user } = useCurrentUser();
 
-  const [selectedMenu, setSelectedMenu] = useState("");
-
-  const getMenuItems = (): string[] => {
-    if (!user) {
-      return [];
-    }
-
-    if (user.role === "admin") {
-      return [
-        strRetreats,
-        strGuests,
-        strView,
-        strCheckIn,
-        strRegistration,
-        strHouses,
-        strRooms,
-      ];
-    }
-
-    if (user.role === "manager") {
-      return [
-        strView,
-        strCheckIn,
-        strRegistration,
-      ];
-    }
-
-    if (user.role === "organizer") {
-      return [
-        strGuests,
-        strView,
-      ];
-    }
-
-    return [];
-  };
-
-  const menuItems = getMenuItems();
+  const [selectedMenu, setSelectedMenu] = useState("Retreats");
+  const [selectedAdminSection, setSelectedAdminSection] = useState("Houses");
+  const menuItems = user?.role === "admin" ? [strRetreats, "Admin"] : [];
 
   const onMenuClick = (menu: string) => {
     setSelectedMenu(menu);
   };
 
-  const interfaces: Record<string, () => ReactNode> = {
-    "Retreats": () => <RetreatsList />,
-    "Guests": () => <GuestsList />,
-    "View": () => <HouseMapWorkspace openMode="normal" />,
-    "Check-in": () => <HouseMapWorkspace openMode="check_in" />,
-    "Registration": () => <HouseMapWorkspace openMode="registration" />,
-    "Houses": () => <HousesList />,
-    "Rooms": () => <RoomsList />,
-  };
-
-  const selectedInterface = interfaces[selectedMenu];
-  const content = selectedInterface ? selectedInterface() : <div>{strNotImplemented}</div>;
-
-  useEffect(() => {
-    if (menuItems.length === 0) {
-      setSelectedMenu("");
-      return;
-    }
-
-    if (!menuItems.includes(selectedMenu)) {
-      setSelectedMenu(menuItems[0]);
-    }
-  }, [user?.id, selectedMenu]);
-
   if (!user) {
     return <div className="p-6">{strLoadingUser}</div>;
   }
+
+  if (user.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <header className="mb-6 flex justify-end">
+          <UserSelector />
+        </header>
+        <RetreatWorkspace key={user.id} />
+      </div>
+    );
+  }
+
+  const adminSections = ["Houses", "Rooms", "Retreats"];
+  const adminSectionContent = selectedAdminSection === "Houses"
+    ? <HousesList />
+    : selectedAdminSection === "Rooms"
+      ? <RoomsList />
+      : <RetreatsList />;
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -106,7 +56,28 @@ export default function AppShell() {
           selectedMenu={selectedMenu}
           onMenuClick={onMenuClick}
         />
-        <main className="min-w-0 flex-1 p-6">{content}</main>
+        <main className="min-w-0 flex-1 p-6">
+          {selectedMenu === "Retreats" ? <RetreatWorkspace key={user.id} /> : (
+            <div>
+              <nav aria-label="Administration sections" className="mb-6 flex flex-wrap gap-2 border-b border-gray-200">
+                {adminSections.map((section) => (
+                  <button
+                    key={section}
+                    type="button"
+                    onClick={() => setSelectedAdminSection(section)}
+                    aria-current={selectedAdminSection === section ? "page" : undefined}
+                    className={selectedAdminSection === section
+                      ? "border-b-2 border-blue-600 px-4 py-2 font-semibold text-blue-700"
+                      : "px-4 py-2 text-gray-600 hover:text-gray-900"}
+                  >
+                    {section}
+                  </button>
+                ))}
+              </nav>
+              {adminSectionContent}
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

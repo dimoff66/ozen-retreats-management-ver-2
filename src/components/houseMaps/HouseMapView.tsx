@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import type {
   Guest,
@@ -8,12 +8,12 @@ import type {
   HouseMap,
   RetreatRoom,
   Room,
-  User,
 } from "@/services/database";
 import type {
   GuestStatusValue,
   LatestGuestStatus,
 } from "@/services/guestStatusesService";
+import { getAvailableGuestActions } from "@/services/guestActionsService";
 import type { RoomPosition } from "@/services/houseMapsService";
 import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
@@ -25,9 +25,7 @@ import { useCurrentUser } from "@/contexts/CurrentUserContext";
 
 export type HouseMapOpenMode =
   | "normal"
-  | "selection"
-  | "check_in"
-  | "registration";
+  | "selection";
 
 type SelectionMode = null | "room" | "guest";
 
@@ -43,7 +41,9 @@ type HouseMapViewProps = {
   retreatId: number;
   openMode?: HouseMapOpenMode;
   guest?: Guest | null;
+  initialSelectionMode?: Exclude<SelectionMode, null>;
   onRoomSelectActionClick?: (room: Room) => void;
+  onGuestSwapActionClick?: (guest: Guest) => void;
   onCancelActionClick?: () => void;
 };
 
@@ -51,7 +51,9 @@ export default function HouseMapView({
   retreatId,
   openMode = "normal",
   guest = null,
+  initialSelectionMode: requestedSelectionMode = "room",
   onRoomSelectActionClick,
+  onGuestSwapActionClick,
   onCancelActionClick,
 }: HouseMapViewProps) {
   const strTitle = "House map";
@@ -78,9 +80,9 @@ export default function HouseMapView({
   const strNotComingStatus = "not_coming";
 
   const initialSelectionMode: SelectionMode =
-    openMode === "selection" && guest ? "room" : null;
+    openMode === "selection" && guest ? requestedSelectionMode : null;
 
-  const { currentUser: user } = useCurrentUser()
+  const { currentUser: user } = useCurrentUser();
 
   const [houses, setHouses] = useState<House[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -91,7 +93,7 @@ export default function HouseMapView({
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
   const [actionGuest, setActionGuest] = useState<Guest | null>(
-    initialSelectionMode === "room" ? guest : null
+    initialSelectionMode ? guest : null
   );
   const [actions, setActions] = useState<MapAction[]>([]);
   const [actionsTitle, setActionsTitle] = useState("");
@@ -99,7 +101,9 @@ export default function HouseMapView({
   const [isLoadError, setIsLoadError] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  if (!user) return null
+  if (!user) {
+    return null;
+  }
 
   const loadData = async () => {
     setIsLoading(true);
@@ -131,13 +135,13 @@ export default function HouseMapView({
 
       if (mapsData.length > 0) {
         setSelectedMapId((current) => current ?? mapsData[0].id);
-      }
+      };
     } catch {
       setIsLoadError(true);
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   const getRoomName = (room: Room): string => {
     const house = houses.find((item) => item.id === room.house_id);
@@ -261,6 +265,28 @@ export default function HouseMapView({
     }
   };
 
+  const onCancelCheckInActionClick = async (targetGuest: Guest) => {
+    clearActions();
+    setActionError("");
+
+    try {
+      await createStatus(targetGuest, strBooked);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : strActionError);
+    }
+  };
+
+  const onCancelRegistrationActionClick = async (targetGuest: Guest) => {
+    clearActions();
+    setActionError("");
+
+    try {
+      await createStatus(targetGuest, strCheckedIn);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : strActionError);
+    }
+  };
+
   const getAvailableActions = (
     targetType: ActionTargetType,
     room: Room,
@@ -285,91 +311,66 @@ export default function HouseMapView({
     }
 
     const guestStatus = statuses.get(targetGuest.id);
-    const status = guestStatus?.status ?? strBooked;
+    const status: GuestStatusValue = guestStatus?.status ?? strBooked;
+    const guestActions = getAvailableGuestActions(
+      user.role,
+      status,
+      targetGuest.room_id !== null
+    );
 
-    const canManageRooms =
-      user.role === "admin" ||
-      user.role === "organizer";
-
-    const canCheckIn =
-      status === strBooked &&
-      (
-        user.role === "admin" ||
-        (
-          user.role === "manager" &&
-          openMode === "check_in"
-        )
-      );
-
-    const canRegister =
-      status === strCheckedIn &&
-      (
-        user.role === "admin" ||
-        (
-          user.role === "manager" &&
-          openMode === "registration"
-        )
-      );
-
-    if (
-      canManageRooms &&
-      openMode === "normal" &&
-      status !== strNotComingStatus
-    ) {
-      const onMoveActionClick = () => {
-        startRoomSelection(targetGuest);
-      };
-
-      const onSwapActionClick = () => {
-        startGuestSelection(targetGuest);
-      };
-
-      const onNotComingClick = () => {
-        void onNotComingActionClick(targetGuest);
-      };
-
+    if (guestActions.includes("move_room")) {
       availableActions.push({
         id: "move",
         label: strMove,
-        onClickHandler: onMoveActionClick,
+        onClickHandler: () => startRoomSelection(targetGuest),
       });
+    }
 
-      if (targetGuest.room_id) {
-        availableActions.push({
-          id: "swap",
-          label: strSwap,
-          onClickHandler: onSwapActionClick,
-        });
-      }
+    if (guestActions.includes("swap_room")) {
+      availableActions.push({
+        id: "swap",
+        label: strSwap,
+        onClickHandler: () => startGuestSelection(targetGuest),
+      });
+    }
 
+    if (guestActions.includes("not_coming")) {
       availableActions.push({
         id: "not_coming",
         label: strNotComing,
-        onClickHandler: onNotComingClick,
+        onClickHandler: () => void onNotComingActionClick(targetGuest),
       });
     }
 
-    if (canCheckIn) {
-      const onCheckInClick = () => {
-        void onCheckInActionClick(targetGuest);
-      };
-
+    if (guestActions.includes("check_in")) {
       availableActions.push({
         id: "check_in",
         label: strCheckIn,
-        onClickHandler: onCheckInClick,
+        onClickHandler: () => void onCheckInActionClick(targetGuest),
       });
     }
 
-    if (canRegister) {
-      const onRegisterClick = () => {
-        void onRegisterActionClick(targetGuest);
-      };
-
+    if (guestActions.includes("register")) {
       availableActions.push({
         id: "register",
         label: strRegister,
-        onClickHandler: onRegisterClick,
+        onClickHandler: () => void onRegisterActionClick(targetGuest),
+      });
+    }
+
+    if (guestActions.includes("cancel_check_in")) {
+      availableActions.push({
+        id: "cancel_check_in",
+        label: "Cancel check-in",
+        onClickHandler: () => void onCancelCheckInActionClick(targetGuest),
+      });
+    }
+
+    if (guestActions.includes("cancel_registration")) {
+      availableActions.push({
+        id: "cancel_registration",
+        label: "Cancel registration",
+        onClickHandler: () => void onCancelRegistrationActionClick(targetGuest),
       });
     }
 
@@ -479,6 +480,11 @@ export default function HouseMapView({
     setActionError("");
 
     try {
+      if (openMode === "selection" && onGuestSwapActionClick) {
+        onGuestSwapActionClick(targetGuest);
+        return;
+      }
+
       const firstUpdatedGuest = await guestsService.updateGuest(
         actionGuest.id,
         {

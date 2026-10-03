@@ -17,6 +17,7 @@ import roomsService from "@/services/roomsService";
 type RetreatRoomsFormProps = {
   retreat: Retreat;
   onCloseActionClick: () => void;
+  onSavedActionClick?: () => void;
 };
 
 type RoomSetting = {
@@ -28,6 +29,7 @@ type RoomSetting = {
 export default function RetreatRoomsForm({
   retreat,
   onCloseActionClick,
+  onSavedActionClick,
 }: RetreatRoomsFormProps) {
   const strTitle = "Retreat rooms";
   const strAvailable = "Available";
@@ -114,7 +116,12 @@ export default function RetreatRoomsForm({
         saveSettings
       );
 
-      onCloseActionClick();
+      if (onSavedActionClick) {
+        await loadData();
+        onSavedActionClick();
+      } else {
+        onCloseActionClick();
+      }
     } catch {
       setError(strSaveError);
     } finally {

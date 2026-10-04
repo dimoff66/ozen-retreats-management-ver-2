@@ -84,6 +84,7 @@ export type TaxiRide = {
   id: number;
   retreat_id: number;
   arrival_datetime: string;
+  driver_name: string | null;
   created_at: string;
 };
 
@@ -171,6 +172,7 @@ export type CreateGuestStatus = {
 export type CreateTaxiRide = {
   retreat_id: number;
   arrival_datetime: string;
+  driver_name?: string | null;
 };
 
 export type UpdateTaxiRide = Partial<CreateTaxiRide>;
@@ -1096,6 +1098,23 @@ const db = {
           "Failed to get taxi guests by ride",
           error
         );
+      }
+
+      return data as TaxiGuest[];
+    },
+
+    getByRideIds: async (rideIds: number[]): Promise<TaxiGuest[]> => {
+      if (rideIds.length === 0) {
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from("taxi_guests")
+        .select("*")
+        .in("ride_id", rideIds);
+
+      if (error) {
+        throwDatabaseError("Failed to get taxi guests by ride ids", error);
       }
 
       return data as TaxiGuest[];

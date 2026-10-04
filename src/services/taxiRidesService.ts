@@ -10,6 +10,10 @@ const taxiRidesService = {
     return db.taxiGuests.getByRideId(rideId);
   },
 
+  getGuestsByRideIds: (rideIds: number[]): Promise<TaxiGuest[]> => {
+    return db.taxiGuests.getByRideIds(rideIds);
+  },
+
   create: (ride: CreateTaxiRide): Promise<TaxiRide> => {
     return db.taxiRides.create(ride);
   },
@@ -28,6 +32,10 @@ const taxiRidesService = {
 
   deleteGuest: (id: number): Promise<void> => {
     return db.taxiGuests.delete(id);
+  },
+
+  moveGuest: (id: number, rideId: number): Promise<TaxiGuest> => {
+    return db.taxiGuests.update(id, { ride_id: rideId });
   },
 };
 

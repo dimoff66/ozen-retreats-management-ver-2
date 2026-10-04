@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { HouseMapOpenMode } from "@/components/houseMaps/HouseMapView";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
 import HistoryPanel from "@/components/history/HistoryPanel";
+import ManagerArrivalPanel from "@/components/retreats/ManagerArrivalPanel";
 import TaxiRidesPanel from "@/components/taxis/TaxiRidesPanel";
 import GuestsList from "@/components/guests/GuestsList";
 import RetreatRoomsForm from "@/components/retreats/RetreatRoomsForm";
@@ -27,9 +28,9 @@ const tabsByRole: Record<string, RetreatTab[]> = {
   ],
   manager: [
     { label: "Guests" },
-    { label: "View", mapMode: "normal" },
-    { label: "Taxis" },
-    { label: "History" },
+    { label: "Map", mapMode: "normal" },
+    { label: "Meeting" },
+    { label: "Check in" },
   ],
   organizer: [
     { label: "Guests" },
@@ -61,7 +62,8 @@ export default function RetreatWorkspace() {
   const tabs = user ? tabsByRole[user.role] ?? noTabs : noTabs;
   const selectedRetreat = retreats.find((retreat) => retreat.id === selectedRetreatId) ?? null;
   const canChangeRetreat = user?.role !== strOrganizer;
-  const canManageTaxiRides = user?.role === strAdmin || user?.role === strTaxi;
+  const canManageTaxiRides = user?.role === strAdmin
+    || user?.role === strTaxi;
   const isAdmin = user?.role === strAdmin;
 
   const onRoomsCloseActionClick = () => {
@@ -169,6 +171,8 @@ export default function RetreatWorkspace() {
     };
   });
   const showGuests = activeTabName === "Guests";
+  const showMeeting = activeTabName === "Meeting" && user.role === "manager";
+  const showCheckIn = activeTabName === "Check in" && user.role === "manager";
   const showRooms = activeTabName === "Rooms" && isAdmin;
   const showTaxis = activeTabName === "Taxis";
   const showMap = activeTab?.mapMode !== undefined;
@@ -217,6 +221,12 @@ export default function RetreatWorkspace() {
           <div>
             {showGuests ? (
               <GuestsList retreatId={selectedRetreat.id} />
+            ) : null}
+            {showMeeting ? (
+              <ManagerArrivalPanel retreatId={selectedRetreat.id} mode="meeting" />
+            ) : null}
+            {showCheckIn ? (
+              <ManagerArrivalPanel retreatId={selectedRetreat.id} mode="check-in" />
             ) : null}
             {showRooms ? (
               <RetreatRoomsForm

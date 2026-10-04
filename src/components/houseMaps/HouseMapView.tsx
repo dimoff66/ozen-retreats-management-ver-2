@@ -71,12 +71,12 @@ export default function HouseMapView({
   const strSwap = "Swap with...";
   const strNotComing = "Not coming";
   const strCheckIn = "Check in";
-  const strRegister = "Register";
+  const strMarkArrived = "Mark arrived";
   const strShowHistory = "Show history";
   const strCloseActions = "Close";
   const strBooked = "booked";
   const strCheckedIn = "checked_in";
-  const strRegistered = "registered";
+  const strArrived = "arrived";
   const strNotComingStatus = "not_coming";
 
   const initialSelectionMode: SelectionMode =
@@ -254,12 +254,12 @@ export default function HouseMapView({
     }
   };
 
-  const onRegisterActionClick = async (targetGuest: Guest) => {
+  const onMarkArrivedActionClick = async (targetGuest: Guest) => {
     clearActions();
     setActionError("");
 
     try {
-      await createStatus(targetGuest, strRegistered);
+      await createStatus(targetGuest, strArrived);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strActionError);
     }
@@ -270,18 +270,18 @@ export default function HouseMapView({
     setActionError("");
 
     try {
-      await createStatus(targetGuest, strBooked);
+      await createStatus(targetGuest, strArrived);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strActionError);
     }
   };
 
-  const onCancelRegistrationActionClick = async (targetGuest: Guest) => {
+  const onCancelArrivalActionClick = async (targetGuest: Guest) => {
     clearActions();
     setActionError("");
 
     try {
-      await createStatus(targetGuest, strCheckedIn);
+      await createStatus(targetGuest, strBooked);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strActionError);
     }
@@ -342,19 +342,19 @@ export default function HouseMapView({
       });
     }
 
+    if (guestActions.includes("mark_arrived")) {
+      availableActions.push({
+        id: "mark_arrived",
+        label: strMarkArrived,
+        onClickHandler: () => void onMarkArrivedActionClick(targetGuest),
+      });
+    }
+
     if (guestActions.includes("check_in")) {
       availableActions.push({
         id: "check_in",
         label: strCheckIn,
         onClickHandler: () => void onCheckInActionClick(targetGuest),
-      });
-    }
-
-    if (guestActions.includes("register")) {
-      availableActions.push({
-        id: "register",
-        label: strRegister,
-        onClickHandler: () => void onRegisterActionClick(targetGuest),
       });
     }
 
@@ -366,11 +366,11 @@ export default function HouseMapView({
       });
     }
 
-    if (guestActions.includes("cancel_registration")) {
+    if (guestActions.includes("cancel_arrival")) {
       availableActions.push({
-        id: "cancel_registration",
-        label: "Cancel registration",
-        onClickHandler: () => void onCancelRegistrationActionClick(targetGuest),
+        id: "cancel_arrival",
+        label: "Cancel arrival",
+        onClickHandler: () => void onCancelArrivalActionClick(targetGuest),
       });
     }
 
@@ -453,6 +453,13 @@ export default function HouseMapView({
         }
       );
 
+      if (actionGuest.room_id !== room.id) {
+        await createStatus(
+          updatedGuest,
+          statuses.get(actionGuest.id)?.status ?? strBooked
+        );
+      }
+
       setGuests((current) =>
         current.map((item) =>
           item.id === updatedGuest.id ? updatedGuest : item
@@ -499,6 +506,19 @@ export default function HouseMapView({
         }
       );
 
+      if (firstRoomId !== secondRoomId) {
+        await Promise.all([
+          createStatus(
+            firstUpdatedGuest,
+            statuses.get(actionGuest.id)?.status ?? strBooked
+          ),
+          createStatus(
+            secondUpdatedGuest,
+            statuses.get(targetGuest.id)?.status ?? strBooked
+          ),
+        ]);
+      }
+
       setGuests((current) =>
         current.map((item) => {
           if (item.id === firstUpdatedGuest.id) {
@@ -533,7 +553,7 @@ export default function HouseMapView({
       return "text-green-700";
     }
 
-    if (status === strRegistered) {
+    if (status === strArrived) {
       return "text-blue-700";
     }
 

@@ -3,11 +3,11 @@ import type { GuestStatusValue } from "./guestStatusesService";
 export type GuestAction =
   | "move_room"
   | "swap_room"
-  | "check_in"
+  | "mark_arrived"
   | "not_coming"
-  | "register"
+  | "check_in"
   | "cancel_check_in"
-  | "cancel_registration";
+  | "cancel_arrival";
 
 export function getAvailableGuestActions(
   role: string,
@@ -31,11 +31,11 @@ export function getAvailableGuestActions(
   }
 
   if (status === "booked") {
-    actions.push("check_in", "not_coming");
+    actions.push("mark_arrived", "not_coming");
+  } else if (status === "arrived") {
+    actions.push("check_in", "cancel_arrival");
   } else if (status === "checked_in") {
-    actions.push("register", "cancel_check_in");
-  } else if (status === "registered") {
-    actions.push("cancel_registration");
+    actions.push("cancel_check_in");
   }
 
   return actions;

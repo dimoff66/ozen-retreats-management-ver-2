@@ -13,7 +13,6 @@ export default function RetreatsList() {
   const strColumnStartDate = "Start date";
   const strColumnEndDate = "End date";
   const strColumnActive = "Active";
-  const strRoomsAction = "Rooms";
   const strYes = "Yes";
   const strNo = "No";
   const strDeleteConfirm = "Delete selected retreat?";
@@ -98,7 +97,7 @@ export default function RetreatsList() {
 
   const extraActions = [
     {
-      label: strRoomsAction,
+      label: "Rooms",
       onClickHandler: onRoomsActionClick,
     },
   ];
@@ -135,6 +134,14 @@ export default function RetreatsList() {
         onDeleteActionClick={onDeleteActionClick}
         extraActions={extraActions}
       />
+      {roomsRetreat ? (
+        <div className="mb-6">
+          <RetreatRoomsForm
+            retreat={roomsRetreat}
+            onCloseActionClick={onRoomsCloseActionClick}
+          />
+        </div>
+      ) : null}
       {isLoading ? <div>{strLoading}</div> : null}
       {isLoadError ? <div>{strLoadError}</div> : null}
       {!isLoading && !isLoadError ? (
@@ -166,12 +173,6 @@ export default function RetreatsList() {
           retreat={editingRetreat}
           onSaveActionClick={onSaveActionClick}
           onCancelActionClick={onCancelActionClick}
-        />
-      ) : null}
-      {roomsRetreat ? (
-        <RetreatRoomsForm
-          retreat={roomsRetreat}
-          onCloseActionClick={onRoomsCloseActionClick}
         />
       ) : null}
     </div>

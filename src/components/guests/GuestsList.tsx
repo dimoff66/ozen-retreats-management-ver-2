@@ -41,7 +41,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
   const strDefaultArrival = "-";
   const strStatusBooked = "Booked";
   const strStatusCheckedIn = "Checked in";
-  const strStatusRegistered = "Registered";
+  const strStatusArrived = "Arrived";
   const strStatusNotComing = "Not coming";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load guests.";
@@ -50,11 +50,11 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
   const actionLabels: Record<GuestAction, string> = {
     move_room: "Change room",
     swap_room: "Swap rooms",
-    check_in: "Check in",
+    mark_arrived: "Mark arrived",
     not_coming: "Not coming",
-    register: "Register",
+    check_in: "Check in",
     cancel_check_in: "Cancel check-in",
-    cancel_registration: "Cancel registration",
+    cancel_arrival: "Cancel arrival",
   };
 
   const { currentUser: user } = useCurrentUser();
@@ -86,8 +86,8 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
       return strStatusCheckedIn;
     }
 
-    if (status === "registered") {
-      return strStatusRegistered;
+    if (status === "arrived") {
+      return strStatusArrived;
     }
 
     if (status === "not_coming") {
@@ -95,6 +95,22 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     }
 
     return status;
+  };
+
+  const getStatusBadgeClassName = (status: GuestStatusValue): string => {
+    if (status === "checked_in") {
+      return "bg-blue-100 text-blue-800";
+    }
+
+    if (status === "arrived") {
+      return "bg-green-100 text-green-800";
+    }
+
+    if (status === "not_coming") {
+      return "bg-red-100 text-red-800";
+    }
+
+    return "bg-gray-100 text-gray-700";
   };
 
   const loadInitialData = async () => {
@@ -259,8 +275,28 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     setActionError("");
   };
 
+  const recordRoomAssignment = async (guestId: number, roomId: number): Promise<void> => {
+    if (!user) {
+      return;
+    }
+
+    const room = rooms.find((item) => item.id === roomId);
+    const house = houses.find((item) => item.id === room?.house_id);
+
+    if (!room || !house) {
+      return;
+    }
+
+    await guestStatusesService.createStatus(
+      guestId,
+      guestStatuses.get(guestId) ?? "booked",
+      roomsService.getRoomDisplayName(room, house),
+      user.id
+    );
+  };
+
   const onRoomSelectActionClick = async (room: Room) => {
-    if (!mapGuest || !selectedRetreatId) {
+    if (!mapGuest || !selectedRetreatId || !user) {
       return;
     }
 
@@ -270,6 +306,10 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
       await guestsService.updateGuest(mapGuest.id, {
         room_id: room.id,
       });
+
+      if (mapGuest.room_id !== room.id) {
+        await recordRoomAssignment(mapGuest.id, room.id);
+      }
 
       setIsMapOpen(false);
       setMapGuest(null);
@@ -282,7 +322,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
   };
 
   const onGuestSwapActionClick = async (targetGuest: Guest) => {
-    if (!mapGuest || !selectedRetreatId || !mapGuest.room_id || !targetGuest.room_id) {
+    if (!mapGuest || !selectedRetreatId || !user || !mapGuest.room_id || !targetGuest.room_id) {
       return;
     }
 
@@ -293,6 +333,14 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
         guestsService.updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
         guestsService.updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
       ]);
+
+      if (mapGuest.room_id !== targetGuest.room_id) {
+        await Promise.all([
+          recordRoomAssignment(mapGuest.id, targetGuest.room_id),
+          recordRoomAssignment(targetGuest.id, mapGuest.room_id),
+        ]);
+      }
+
       setIsMapOpen(false);
       setMapGuest(null);
       setSelectedGuest(null);
@@ -326,11 +374,11 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     }
 
     const statusByAction: Partial<Record<GuestAction, GuestStatusValue>> = {
-      check_in: "checked_in",
       not_coming: "not_coming",
-      register: "registered",
-      cancel_check_in: "booked",
-      cancel_registration: "checked_in",
+      mark_arrived: "arrived",
+      check_in: "checked_in",
+      cancel_check_in: "arrived",
+      cancel_arrival: "booked",
     };
     const nextStatus = statusByAction[action];
 
@@ -385,13 +433,36 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     const dietText = guest.diet_notes ?? strNoDiet;
     const status = guestStatuses.get(guest.id) ?? "booked";
     const statusText = getStatusLabel(status);
+    const statusBadgeClassName = getStatusBadgeClassName(status);
     const isSelected = selectedGuest?.id === guest.id;
     const availableActions = user
       ? getAvailableGuestActions(user.role, status, guest.room_id !== null)
       : [];
 
+    const actionRows = availableActions.map((action) => {
+      const label = actionLabels[action];
+
+      const onClickHandler = (event: MouseEvent<HTMLButtonElement>) => {
+        onGuestActionClick(event, guest, action);
+      };
+
+      return {
+        id: action,
+        label,
+        onClickHandler,
+      };
+    });
+
     const onRowClick = () => {
       setSelectedGuest(guest);
+    };
+
+    const onActionsCellClick = (event: MouseEvent<HTMLTableCellElement>) => {
+      event.stopPropagation();
+    };
+
+    const onActionsToggleClick = (event: MouseEvent<HTMLElement>) => {
+      event.stopPropagation();
     };
 
     const onRoomClick = (event: MouseEvent<HTMLButtonElement>) => {
@@ -416,11 +487,14 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
       arrivalText,
       dietText,
       roomName,
+      status,
       statusText,
+      statusBadgeClassName,
       isSelected,
-      availableActions,
-      guest,
+      actionRows,
       onRowClick,
+      onActionsCellClick,
+      onActionsToggleClick,
       onRoomClick,
     };
   });
@@ -459,7 +533,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1>
+      {retreatId === undefined ? <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1> : null}
       {retreatId === undefined ? <div className="mb-4 max-w-md">
         <label className="mb-1 block text-sm font-medium">{strRetreat}</label>
         <select
@@ -507,22 +581,35 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
                       <button type="button" onClick={guest.onRoomClick} className="font-semibold text-blue-600 hover:underline">{guest.roomName}</button>
                     )}
                   </td>
-                  <td className="px-4 py-3">{guest.statusText}</td>
-                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
-                    {guest.availableActions.length > 0 ? (
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${guest.statusBadgeClassName}`}>
+                      {guest.statusText}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3" onClick={guest.onActionsCellClick}>
+                    {guest.actionRows.length > 0 ? (
                       <details className="relative">
-                        <summary className="cursor-pointer list-none rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50">
-                          Actions
+                        <summary
+                          aria-label="Guest actions"
+                          title="Guest actions"
+                          onClick={guest.onActionsToggleClick}
+                          className="ml-auto flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 [&::-webkit-details-marker]:hidden"
+                        >
+                          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+                            <circle cx="12" cy="5" r="1.8" />
+                            <circle cx="12" cy="12" r="1.8" />
+                            <circle cx="12" cy="19" r="1.8" />
+                          </svg>
                         </summary>
                         <div className="absolute right-0 z-20 mt-1 min-w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg">
-                          {guest.availableActions.map((action) => (
+                          {guest.actionRows.map((action) => (
                             <button
-                              key={action}
+                              key={action.id}
                               type="button"
-                              onClick={(event) => onGuestActionClick(event, guest.guest, action)}
+                              onClick={action.onClickHandler}
                               className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
                             >
-                              {actionLabels[action]}
+                              {action.label}
                             </button>
                           ))}
                         </div>

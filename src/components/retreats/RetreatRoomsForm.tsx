@@ -17,7 +17,6 @@ import roomsService from "@/services/roomsService";
 type RetreatRoomsFormProps = {
   retreat: Retreat;
   onCloseActionClick: () => void;
-  onSavedActionClick?: () => void;
 };
 
 type RoomSetting = {
@@ -29,7 +28,6 @@ type RoomSetting = {
 export default function RetreatRoomsForm({
   retreat,
   onCloseActionClick,
-  onSavedActionClick,
 }: RetreatRoomsFormProps) {
   const strTitle = "Retreat rooms";
   const strAvailable = "Available";
@@ -116,12 +114,7 @@ export default function RetreatRoomsForm({
         saveSettings
       );
 
-      if (onSavedActionClick) {
-        await loadData();
-        onSavedActionClick();
-      } else {
-        onCloseActionClick();
-      }
+      await loadData();
     } catch {
       setError(strSaveError);
     } finally {
@@ -279,13 +272,12 @@ export default function RetreatRoomsForm({
   }, [retreat.id]);
 
   return (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
-    <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
-      <div className="shrink-0 border-b border-gray-200 px-6 py-4">
+    <section className="space-y-4">
+      <div>
         <h2 className="text-xl font-bold">{strTitle}</h2>
         <div className="mt-1 text-gray-600">{retreat.title}</div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      <div>
         {isLoading ? <div>{strLoading}</div> : null}
         {error ? <div className="mb-4 text-red-600">{error}</div> : null}
         {!isLoading ? (
@@ -372,8 +364,7 @@ export default function RetreatRoomsForm({
           </div>
         ) : null}
       </div>
-      <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
-        <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 border-t border-gray-200 pt-4">
           <button
             type="button"
             onClick={onCloseActionClick}
@@ -390,9 +381,7 @@ export default function RetreatRoomsForm({
           >
             {strSave}
           </button>
-        </div>
       </div>
-    </div>
-  </div>
-);
+    </section>
+  );
 }

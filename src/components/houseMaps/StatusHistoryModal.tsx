@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import type { Guest, GuestStatus } from "@/services/database";
-import guestStatusesService from "@/services/guestStatusesService";
+import guestStatusesService, {
+  getGuestStatusHistoryMessage,
+  getPreviousGuestStatuses,
+} from "@/services/guestStatusesService";
 
 export type StatusHistoryTarget =
   | {
@@ -32,10 +35,7 @@ export default function StatusHistoryModal({
 }: StatusHistoryModalProps) {
   const strTitle = "History";
   const strDate = "Date";
-  const strGuest = "Guest";
-  const strStatus = "Status";
-  const strRoom = "Room";
-  const strChangedBy = "Changed by";
+  const strActivity = "Activity";
   const strClose = "Close";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load history.";
@@ -48,26 +48,6 @@ export default function StatusHistoryModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadError, setIsLoadError] = useState(false);
 
-  const getStatusLabel = (status: string): string => {
-    if (status === "booked") {
-      return "Booked";
-    }
-
-    if (status === "checked_in") {
-      return "Checked in";
-    }
-
-    if (status === "registered") {
-      return "Registered";
-    }
-
-    if (status === "not_coming") {
-      return "Not coming";
-    }
-
-    return status;
-  };
-
   const loadHistory = async () => {
     setIsLoading(true);
     setIsLoadError(false);
@@ -75,15 +55,7 @@ export default function StatusHistoryModal({
     try {
       const data = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
 
-      const filteredStatuses = data.filter((status) => {
-        if (target.type === "guest") {
-          return status.guest_id === target.guestId;
-        }
-
-        return status.room === target.roomName;
-      });
-
-      setStatuses(filteredStatuses);
+      setStatuses(data);
     } catch {
       setIsLoadError(true);
     } finally {
@@ -91,17 +63,27 @@ export default function StatusHistoryModal({
     }
   };
 
-  const historyRows = statuses.map((status) => {
+  const previousStatuses = getPreviousGuestStatuses(statuses);
+  const filteredStatuses = statuses.filter((status) => {
+    if (target.type === "guest") {
+      return status.guest_id === target.guestId;
+    }
+
+    return status.room === target.roomName;
+  });
+  const historyRows = filteredStatuses.map((status) => {
     const guest = guests.find((item) => item.id === status.guest_id);
     const updatedBy = users.find((item) => item.id === status.updated_by);
 
     return {
       id: status.id,
       date: new Date(status.changed_at).toLocaleString(),
-      guestName: guest?.name ?? strUnknown,
-      status: getStatusLabel(status.status),
-      room: status.room ?? strUnknown,
-      updatedBy: updatedBy?.name ?? strUnknown,
+      activity: getGuestStatusHistoryMessage(
+        status,
+        previousStatuses.get(status.id),
+        guest?.name ?? strUnknown,
+        updatedBy?.name ?? strUnknown
+      ),
     };
   });
 
@@ -127,20 +109,14 @@ export default function StatusHistoryModal({
               <thead className="sticky top-0 bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left">{strDate}</th>
-                  <th className="px-4 py-3 text-left">{strGuest}</th>
-                  <th className="px-4 py-3 text-left">{strStatus}</th>
-                  <th className="px-4 py-3 text-left">{strRoom}</th>
-                  <th className="px-4 py-3 text-left">{strChangedBy}</th>
+                  <th className="px-4 py-3 text-left">{strActivity}</th>
                 </tr>
               </thead>
               <tbody>
                 {historyRows.map((row) => (
                   <tr key={row.id} className="border-t border-gray-200">
                     <td className="px-4 py-3">{row.date}</td>
-                    <td className="px-4 py-3">{row.guestName}</td>
-                    <td className="px-4 py-3">{row.status}</td>
-                    <td className="px-4 py-3">{row.room}</td>
-                    <td className="px-4 py-3">{row.updatedBy}</td>
+                    <td className="px-4 py-3">{row.activity}</td>
                   </tr>
                 ))}
               </tbody>

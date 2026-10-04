@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import type { Guest, TaxiGuest, TaxiRide } from "@/services/database";
+import dateService from "@/services/dateService";
 import guestsService from "@/services/guestsService";
 import taxiRidesService from "@/services/taxiRidesService";
 
@@ -243,7 +244,7 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
 
     return {
       id: ride.id,
-      arrival: new Date(ride.arrival_datetime).toLocaleString(),
+      arrival: dateService.formatDateTime(ride.arrival_datetime),
       passengerCount,
       className: isSelected
         ? "block w-full rounded-lg border border-blue-500 bg-blue-50 p-4 text-left"

@@ -8,6 +8,7 @@ import TaxiRidesPanel from "@/components/taxis/TaxiRidesPanel";
 import GuestsList from "@/components/guests/GuestsList";
 import RetreatRoomsForm from "@/components/retreats/RetreatRoomsForm";
 import type { Retreat } from "@/services/database";
+import dateService from "@/services/dateService";
 import retreatsService from "@/services/retreatsService";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 
@@ -162,7 +163,7 @@ export default function RetreatWorkspace() {
     return {
       id: retreat.id,
       title: retreat.title,
-      dateRange: `${retreat.start_date} – ${retreat.end_date}`,
+      dateRange: `${dateService.formatDate(retreat.start_date)} – ${dateService.formatDate(retreat.end_date)}`,
       isInactive: !retreat.is_active,
       onClickHandler,
     };
@@ -173,6 +174,9 @@ export default function RetreatWorkspace() {
   const showMap = activeTab?.mapMode !== undefined;
   const showAdminMap = activeTabName === "Map" && isAdmin;
   const showHistory = activeTabName === "History";
+  const selectedRetreatDateRange = selectedRetreat
+    ? `${dateService.formatDate(selectedRetreat.start_date)} – ${dateService.formatDate(selectedRetreat.end_date)}`
+    : "";
 
   return (
     <div className="space-y-5">
@@ -182,7 +186,7 @@ export default function RetreatWorkspace() {
             <div>
               <h1 className="text-2xl font-bold">{selectedRetreat.title}</h1>
               <p className="text-sm text-gray-600">
-                {selectedRetreat.start_date} – {selectedRetreat.end_date}
+                {selectedRetreatDateRange}
               </p>
             </div>
             {canChangeRetreat ? (

@@ -13,6 +13,7 @@ import type {
   Retreat,
   Room,
 } from "@/services/database";
+import dateService from "@/services/dateService";
 import guestsService from "@/services/guestsService";
 import guestStatusesService from "@/services/guestStatusesService";
 import { getAvailableGuestActions } from "@/services/guestActionsService";
@@ -429,7 +430,9 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
       ? `${guest.name} (${strOrganizer})`
       : guest.name;
 
-    const arrivalText = guest.arrival_date ?? strDefaultArrival;
+    const arrivalText = guest.arrival_date
+      ? dateService.formatDate(guest.arrival_date)
+      : strDefaultArrival;
     const dietText = guest.diet_notes ?? strNoDiet;
     const status = guestStatuses.get(guest.id) ?? "booked";
     const statusText = getStatusLabel(status);

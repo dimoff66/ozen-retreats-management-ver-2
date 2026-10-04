@@ -5,6 +5,7 @@ import ActionBar from "@/components/common/ActionBar";
 import RetreatForm from "@/components/retreats/RetreatForm";
 import RetreatRoomsForm from "@/components/retreats/RetreatRoomsForm";
 import type { CreateRetreat, Retreat } from "@/services/database";
+import dateService from "@/services/dateService";
 import retreatsService from "@/services/retreatsService";
 
 export default function RetreatsList() {
@@ -112,8 +113,8 @@ export default function RetreatsList() {
     return {
       id: retreat.id,
       title: retreat.title,
-      startDate: retreat.start_date,
-      endDate: retreat.end_date,
+      startDate: dateService.formatDate(retreat.start_date),
+      endDate: dateService.formatDate(retreat.end_date),
       activeText: retreat.is_active ? strYes : strNo,
       isSelected,
       onRowClick,

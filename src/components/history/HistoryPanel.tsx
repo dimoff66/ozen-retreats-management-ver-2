@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import HistoryActivity from "./HistoryActivity";
 import type { Guest, GuestStatus, House, Room } from "@/services/database";
+import dateService from "@/services/dateService";
 import guestStatusesService, {
   getGuestStatusHistoryMessage,
   getPreviousGuestStatuses,
@@ -137,8 +139,8 @@ export default function HistoryPanel({ retreatId, filter }: HistoryPanelProps) {
 
     return {
       id: status.id,
-      date: new Date(status.changed_at).toLocaleString(),
-      activity: getGuestStatusHistoryMessage(
+      date: dateService.formatDateTime(status.changed_at),
+      activityParts: getGuestStatusHistoryMessage(
         status,
         previousStatuses.get(status.id),
         guest?.name ?? strUnknown,
@@ -188,7 +190,7 @@ export default function HistoryPanel({ retreatId, filter }: HistoryPanelProps) {
               {historyRows.map((row) => (
                 <tr key={row.id} className="border-t border-gray-200">
                   <td className="whitespace-nowrap px-4 py-3">{row.date}</td>
-                  <td className="px-4 py-3">{row.activity}</td>
+                  <td className="px-4 py-3"><HistoryActivity parts={row.activityParts} /></td>
                 </tr>
               ))}
             </tbody>

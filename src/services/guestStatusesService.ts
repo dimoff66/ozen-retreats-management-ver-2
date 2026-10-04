@@ -14,6 +14,11 @@ export type LatestGuestStatus = {
   changedAt: string;
 };
 
+export type GuestStatusHistoryPart = {
+  type: "text" | "user" | "guest" | "room";
+  text: string;
+};
+
 export function getPreviousGuestStatuses(statuses: GuestStatus[]): Map<number, GuestStatus> {
   const previousStatuses = new Map<number, GuestStatus>();
   const latestByGuest = new Map<number, GuestStatus>();
@@ -41,38 +46,61 @@ export function getGuestStatusHistoryMessage(
   previousStatus: GuestStatus | undefined,
   guestName: string,
   userName: string
-): string {
+): GuestStatusHistoryPart[] {
+  const user = { type: "user", text: userName } satisfies GuestStatusHistoryPart;
+  const guest = { type: "guest", text: guestName } satisfies GuestStatusHistoryPart;
+  const text = (value: string): GuestStatusHistoryPart => ({ type: "text", text: value });
+  const room = (value: string): GuestStatusHistoryPart => ({ type: "room", text: value });
+
   if (status.status === "arrived" && previousStatus?.status === "checked_in") {
-    return `${userName} cancelled check-in for ${guestName}`;
+    return [user, text(" cancelled check-in for "), guest];
   }
 
   if (status.status === "booked" && previousStatus?.status === "arrived") {
-    return `${userName} cancelled arrival for ${guestName}`;
+    return [user, text(" cancelled arrival for "), guest];
+  }
+
+  if (previousStatus && status.room && status.room !== previousStatus.room) {
+    return [
+      user,
+      text(" moved "),
+      guest,
+      text(" from "),
+      room(previousStatus.room ?? "unassigned"),
+      text(" to "),
+      room(status.room),
+    ];
   }
 
   if (status.status === "booked") {
-    if (status.room && status.room !== previousStatus?.room) {
-      return `${userName} assigned room ${status.room} to ${guestName}`;
+    if (status.room && !previousStatus) {
+      return [user, text(" assigned room "), room(status.room), text(" to "), guest];
     }
 
-    return `${userName} confirmed the booking for ${guestName}`;
+    return [user, text(" confirmed the booking for "), guest];
   }
 
   if (status.status === "checked_in") {
-    const roomDescription = status.room ? ` to room ${status.room}` : "";
+    const roomDescription = status.room
+      ? [text(" to room "), room(status.room)]
+      : [];
 
-    return `${userName} checked in ${guestName}${roomDescription}`;
+    return [user, text(" checked in "), guest, ...roomDescription];
   }
 
   if (status.status === "arrived") {
-    return `${userName} registered the arrival of ${guestName}`;
+    const roomDescription = status.room
+      ? [text(" in room "), room(status.room)]
+      : [];
+
+    return [user, text(" registered the arrival of "), guest, ...roomDescription];
   }
 
   if (status.status === "not_coming") {
-    return `${userName} marked ${guestName} as not coming`;
+    return [user, text(" marked "), guest, text(" as not coming")];
   }
 
-  return `${userName} updated the status for ${guestName} to ${status.status}`;
+  return [user, text(" updated the status for "), guest, text(` to ${status.status}`)];
 }
 
 const guestStatusesService = {

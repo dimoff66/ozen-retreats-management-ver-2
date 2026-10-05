@@ -347,7 +347,7 @@ const db = {
       const { data, error } = await supabase
         .from("houses")
         .select("*")
-        .order("name");
+        .order("id");
 
       if (error) {
         throwDatabaseError("Failed to get houses", error);
@@ -377,7 +377,7 @@ const db = {
         .from("houses")
         .select("*")
         .eq("parent_id", parentId)
-        .order("name");
+        .order("id");
 
       if (error) {
         throwDatabaseError("Failed to get child houses", error);

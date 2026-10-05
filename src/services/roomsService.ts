@@ -39,15 +39,13 @@ const roomsService = {
 
   sortRooms: (rooms: Room[], houses: House[]): Room[] => {
     const getSortValues = (room: Room) => {
-      const house = houses.find((item) => item.id === room.house_id);
-      const houseName = house?.name ?? "";
-
       const match = room.room_number.match(/^([A-Za-z]*)(\d+)/);
       const letterPrefix = match?.[1] ?? "";
       const numericPart = match?.[2] ? Number(match[2]) : 0;
 
       return {
-        houseKey: `${houseName}${letterPrefix}`,
+        houseId: houses.find((item) => item.id === room.house_id)?.id ?? room.house_id,
+        letterPrefix,
         numericPart,
         roomNumber: room.room_number,
       };
@@ -57,10 +55,16 @@ const roomsService = {
       const sortA = getSortValues(roomA);
       const sortB = getSortValues(roomB);
 
-      const houseCompare = sortA.houseKey.localeCompare(sortB.houseKey);
+      const houseCompare = sortA.houseId - sortB.houseId;
 
       if (houseCompare !== 0) {
         return houseCompare;
+      }
+
+      const letterCompare = sortA.letterPrefix.localeCompare(sortB.letterPrefix);
+
+      if (letterCompare !== 0) {
+        return letterCompare;
       }
 
       const numberCompare = sortA.numericPart - sortB.numericPart;

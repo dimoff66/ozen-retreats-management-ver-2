@@ -284,7 +284,7 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
         : strNoTaxi,
       status: statuses.get(guest.id) ?? "booked",
     };
-  }).sort((left, right) => left.houseName.localeCompare(right.houseName)
+  }).sort((left, right) => (left.houseId ?? Number.MAX_SAFE_INTEGER) - (right.houseId ?? Number.MAX_SAFE_INTEGER)
     || left.roomName.localeCompare(right.roomName)
     || left.guest.name.localeCompare(right.guest.name));
   const guestCardRows: ArrivalGuestCardRow[] = guestRows.map((guestRow) => {

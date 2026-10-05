@@ -281,7 +281,7 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   const rideRows = rides.map((ride, index) => {
     const assignedPassengers = taxiGuests.filter((passenger) => passenger.ride_id === ride.id);
     const passengerCount = assignedPassengers.length;
-    const assignedHouseNames = Array.from(new Set(assignedPassengers.flatMap((passenger) => {
+    const assignedHouseIds = Array.from(new Set(assignedPassengers.flatMap((passenger) => {
       if (passenger.guest_id === null) {
         return [];
       }
@@ -290,8 +290,13 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
       const room = rooms.find((item) => item.id === guest?.room_id);
       const house = houses.find((item) => item.id === room?.house_id);
 
+      return house ? [house.id] : [];
+    }))).sort((left, right) => left - right);
+    const assignedHouseNames = assignedHouseIds.flatMap((houseId) => {
+      const house = houses.find((item) => item.id === houseId);
+
       return house ? [house.name] : [];
-    }))).sort((left, right) => left.localeCompare(right));
+    });
     const houseSummary = assignedHouseNames.length > 0
       ? ` (${assignedHouseNames.join(", ")})`
       : "";
@@ -320,6 +325,7 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
     const roomName = room && house
       ? roomsService.getRoomDisplayName(room, house)
       : strUnknown;
+    const houseId = house?.id ?? Number.MAX_SAFE_INTEGER;
     const onRemoveClick = () => {
       void onPassengerDeleteClick(passenger);
     };
@@ -328,9 +334,11 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
       id: passenger.id,
       name,
       roomName,
+      houseId,
       onRemoveClick,
     };
-  }).sort((left, right) => left.roomName.localeCompare(right.roomName)
+  }).sort((left, right) => left.houseId - right.houseId
+    || left.roomName.localeCompare(right.roomName)
     || left.name.localeCompare(right.name));
   const selectedGuestIds = selectedTaxiGuests.flatMap((passenger) =>
     passenger.guest_id === null ? [] : [passenger.guest_id]

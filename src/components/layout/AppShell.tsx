@@ -5,6 +5,7 @@ import HousesList from "@/components/houses/HousesList";
 import RetreatWorkspace from "@/components/retreats/RetreatWorkspace";
 import RetreatsList from "@/components/retreats/RetreatsList";
 import RoomsList from "@/components/rooms/RoomsList";
+import UsersList from "@/components/users/UsersList";
 import Sidebar from "@/components/layout/Sidebar";
 import UserSelector from "@/components/layout/UserSelector";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
@@ -38,12 +39,14 @@ export default function AppShell() {
     );
   }
 
-  const adminSections = ["Houses", "Rooms", "Retreats"];
+  const adminSections = ["Houses", "Rooms", "Retreats", "Users"];
   const adminSectionContent = selectedAdminSection === "Houses"
     ? <HousesList />
     : selectedAdminSection === "Rooms"
       ? <RoomsList />
-      : <RetreatsList />;
+      : selectedAdminSection === "Users"
+        ? <UsersList />
+        : <RetreatsList />;
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">

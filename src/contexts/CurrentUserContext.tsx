@@ -13,6 +13,7 @@ import usersService from "@/services/usersService";
 type CurrentUserContextValue = {
   users: User[];
   currentUser: User | null;
+  setUsers: (users: User[]) => void;
   setCurrentUser: (user: User) => void;
   isLoadingUsers: boolean;
   usersLoadError: boolean;
@@ -62,6 +63,7 @@ export function CurrentUserProvider({
   const value: CurrentUserContextValue = {
     users,
     currentUser,
+    setUsers,
     setCurrentUser,
     isLoadingUsers,
     usersLoadError,

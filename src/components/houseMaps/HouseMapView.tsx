@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import type {
   Guest,
@@ -65,6 +65,9 @@ export default function HouseMapView({
   const strLoadError = "Failed to load house maps.";
   const strActionError = "Failed to perform action.";
   const strNoMaps = "No house maps available.";
+  const strNoRooms = "No rooms available.";
+  const strMapView = "Map";
+  const strRoomListView = "Rooms without map";
   const strNoBackground = "No map image.";
   const strOrganizer = "organizer";
   const strShowHistory = "Show history";
@@ -86,6 +89,7 @@ export default function HouseMapView({
   const [guests, setGuests] = useState<Guest[]>([]);
   const [statuses, setStatuses] = useState<Map<number, LatestGuestStatus>>(new Map());
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
+  const [isMapVisible, setIsMapVisible] = useState(true);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
   const [actionGuest, setActionGuest] = useState<Guest | null>(
     initialSelectionMode ? guest : null
@@ -96,11 +100,11 @@ export default function HouseMapView({
   const [isLoadError, setIsLoadError] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  if (!user) {
-    return null;
-  }
+  const loadData = useCallback(async () => {
+    if (!user) {
+      return;
+    }
 
-  const loadData = async () => {
     setIsLoading(true);
     setIsLoadError(false);
 
@@ -136,6 +140,20 @@ export default function HouseMapView({
     } finally {
       setIsLoading(false);
     }
+  }, [retreatId, user]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [loadData]);
+
+  if (!user) {
+    return null;
   }
 
   const getRoomName = (room: Room): string => {
@@ -494,6 +512,14 @@ export default function HouseMapView({
     finishSelection();
   };
 
+  const onMapViewClick = () => {
+    setIsMapVisible(true);
+  };
+
+  const onRoomListViewClick = () => {
+    setIsMapVisible(false);
+  };
+
   const getGuestClassName = (status: string): string => {
     if (status === strCheckedIn) {
       return "text-green-700";
@@ -686,6 +712,89 @@ export default function HouseMapView({
     })
     .filter((item) => item !== null);
 
+  const roomSelectionItems = roomsService.sortRooms(rooms, houses).map((room) => {
+    const house = houses.find((item) => item.id === room.house_id);
+    const retreatRoom = retreatRooms.find((item) => item.room_id === room.id);
+    const roomGuests = guests.filter((item) => item.room_id === room.id);
+    const activeGuests = roomGuests.filter(
+      (roomGuest) => statuses.get(roomGuest.id)?.status !== strNotComingStatus
+    );
+    const maxGuests = retreatRoom?.max_guests ?? 0;
+    const isRoomAvailable = room.is_available && retreatRoom !== undefined;
+    const isFull = isRoomAvailable && activeGuests.length >= maxGuests;
+    const canAddGuest = isRoomAvailable && !isFull;
+    const statusBarClassName = !isRoomAvailable
+      ? "bg-gray-400"
+      : isFull
+        ? "bg-green-600"
+        : "bg-blue-600";
+    const roomName = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
+
+    const onRoomClickHandler = () => {
+      if (selectionMode === "guest") {
+        return;
+      }
+
+      if (selectionMode === "room") {
+        void onRoomSelected(room);
+        return;
+      }
+
+      const roomActions = getAvailableActions("room", room, null);
+      setActions(roomActions);
+      setActionsTitle(roomName);
+    };
+
+    const guestItems = roomGuests.map((roomGuest) => {
+      const status = statuses.get(roomGuest.id)?.status ?? strBooked;
+      const isGuestSelectable = canSelectGuest(roomGuest);
+      const guestName = roomGuest.is_organizer
+        ? `${roomGuest.name} (${strOrganizer})`
+        : roomGuest.name;
+
+      const onGuestClickHandler = () => {
+        if (selectionMode === "room") {
+          return;
+        }
+
+        if (selectionMode === "guest") {
+          void onGuestSelected(roomGuest);
+          return;
+        }
+
+        const guestActions = getAvailableActions("guest", room, roomGuest);
+        setActions(guestActions);
+        setActionsTitle(roomGuest.name);
+      };
+
+      const className = selectionMode === "guest"
+        ? isGuestSelectable
+          ? `rounded-full border border-blue-300 bg-white px-2 py-1 text-xs font-semibold ${getGuestClassName(status)} hover:bg-blue-50`
+          : `rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-xs ${getGuestClassName(status)} opacity-50`
+        : `rounded-full border border-gray-200 bg-white px-2 py-1 text-xs ${getGuestClassName(status)} hover:bg-gray-50`;
+
+      return {
+        id: roomGuest.id,
+        name: guestName,
+        className,
+        isDisabled: selectionMode === "room"
+          || (selectionMode === "guest" && !isGuestSelectable),
+        onClickHandler: onGuestClickHandler,
+      };
+    });
+
+    return {
+      id: room.id,
+      name: roomName,
+      occupancyText: retreatRoom ? `${activeGuests.length}/${maxGuests}` : "—",
+      canAddGuest,
+      statusBarClassName,
+      isSelectable: canSelectRoom(room),
+      onRoomClickHandler,
+      guestItems,
+    };
+  });
+
   const preparedActions = actions.map((action) => {
     const onClickHandler = () => {
       action.onClickHandler();
@@ -712,10 +821,6 @@ export default function HouseMapView({
     selectionText = `${strSelectGuest}: ${actionGuest.name}`;
   }
 
-  useEffect(() => {
-    loadData();
-  }, [retreatId]);
-
   return (
     <div className="flex h-full flex-col">
       <div className="mb-4 flex shrink-0 items-center justify-between">
@@ -739,17 +844,68 @@ export default function HouseMapView({
       {actionError ? <div className="mb-4 text-red-600">{actionError}</div> : null}
       {isLoading ? <div>{strLoading}</div> : null}
       {isLoadError ? <div>{strLoadError}</div> : null}
-      {!isLoading && !isLoadError && houseMaps.length === 0 ? <div>{strNoMaps}</div> : null}
-      {!isLoading && !isLoadError && houseMaps.length > 0 ? (
+      {!isLoading && !isLoadError && (houseMaps.length > 0 || rooms.length > 0) ? (
         <>
           <div className="mb-4 flex shrink-0 flex-wrap gap-2">
-            {mapTabs.map((tab) => (
-              <button key={tab.id} type="button" onClick={tab.onClickHandler} className={tab.isSelected ? "rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white" : "rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"}>
-                {tab.label}
-              </button>
-            ))}
+            <button type="button" onClick={onMapViewClick} aria-pressed={isMapVisible} className={isMapVisible ? "rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white" : "rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"}>
+              {strMapView}
+            </button>
+            <button type="button" onClick={onRoomListViewClick} aria-pressed={!isMapVisible} className={!isMapVisible ? "rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white" : "rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"}>
+              {strRoomListView}
+            </button>
           </div>
-          {selectedMap ? (
+          {!isMapVisible ? (
+            <div className="min-h-0 flex-1 overflow-auto">
+              {roomSelectionItems.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (
+                <div className="flex flex-wrap items-start gap-3">
+                  {roomSelectionItems.map((room) => (
+                    <div key={room.id} className={`min-w-52 max-w-full rounded-xl border p-3 shadow-sm ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={room.onRoomClickHandler}
+                          disabled={selectionMode === "room" && !room.isSelectable}
+                          className="text-left font-semibold text-gray-900 hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+                        >
+                          {room.name}
+                        </button>
+                        <span className="shrink-0 text-xs font-medium text-gray-600">{room.occupancyText}</span>
+                      </div>
+                      <div className="mt-2 h-1 w-full rounded-full bg-gray-200">
+                        <div className={`h-full w-full rounded-full ${room.statusBarClassName}`} />
+                      </div>
+                      {room.guestItems.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {room.guestItems.map((roomGuest) => (
+                            <button
+                              key={roomGuest.id}
+                              type="button"
+                              onClick={roomGuest.onClickHandler}
+                              disabled={roomGuest.isDisabled}
+                              className={roomGuest.className}
+                            >
+                              {roomGuest.name}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {mapTabs.length > 0 ? (
+                <div className="mb-4 flex shrink-0 flex-wrap gap-2">
+                  {mapTabs.map((tab) => (
+                    <button key={tab.id} type="button" onClick={tab.onClickHandler} className={tab.isSelected ? "rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white" : "rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              ) : <div className="text-gray-500">{strNoMaps}</div>}
+              {selectedMap ? (
             <div className="min-h-0 flex-1 overflow-auto bg-gray-100 p-4">
               <div className="relative mx-auto w-full max-w-5xl overflow-hidden border border-gray-300 bg-white shadow-sm">
                 {selectedMap.bg_image_url ? (
@@ -797,7 +953,9 @@ export default function HouseMapView({
                 ))}
               </div>
             </div>
-          ) : null}
+              ) : null}
+            </>
+          )}
         </>
       ) : null}
       {isActionsOpen ? (

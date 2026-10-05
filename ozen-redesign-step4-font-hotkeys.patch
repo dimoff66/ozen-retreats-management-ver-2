@@ -1,0 +1,664 @@
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 876a615..4e66831 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -8,6 +8,31 @@
+   --green: #416c55;
+   --green-dark: #315941;
+   --sidebar-width: 252px;
++  --ui-font-offset: 0px;
++}
++
++html[data-ui-font-level="1"] {
++  --ui-font-offset: 1px;
++}
++
++html[data-ui-font-level="2"] {
++  --ui-font-offset: 2px;
++}
++
++html[data-ui-font-level="3"] {
++  --ui-font-offset: 3px;
++}
++
++html[data-ui-font-level="4"] {
++  --ui-font-offset: 4px;
++}
++
++html[data-ui-font-level="5"] {
++  --ui-font-offset: 5px;
++}
++
++html[data-ui-font-level="6"] {
++  --ui-font-offset: 6px;
+ }
+ 
+ @theme inline {
+@@ -31,7 +56,7 @@ body {
+   background: var(--background);
+   color: var(--foreground);
+   font-family: Arial, Helvetica, sans-serif;
+-  font-size: 15px;
++  font-size: calc(15px + var(--ui-font-offset));
+   -webkit-font-smoothing: antialiased;
+ }
+ 
+@@ -123,7 +148,7 @@ input:focus-visible {
+ .ozen-brand-copy small {
+   margin-top: 4px;
+   color: #85928a;
+-  font-size: 9px;
++  font-size: calc(9px + var(--ui-font-offset));
+   font-weight: 700;
+   letter-spacing: 1.2px;
+ }
+@@ -165,7 +190,7 @@ input:focus-visible {
+ .ozen-workspace-name strong {
+   overflow: hidden;
+   color: #33463a;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+   font-weight: 650;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+@@ -173,7 +198,7 @@ input:focus-visible {
+ 
+ .ozen-workspace-name small {
+   color: #88928c;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+ }
+ 
+ .ozen-side-nav {
+@@ -187,7 +212,7 @@ input:focus-visible {
+ .ozen-nav-label {
+   padding: 0 11px;
+   color: #a0a8a3;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   font-weight: 700;
+   letter-spacing: 1px;
+ }
+@@ -244,7 +269,7 @@ input:focus-visible {
+   align-items: center;
+   gap: 9px;
+   color: #59675e;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+   font-weight: 600;
+ }
+ 
+@@ -288,7 +313,7 @@ input:focus-visible {
+ .ozen-user-avatar {
+   width: 31px;
+   height: 31px;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+ }
+ 
+ .ozen-user-copy {
+@@ -302,7 +327,7 @@ input:focus-visible {
+   max-width: 150px;
+   overflow: hidden;
+   color: #435149;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 650;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+@@ -310,13 +335,13 @@ input:focus-visible {
+ 
+ .ozen-user-copy small {
+   color: #98a19b;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+   text-transform: capitalize;
+ }
+ 
+ .ozen-user-message {
+   color: #8b958f;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+ }
+ 
+ .ozen-user-message-error {
+@@ -353,14 +378,14 @@ input:focus-visible {
+ .ozen-retreat-heading-copy > p:last-child {
+   margin: 7px 0 0;
+   color: #8b9690;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+ }
+ 
+ .ozen-eyebrow,
+ .ozen-retreat-heading-copy .ozen-eyebrow {
+   margin: 0 0 8px;
+   color: #929d96;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+ }
+ 
+ .ozen-admin-screen,
+@@ -386,7 +411,7 @@ input:focus-visible {
+   border-radius: 6px;
+   background: transparent;
+   color: #738078;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 600;
+   cursor: pointer;
+ }
+@@ -416,7 +441,7 @@ input:focus-visible {
+   gap: 8px;
+   padding: 0 13px;
+   border-radius: 6px;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 600;
+   white-space: nowrap;
+   cursor: pointer;
+@@ -518,7 +543,7 @@ input:focus-visible {
+   height: 38px;
+   padding: 0 14px;
+   color: #99a29c;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+   font-weight: 700;
+   letter-spacing: .6px;
+   text-transform: uppercase;
+@@ -530,7 +555,7 @@ input:focus-visible {
+   padding: 13px 14px;
+   border-top: 1px solid #f0f2f0;
+   color: #69766d;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+ }
+ 
+ .ozen-data-row {
+@@ -558,7 +583,7 @@ input:focus-visible {
+ .ozen-guest-arrival {
+   margin-top: 4px;
+   color: #9aa39d;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+ }
+ 
+ .ozen-room-link {
+@@ -586,12 +611,12 @@ input:focus-visible {
+ 
+ .ozen-table-status {
+   padding: 4px 8px;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+ }
+ 
+ .ozen-card-status {
+   padding: 4px 7px;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+ }
+ 
+ .ozen-card-status i {
+@@ -656,7 +681,7 @@ input:focus-visible {
+   border-radius: 5px;
+   background: transparent;
+   color: #59675e;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   text-align: left;
+   cursor: pointer;
+ }
+@@ -701,7 +726,7 @@ input:focus-visible {
+ .ozen-retreat-card-date {
+   margin-top: 7px;
+   color: #89958d;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+ }
+ 
+ .ozen-retreat-inactive {
+@@ -710,7 +735,7 @@ input:focus-visible {
+   border-radius: 10px;
+   background: #f1f3f1;
+   color: #8b958f;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+   font-weight: 600;
+ }
+ 
+@@ -745,7 +770,7 @@ input:focus-visible {
+   outline: 0;
+   background: transparent;
+   color: #526056;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+ }
+ 
+ .ozen-search-field input::placeholder {
+@@ -761,7 +786,7 @@ input:focus-visible {
+ .ozen-card-group-title {
+   margin: 0 0 9px;
+   color: #8f9992;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   font-weight: 700;
+   letter-spacing: .7px;
+   text-transform: uppercase;
+@@ -803,7 +828,7 @@ input:focus-visible {
+ .ozen-guest-avatar {
+   width: 38px;
+   height: 38px;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+ }
+ 
+ .ozen-guest-card-copy {
+@@ -822,7 +847,7 @@ input:focus-visible {
+   min-width: 0;
+   overflow: hidden;
+   color: #3e4e43;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+   font-weight: 650;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+@@ -840,7 +865,7 @@ input:focus-visible {
+   align-items: center;
+   gap: 5px;
+   color: #869189;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+ }
+ 
+ .ozen-guest-card-meta svg {
+@@ -858,12 +883,12 @@ input:focus-visible {
+ .ozen-primary-action {
+   min-height: 33px;
+   padding: 0 10px;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+ }
+ 
+ .ozen-fallback-caption {
+   color: #5d8266;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   font-weight: 650;
+ }
+ 
+@@ -913,7 +938,7 @@ input:focus-visible {
+ .ozen-room-settings-header p {
+   margin: 6px 0 0;
+   color: #8b9690;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+ }
+ 
+ .ozen-room-settings-message {
+@@ -981,7 +1006,7 @@ input:focus-visible {
+   border-radius: 6px;
+   background: #fff;
+   color: #5f6d63;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 600;
+   cursor: pointer;
+   transition: background .15s, border-color .15s, color .15s;
+@@ -1011,7 +1036,7 @@ input:focus-visible {
+   padding-left: 10px;
+   border-left: 1px solid #e6ebe7;
+   color: #7d8981;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 600;
+   white-space: nowrap;
+ }
+@@ -1076,7 +1101,7 @@ input:focus-visible {
+   display: block;
+   overflow: hidden;
+   color: #435149;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+   font-weight: 650;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+@@ -1086,7 +1111,7 @@ input:focus-visible {
+   display: block;
+   margin-top: 3px;
+   color: #9aa39d;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+ }
+ 
+ .ozen-room-capacity {
+@@ -1094,7 +1119,7 @@ input:focus-visible {
+   align-items: center;
+   gap: 7px;
+   color: #7c8880;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   white-space: nowrap;
+ }
+ 
+@@ -1380,7 +1405,7 @@ input:focus-visible {
+   border-radius: 8px;
+   background: #fff;
+   color: #7c8880;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+ }
+ 
+ .ozen-state-error {
+@@ -1403,7 +1428,7 @@ input:focus-visible {
+   border-radius: 999px;
+   background: #f1f3f1;
+   color: #7d8981;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+   font-weight: 700;
+   text-transform: capitalize;
+ }
+@@ -1428,7 +1453,7 @@ input:focus-visible {
+   border-radius: 6px;
+   background: #fff;
+   color: #4d7057;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   font-weight: 650;
+   cursor: pointer;
+   transition: background .15s, border-color .15s;
+@@ -1493,14 +1518,14 @@ input:focus-visible {
+   flex-direction: column;
+   gap: 6px;
+   color: #647168;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 650;
+ }
+ 
+ .ozen-form-field > span,
+ .ozen-form-field > label {
+   color: #647168;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 650;
+ }
+ 
+@@ -1516,7 +1541,7 @@ input:focus-visible {
+   outline: 0;
+   background: #fff;
+   color: #4c5a50;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+   transition: border-color .15s, box-shadow .15s;
+ }
+ 
+@@ -1534,7 +1559,7 @@ input:focus-visible {
+   align-items: center;
+   gap: 8px;
+   color: #647168;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 600;
+ }
+ 
+@@ -1553,7 +1578,7 @@ input:focus-visible {
+ .ozen-field-note {
+   margin: 0;
+   color: #949e97;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   font-weight: 400;
+ }
+ 
+@@ -1673,7 +1698,7 @@ input:focus-visible {
+ 
+ .ozen-taxi-number {
+   color: #8f9992;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+   font-weight: 750;
+   letter-spacing: .7px;
+   text-transform: uppercase;
+@@ -1683,20 +1708,20 @@ input:focus-visible {
+   margin-top: 7px;
+   color: #405046;
+   font-family: Georgia, "Times New Roman", serif;
+-  font-size: 15px;
++  font-size: calc(15px + var(--ui-font-offset));
+   font-weight: 500;
+ }
+ 
+ .ozen-taxi-driver {
+   margin-top: 6px;
+   color: #69766d;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+ }
+ 
+ .ozen-taxi-passenger-count {
+   margin-top: 8px;
+   color: #939d96;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+   line-height: 1.4;
+ }
+ 
+@@ -1708,7 +1733,7 @@ input:focus-visible {
+   border-radius: 5px;
+   background: transparent;
+   color: #52715b;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   font-weight: 650;
+   cursor: pointer;
+ }
+@@ -1731,7 +1756,7 @@ input:focus-visible {
+ 
+ .ozen-panel-heading-row > span {
+   color: #929c95;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+ }
+ 
+ .ozen-taxi-detail-grid {
+@@ -1764,7 +1789,7 @@ input:focus-visible {
+   border-radius: 50%;
+   background: #fff;
+   color: #a16b60;
+-  font-size: 15px;
++  font-size: calc(15px + var(--ui-font-offset));
+   cursor: pointer;
+ }
+ 
+@@ -1774,7 +1799,7 @@ input:focus-visible {
+ 
+ .ozen-table-empty {
+   color: #929c95 !important;
+-  font-size: 12px !important;
++  font-size: calc(12px + var(--ui-font-offset)) !important;
+ }
+ 
+ .ozen-taxi-passenger-editor {
+@@ -1804,7 +1829,7 @@ input:focus-visible {
+   border-bottom: 1px solid #edf0ed;
+   background: transparent;
+   color: #536158;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   text-align: left;
+   cursor: pointer;
+ }
+@@ -1820,7 +1845,7 @@ input:focus-visible {
+ .ozen-taxi-guest-result small,
+ .ozen-taxi-guest-results > p {
+   color: #929c95;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+ }
+ 
+ .ozen-taxi-guest-results > p {
+@@ -1872,7 +1897,7 @@ input:focus-visible {
+ 
+ .ozen-map-editor-header > div:first-child > span {
+   color: #98a19b;
+-  font-size: 10px;
++  font-size: calc(10px + var(--ui-font-offset));
+   font-weight: 700;
+   letter-spacing: .8px;
+   text-transform: uppercase;
+@@ -1910,7 +1935,7 @@ input:focus-visible {
+ .ozen-map-editor-sidebar h3 {
+   margin: 0 0 12px;
+   color: #526057;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 700;
+ }
+ 
+@@ -1927,7 +1952,7 @@ input:focus-visible {
+   border-radius: 6px;
+   background: #fff;
+   color: #55645a;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 650;
+   text-align: left;
+   cursor: grab;
+@@ -1940,7 +1965,7 @@ input:focus-visible {
+ 
+ .ozen-map-room-empty {
+   color: #929c95;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   line-height: 1.5;
+ }
+ 
+@@ -1959,7 +1984,7 @@ input:focus-visible {
+   padding: 9px 14px;
+   border-bottom: 1px solid #e9ede9;
+   color: #68756c;
+-  font-size: 12px;
++  font-size: calc(12px + var(--ui-font-offset));
+   font-weight: 600;
+ }
+ 
+@@ -2001,7 +2026,7 @@ input:focus-visible {
+   display: grid;
+   place-items: center;
+   color: #9aa39d;
+-  font-size: 13px;
++  font-size: calc(13px + var(--ui-font-offset));
+ }
+ 
+ .ozen-map-room-marker {
+@@ -2011,7 +2036,7 @@ input:focus-visible {
+   border-radius: 6px;
+   background: rgba(255, 255, 255, .95);
+   color: #416c55;
+-  font-size: 11px;
++  font-size: calc(11px + var(--ui-font-offset));
+   font-weight: 750;
+   cursor: grab;
+   box-shadow: 0 3px 10px rgba(43, 66, 49, .15);
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 9852c15..f2b3a3c 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -1,5 +1,6 @@
+ import type { Metadata } from "next";
+ import { Geist, Geist_Mono } from "next/font/google";
++import FontSizeHotkeys from "@/components/layout/FontSizeHotkeys";
+ import "./globals.css";
+ 
+ const geistSans = Geist({
+@@ -23,7 +24,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
+       lang="en"
+       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+     >
+-      <body className="min-h-full flex flex-col">{children}</body>
++      <body className="min-h-full flex flex-col">
++        <FontSizeHotkeys />
++        {children}
++      </body>
+     </html>
+   );
+ }
+diff --git a/src/components/layout/FontSizeHotkeys.tsx b/src/components/layout/FontSizeHotkeys.tsx
+new file mode 100644
+index 0000000..7c06569
+--- /dev/null
++++ b/src/components/layout/FontSizeHotkeys.tsx
+@@ -0,0 +1,72 @@
++'use client';
++
++import { useEffect } from "react";
++
++const storageKey = "ozen-ui-font-level";
++const minFontLevel = 0;
++const maxFontLevel = 6;
++
++const clampFontLevel = (value: number) => {
++  return Math.min(maxFontLevel, Math.max(minFontLevel, value));
++};
++
++const applyFontLevel = (level: number) => {
++  document.documentElement.dataset.uiFontLevel = String(level);
++};
++
++export default function FontSizeHotkeys() {
++  useEffect(() => {
++    let fontLevel = minFontLevel;
++
++    try {
++      const storedFontLevel = Number.parseInt(localStorage.getItem(storageKey) ?? "", 10);
++
++      if (Number.isFinite(storedFontLevel)) {
++        fontLevel = clampFontLevel(storedFontLevel);
++      }
++    } catch {
++      fontLevel = minFontLevel;
++    }
++
++    applyFontLevel(fontLevel);
++
++    const onKeyDown = (event: KeyboardEvent) => {
++      if (!event.altKey || event.ctrlKey || event.metaKey) {
++        return;
++      }
++
++      const isIncrease = event.key === "+" || event.code === "Equal" || event.code === "NumpadAdd";
++      const isDecrease = event.key === "-" || event.code === "Minus" || event.code === "NumpadSubtract";
++
++      if (!isIncrease && !isDecrease) {
++        return;
++      }
++
++      const nextFontLevel = isIncrease
++        ? clampFontLevel(fontLevel + 1)
++        : clampFontLevel(fontLevel - 1);
++
++      if (nextFontLevel === fontLevel) {
++        return;
++      }
++
++      event.preventDefault();
++      fontLevel = nextFontLevel;
++      applyFontLevel(fontLevel);
++
++      try {
++        localStorage.setItem(storageKey, String(fontLevel));
++      } catch {
++        // The preference still works for the current session if storage is unavailable.
++      }
++    };
++
++    window.addEventListener("keydown", onKeyDown);
++
++    return () => {
++      window.removeEventListener("keydown", onKeyDown);
++    };
++  }, []);
++
++  return null;
++}

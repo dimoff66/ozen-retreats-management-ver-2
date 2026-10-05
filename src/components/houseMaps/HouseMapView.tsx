@@ -556,15 +556,6 @@ export default function HouseMapView({
       };
     });
 
-  const roomSelectionGroups = [...houses]
-    .sort((left, right) => left.id - right.id)
-    .map((house) => ({
-      id: house.id,
-      name: house.name,
-      rooms: roomSelectionItems.filter((room) => room.houseId === house.id),
-    }))
-    .filter((house) => house.rooms.length > 0);
-
   const mapRoomItems = roomPositions
     .map((position: RoomPosition) => {
       const room = rooms.find((item) => item.id === position.room_id);
@@ -791,6 +782,7 @@ export default function HouseMapView({
       id: room.id,
       name: roomName,
       houseId: room.house_id,
+      isAvailableForRetreat: isRoomAvailable,
       occupancyText: retreatRoom ? `${activeGuests.length}/${maxGuests}` : "—",
       canAddGuest,
       statusBarClassName,
@@ -799,6 +791,15 @@ export default function HouseMapView({
       guestItems,
     };
   });
+
+  const roomSelectionGroups = [...houses]
+    .sort((left, right) => left.id - right.id)
+    .map((house) => ({
+      id: house.id,
+      name: house.name,
+      rooms: roomSelectionItems.filter((room) => room.houseId === house.id),
+    }))
+    .filter((house) => house.rooms.some((room) => room.isAvailableForRetreat));
 
   const preparedActions = actions.map((action) => {
     const onClickHandler = () => {
@@ -918,7 +919,7 @@ export default function HouseMapView({
                     <h4 className="mb-3 font-semibold text-gray-800">{house.name}</h4>
                     <div className="flex flex-wrap gap-2">
                       {house.rooms.map((room) => (
-                        <div key={room.id} className={`max-w-full rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
+                        <div key={room.id} className={`flex h-24 w-48 shrink-0 flex-col overflow-hidden rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -934,7 +935,7 @@ export default function HouseMapView({
                             <div className={`h-full w-full rounded-full ${room.statusBarClassName}`} />
                           </div>
                           {room.guestItems.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
+                            <div className="mt-1 flex min-h-0 flex-1 flex-wrap content-start gap-1 overflow-y-auto">
                               {room.guestItems.map((roomGuest) => (
                                 <button
                                   key={roomGuest.id}

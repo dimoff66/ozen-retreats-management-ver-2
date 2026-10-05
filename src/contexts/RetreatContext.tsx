@@ -74,6 +74,7 @@ type RetreatProviderProps = {
 
 const RetreatContext = createContext<RetreatContextValue | null>(null);
 const POLL_INTERVAL_MS = 5_000;
+const FULL_REFRESH_INTERVAL_MS = 120_000;
 
 export function RetreatProvider({
   retreatId,
@@ -88,16 +89,29 @@ export function RetreatProvider({
   const requestIdRef = useRef(0);
   const isPollingRef = useRef(false);
   const snapshotRef = useRef(snapshot);
+  const lastFullRefreshRef = useRef(0);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
-  const loadSnapshot = useCallback(async (force = false, throwOnError = false) => {
+  const loadSnapshot = useCallback(async (
+    force = false,
+    throwOnError = false,
+    background = false
+  ) => {
+    if (background && document.visibilityState !== "visible") {
+      return;
+    }
+
     const requestId = ++requestIdRef.current;
 
     try {
       const retreat = await retreatsService.getRetreatById(retreatId);
+
+      if (background && document.visibilityState !== "visible") {
+        return;
+      }
 
       if (!retreat) {
         throw new Error("Retreat no longer exists.");
@@ -114,6 +128,7 @@ export function RetreatProvider({
         && typeof retreat.version === "number"
         && typeof currentSnapshot.retreat.version === "number"
         && retreat.version === currentSnapshot.retreat.version
+        && Date.now() - lastFullRefreshRef.current < FULL_REFRESH_INTERVAL_MS
       ) {
         setError("");
         setIsLoading(false);
@@ -122,16 +137,23 @@ export function RetreatProvider({
 
       const nextSnapshot = await retreatSnapshotService.getSnapshot(retreatId);
 
+      if (background && document.visibilityState !== "visible") {
+        return;
+      }
+
       if (requestId !== requestIdRef.current) {
         return;
       }
 
+      lastFullRefreshRef.current = Date.now();
       if (
         !currentSnapshot
         || currentSnapshot.retreat.id !== retreatId
         || JSON.stringify(currentSnapshot) !== JSON.stringify(nextSnapshot)
       ) {
+        snapshotRef.current = nextSnapshot;
         setSnapshot(nextSnapshot);
+        console.log("refreshed", new Date().toLocaleString());
       }
 
       setError("");
@@ -243,23 +265,31 @@ export function RetreatProvider({
 
     return () => {
       window.clearTimeout(timeoutId);
+      requestIdRef.current += 1;
     };
   }, [loadSnapshot, currentUser?.id]);
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      if (isPollingRef.current) {
+    const pollIfVisible = () => {
+      if (document.visibilityState !== "visible" || isPollingRef.current) {
         return;
       }
 
       isPollingRef.current = true;
-      void loadSnapshot().finally(() => {
+      void loadSnapshot(false, false, true).finally(() => {
         isPollingRef.current = false;
       });
+    };
+
+    const intervalId = window.setInterval(() => {
+      pollIfVisible();
     }, POLL_INTERVAL_MS);
+
+    document.addEventListener("visibilitychange", pollIfVisible);
 
     return () => {
       window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", pollIfVisible);
     };
   }, [loadSnapshot]);
 

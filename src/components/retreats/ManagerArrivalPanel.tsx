@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import type { Guest, House, Room, TaxiGuest, TaxiRide } from "@/services/database";
 import type { GuestStatusValue } from "@/services/guestStatusesService";
+import type { GuestAction } from "@/services/guestActionsService";
+import HouseMapView from "@/components/houseMaps/HouseMapView";
 import GuestsCards from "@/components/retreats/GuestsCards";
 import type { GuestCardRow } from "@/components/retreats/GuestsCards";
+import type { GuestMenuAction } from "@/services/guestsService";
 import dateService from "@/services/dateService";
 import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
@@ -61,6 +64,8 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
   const [statuses, setStatuses] = useState<Map<number, GuestStatusValue>>(new Map());
   const [selectedRideIds, setSelectedRideIds] = useState<Set<number>>(new Set());
   const [pendingGuestIds, setPendingGuestIds] = useState<Set<number>>(new Set());
+  const [mapGuest, setMapGuest] = useState<Guest | null>(null);
+  const [mapSelectionMode, setMapSelectionMode] = useState<"room" | "guest">("room");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -128,7 +133,7 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
 
   const onGuestStatusAction = async (
     guestRow: GuestRow,
-    nextStatus: Extract<GuestStatusValue, "arrived" | "checked_in">
+    nextStatus: GuestStatusValue
   ) => {
     if (!currentUser || pendingGuestIds.has(guestRow.guest.id)) {
       return;
@@ -136,11 +141,19 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
 
     const currentStatus = statuses.get(guestRow.guest.id) ?? "booked";
 
-    if (nextStatus === "arrived" && currentStatus !== "booked") {
+    if (nextStatus === "arrived" && currentStatus !== "booked" && currentStatus !== "checked_in") {
       return;
     }
 
     if (nextStatus === "checked_in" && currentStatus !== "arrived") {
+      return;
+    }
+
+    if (nextStatus === "not_coming" && currentStatus !== "booked") {
+      return;
+    }
+
+    if (nextStatus === "booked" && currentStatus !== "arrived") {
       return;
     }
 
@@ -166,6 +179,71 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
     }
   };
 
+  const onGuestMenuAction = (
+    guestRow: GuestRow,
+    action: GuestAction
+  ) => {
+    if (action === "move_room" || action === "swap_room") {
+      setMapGuest(guestRow.guest);
+      setMapSelectionMode(action === "move_room" ? "room" : "guest");
+      return;
+    }
+
+    const nextStatus: Partial<Record<GuestAction, GuestStatusValue>> = {
+      mark_arrived: "arrived",
+      not_coming: "not_coming",
+      check_in: "checked_in",
+      cancel_check_in: "arrived",
+      cancel_arrival: "booked",
+    };
+    const status = nextStatus[action];
+
+    if (status) {
+      void onGuestStatusAction(guestRow, status);
+    }
+  };
+
+  const onRoomSelectActionClick = async (room: Room) => {
+    if (!mapGuest) {
+      return;
+    }
+
+    try {
+      const updatedGuest = await guestsService.updateGuest(mapGuest.id, {
+        room_id: room.id,
+      });
+      setGuests((current) => current.map((guest) => guest.id === updatedGuest.id ? updatedGuest : guest));
+      setStatuses((current) => new Map(current).set(updatedGuest.id, "booked"));
+      setMapGuest(null);
+    } catch {
+      setError(strStatusError);
+    }
+  };
+
+  const onGuestSwapActionClick = async (targetGuest: Guest) => {
+    if (!mapGuest?.room_id || !targetGuest.room_id) {
+      return;
+    }
+
+    try {
+      const [updatedGuest, updatedTargetGuest] = await Promise.all([
+        guestsService.updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+        guestsService.updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+      ]);
+      const updatedById = new Map([
+        [updatedGuest.id, updatedGuest],
+        [updatedTargetGuest.id, updatedTargetGuest],
+      ]);
+      setGuests((current) => current.map((guest) => updatedById.get(guest.id) ?? guest));
+      setStatuses((current) => new Map(current)
+        .set(updatedGuest.id, "booked")
+        .set(updatedTargetGuest.id, "booked"));
+      setMapGuest(null);
+    } catch {
+      setError(strStatusError);
+    }
+  };
+
   const rideRows = rides.map((ride, index) => {
     const rideGuestAssignments = taxiGuests.filter((taxiGuest) => taxiGuest.ride_id === ride.id);
     const passengerCount = rideGuestAssignments.length;
@@ -187,12 +265,7 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
   const meetingGuestIds = new Set(taxiGuests
     .filter((taxiGuest) => selectedRideIds.has(taxiGuest.ride_id) && taxiGuest.guest_id !== null)
     .flatMap((taxiGuest) => taxiGuest.guest_id === null ? [] : [taxiGuest.guest_id]));
-  const visibleGuests = mode === "meeting"
-    ? selectedRideIds.size === 0
-      ? guests
-      : guests.filter((guest) => meetingGuestIds.has(guest.id))
-    : guests;
-  const guestRows = visibleGuests.map((guest): GuestRow => {
+  const guestRows = guests.map((guest): GuestRow => {
     const room = guest.room_id === null ? undefined : roomById.get(guest.room_id);
     const house = room ? houseById.get(room.house_id) : undefined;
     const roomName = room && house
@@ -213,20 +286,38 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
   }).sort((left, right) => left.houseName.localeCompare(right.houseName)
     || left.roomName.localeCompare(right.roomName)
     || left.guest.name.localeCompare(right.guest.name));
-  const guestCardRows: ArrivalGuestCardRow[] = guestRows.map((guestRow) => ({
-    ...guestRow,
-    statusLabel: statusLabels[guestRow.status],
-    isPending: pendingGuestIds.has(guestRow.guest.id),
-    showStatus: mode === "meeting",
-    fallbackCaption: mode === "check-in" && guestRow.status === "checked_in"
-      ? strCheckedIn
-      : "",
-  }));
+  const guestCardRows: ArrivalGuestCardRow[] = guestRows.map((guestRow) => {
+    const menuActions: GuestMenuAction[] = currentUser
+      ? guestsService.getGuestMenuActions(
+          guestRow.guest,
+          currentUser.role,
+          guestRow.status,
+          (_guest, action) => onGuestMenuAction(guestRow, action)
+        )
+      : [];
+
+    return {
+      ...guestRow,
+      statusLabel: guestRow.houseId === null ? "" : statusLabels[guestRow.status],
+      isPending: pendingGuestIds.has(guestRow.guest.id),
+      showStatus: mode === "meeting" && guestRow.houseId !== null,
+      fallbackCaption: mode === "check-in"
+        && guestRow.houseId !== null
+        && guestRow.status === "checked_in"
+        ? strCheckedIn
+        : "",
+      menuActions,
+    };
+  });
   const hasRideRows = rideRows.length > 0;
   const hasSelectedRides = selectedRideIds.size > 0;
   const getGuestCardGroup = (guestRow: ArrivalGuestCardRow) => {
+    if (guestRow.houseId === null) {
+      return null;
+    }
+
     if (mode === "meeting") {
-      if (guestRow.houseId === null) {
+      if (hasSelectedRides && !meetingGuestIds.has(guestRow.guest.id)) {
         return null;
       }
 
@@ -275,6 +366,20 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
 
     return null;
   };
+
+  if (mapGuest) {
+    return (
+      <HouseMapView
+        retreatId={retreatId}
+        openMode="selection"
+        guest={mapGuest}
+        initialSelectionMode={mapSelectionMode}
+        onRoomSelectActionClick={onRoomSelectActionClick}
+        onGuestSwapActionClick={onGuestSwapActionClick}
+        onCancelActionClick={() => setMapGuest(null)}
+      />
+    );
+  }
 
   return (
     <section>

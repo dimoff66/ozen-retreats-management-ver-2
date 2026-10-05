@@ -16,7 +16,6 @@ import type {
 import dateService from "@/services/dateService";
 import guestsService from "@/services/guestsService";
 import guestStatusesService from "@/services/guestStatusesService";
-import { getAvailableGuestActions } from "@/services/guestActionsService";
 import type { GuestAction } from "@/services/guestActionsService";
 import type { GuestStatusValue } from "@/services/guestStatusesService";
 import housesService from "@/services/housesService";
@@ -45,16 +44,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
   const strLoadError = "Failed to load guests.";
   const strSaveRoomError = "Failed to change room.";
   const strDeleteConfirm = "Delete selected guest?";
-  const actionLabels: Record<GuestAction, string> = {
-    move_room: "Change room",
-    swap_room: "Swap rooms",
-    mark_arrived: "Mark arrived",
-    not_coming: "Not coming",
-    check_in: "Check in",
-    cancel_check_in: "Cancel check-in",
-    cancel_arrival: "Cancel arrival",
-  };
-
   const { currentUser: user } = useCurrentUser();
 
   const [retreats, setRetreats] = useState<Retreat[]>([]);
@@ -317,14 +306,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     }
   };
 
-  const onGuestActionClick = async (
-    event: MouseEvent<HTMLButtonElement>,
-    guest: Guest,
-    action: GuestAction
-  ) => {
-    event.stopPropagation();
-    event.currentTarget.closest("details")?.removeAttribute("open");
-
+  const onGuestActionClick = async (guest: Guest, action: GuestAction) => {
     if (!user) {
       return;
     }
@@ -404,23 +386,25 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     const statusText = guest.room_id === null ? "" : getStatusLabel(status);
     const statusBadgeClassName = getStatusBadgeClassName(status);
     const isSelected = selectedGuest?.id === guest.id;
-    const availableActions = user
-      ? getAvailableGuestActions(user.role, status, guest.room_id !== null)
+    const actionRows = user
+      ? guestsService.getGuestMenuActions(
+          guest,
+          user.role,
+          status,
+          (targetGuest, action) => {
+            void onGuestActionClick(targetGuest, action);
+          }
+        )
       : [];
 
-    const actionRows = availableActions.map((action) => {
-      const label = actionLabels[action];
-
-      const onClickHandler = (event: MouseEvent<HTMLButtonElement>) => {
-        onGuestActionClick(event, guest, action);
-      };
-
-      return {
-        id: action,
-        label,
-        onClickHandler,
-      };
-    });
+    const onActionClick = (
+      event: MouseEvent<HTMLButtonElement>,
+      action: (typeof actionRows)[number]
+    ) => {
+      event.stopPropagation();
+      event.currentTarget.closest("details")?.removeAttribute("open");
+      action.action();
+    };
 
     const onRowClick = () => {
       setSelectedGuest(guest);
@@ -461,6 +445,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
       statusBadgeClassName,
       isSelected,
       actionRows,
+      onActionClick,
       onRowClick,
       onActionsCellClick,
       onActionsToggleClick,
@@ -580,10 +565,10 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
                             <button
                               key={action.id}
                               type="button"
-                              onClick={action.onClickHandler}
+                              onClick={(event) => guest.onActionClick(event, action)}
                               className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
                             >
-                              {action.label}
+                              {action.caption}
                             </button>
                           ))}
                         </div>

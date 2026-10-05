@@ -13,7 +13,7 @@ import type {
   GuestStatusValue,
   LatestGuestStatus,
 } from "@/services/guestStatusesService";
-import { getAvailableGuestActions } from "@/services/guestActionsService";
+import type { GuestAction } from "@/services/guestActionsService";
 import type { RoomPosition } from "@/services/houseMapsService";
 import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
@@ -67,11 +67,6 @@ export default function HouseMapView({
   const strNoMaps = "No house maps available.";
   const strNoBackground = "No map image.";
   const strOrganizer = "organizer";
-  const strMove = "Move to another room";
-  const strSwap = "Swap with...";
-  const strNotComing = "Not coming";
-  const strCheckIn = "Check in";
-  const strMarkArrived = "Mark arrived";
   const strShowHistory = "Show history";
   const strCloseActions = "Close";
   const strBooked = "booked";
@@ -312,67 +307,20 @@ export default function HouseMapView({
 
     const guestStatus = statuses.get(targetGuest.id);
     const status: GuestStatusValue = guestStatus?.status ?? strBooked;
-    const guestActions = getAvailableGuestActions(
+    const guestActions = guestsService.getGuestMenuActions(
+      targetGuest,
       user.role,
       status,
-      targetGuest.room_id !== null
+      (selectedGuest, action) => {
+        onGuestMenuAction(selectedGuest, action);
+      }
     );
 
-    if (guestActions.includes("move_room")) {
-      availableActions.push({
-        id: "move",
-        label: strMove,
-        onClickHandler: () => startRoomSelection(targetGuest),
-      });
-    }
-
-    if (guestActions.includes("swap_room")) {
-      availableActions.push({
-        id: "swap",
-        label: strSwap,
-        onClickHandler: () => startGuestSelection(targetGuest),
-      });
-    }
-
-    if (guestActions.includes("not_coming")) {
-      availableActions.push({
-        id: "not_coming",
-        label: strNotComing,
-        onClickHandler: () => void onNotComingActionClick(targetGuest),
-      });
-    }
-
-    if (guestActions.includes("mark_arrived")) {
-      availableActions.push({
-        id: "mark_arrived",
-        label: strMarkArrived,
-        onClickHandler: () => void onMarkArrivedActionClick(targetGuest),
-      });
-    }
-
-    if (guestActions.includes("check_in")) {
-      availableActions.push({
-        id: "check_in",
-        label: strCheckIn,
-        onClickHandler: () => void onCheckInActionClick(targetGuest),
-      });
-    }
-
-    if (guestActions.includes("cancel_check_in")) {
-      availableActions.push({
-        id: "cancel_check_in",
-        label: "Cancel check-in",
-        onClickHandler: () => void onCancelCheckInActionClick(targetGuest),
-      });
-    }
-
-    if (guestActions.includes("cancel_arrival")) {
-      availableActions.push({
-        id: "cancel_arrival",
-        label: "Cancel arrival",
-        onClickHandler: () => void onCancelArrivalActionClick(targetGuest),
-      });
-    }
+    availableActions.push(...guestActions.map((guestAction) => ({
+      id: guestAction.id,
+      label: guestAction.caption,
+      onClickHandler: guestAction.action,
+    })));
 
     if (user.role === "admin") {
       availableActions.push({
@@ -383,6 +331,24 @@ export default function HouseMapView({
     }
 
     return availableActions;
+  };
+
+  const onGuestMenuAction = (targetGuest: Guest, action: GuestAction) => {
+    if (action === "move_room") {
+      startRoomSelection(targetGuest);
+    } else if (action === "swap_room") {
+      startGuestSelection(targetGuest);
+    } else if (action === "not_coming") {
+      void onNotComingActionClick(targetGuest);
+    } else if (action === "mark_arrived") {
+      void onMarkArrivedActionClick(targetGuest);
+    } else if (action === "check_in") {
+      void onCheckInActionClick(targetGuest);
+    } else if (action === "cancel_check_in") {
+      void onCancelCheckInActionClick(targetGuest);
+    } else if (action === "cancel_arrival") {
+      void onCancelArrivalActionClick(targetGuest);
+    }
   };
 
   const selectableRooms = retreatRoomsService.getSelectableRooms(
@@ -681,7 +647,7 @@ export default function HouseMapView({
           setActionsTitle(roomGuest.name);
         };
 
-        let className = getGuestClassName(status);
+        let className = `rounded-sm border border-gray-300 bg-white px-1 py-0.5 shadow-sm ${getGuestClassName(status)}`;
 
         if (selectionMode === "guest" && isGuestSelectable) {
           className +=

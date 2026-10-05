@@ -1,7 +1,26 @@
 import db from "./database";
+import { getAvailableGuestActions } from "./guestActionsService";
+import type { GuestAction } from "./guestActionsService";
 import guestStatusesService from "./guestStatusesService";
 import roomsService from "./roomsService";
 import type { CreateGuest, Guest, UpdateGuest } from "./database";
+import type { GuestStatusValue } from "./guestStatusesService";
+
+export type GuestMenuAction = {
+  id: GuestAction;
+  caption: string;
+  action: () => void;
+};
+
+const guestActionCaptions: Record<GuestAction, string> = {
+  move_room: "Change room",
+  swap_room: "Swap rooms",
+  mark_arrived: "Mark arrived",
+  not_coming: "Not coming",
+  check_in: "Check in",
+  cancel_check_in: "Cancel check-in",
+  cancel_arrival: "Cancel arrival",
+};
 
 const guestsService = {
   getGuests: async (): Promise<Guest[]> => {
@@ -18,6 +37,19 @@ const guestsService = {
 
   getGuestsByRoomId: async (roomId: number): Promise<Guest[]> => {
     return db.guests.getByRoomId(roomId);
+  },
+
+  getGuestMenuActions: (
+    guest: Guest,
+    role: string,
+    status: GuestStatusValue,
+    onAction: (guest: Guest, action: GuestAction) => void
+  ): GuestMenuAction[] => {
+    return getAvailableGuestActions(role, status, guest.room_id !== null).map((id) => ({
+      id,
+      caption: guestActionCaptions[id],
+      action: () => onAction(guest, id),
+    }));
   },
 
   createGuest: async (guest: CreateGuest): Promise<Guest> => {

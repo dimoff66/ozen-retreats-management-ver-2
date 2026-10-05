@@ -69,30 +69,17 @@ export default function RetreatForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-6 text-xl font-semibold">{formTitle}</h2>
-        <form onSubmit={onSubmitHandler}>
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium">{strTitle}</label>
-            <input value={title} onChange={onTitleChange} required className="w-full rounded-md border border-gray-300 px-3 py-2" />
+    <div className="ozen-modal-backdrop">
+      <div className="ozen-form-modal">
+        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="ozen-form-body">
+          <label className="ozen-form-field"><span>{strTitle}</span><input value={title} onChange={onTitleChange} required /></label>
+          <div className="ozen-form-grid-two">
+            <label className="ozen-form-field"><span>{strStartDate}</span><input type="date" value={startDate} onChange={onStartDateChange} required /></label>
+            <label className="ozen-form-field"><span>{strEndDate}</span><input type="date" value={endDate} onChange={onEndDateChange} required /></label>
           </div>
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium">{strStartDate}</label>
-            <input type="date" value={startDate} onChange={onStartDateChange} required className="w-full rounded-md border border-gray-300 px-3 py-2" />
-          </div>
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium">{strEndDate}</label>
-            <input type="date" value={endDate} onChange={onEndDateChange} required className="w-full rounded-md border border-gray-300 px-3 py-2" />
-          </div>
-          <label className="mb-6 flex items-center gap-2">
-            <input type="checkbox" checked={isActive} onChange={onActiveChange} />
-            <span>{strActive}</span>
-          </label>
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
-            <button type="submit" disabled={isSaving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{strSave}</button>
-          </div>
+          <label className="ozen-checkbox-field"><input type="checkbox" checked={isActive} onChange={onActiveChange} /><span>{strActive}</span></label>
+          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

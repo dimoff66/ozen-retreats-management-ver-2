@@ -105,51 +105,24 @@ export default function UserForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-6 text-xl font-semibold">{formTitle}</h2>
-        <form onSubmit={onSubmitHandler}>
-          <div className="mb-4">
-            <label htmlFor="user-name" className="mb-1 block text-sm font-medium">{strName}</label>
-            <input id="user-name" value={name} onChange={onNameChange} required className="w-full rounded-md border border-gray-300 px-3 py-2" />
+    <div className="ozen-modal-backdrop">
+      <div className="ozen-form-modal">
+        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="ozen-form-body">
+          <label htmlFor="user-name" className="ozen-form-field"><span>{strName}</span><input id="user-name" value={name} onChange={onNameChange} required /></label>
+          <label htmlFor="user-login" className="ozen-form-field"><span>{strLogin}</span><input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" /></label>
+          <div className="ozen-form-field">
+            <label htmlFor="user-password">{strPassword}</label>
+            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" />
+            <label className="ozen-checkbox-field ozen-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
+            {user ? <p className="ozen-field-note">{strPasswordOptional}</p> : null}
           </div>
-          <div className="mb-4">
-            <label htmlFor="user-login" className="mb-1 block text-sm font-medium">{strLogin}</label>
-            <input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" className="w-full rounded-md border border-gray-300 px-3 py-2" />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="user-password" className="mb-1 block text-sm font-medium">{strPassword}</label>
-            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" className="w-full rounded-md border border-gray-300 px-3 py-2" />
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-600">
-              <input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} />
-              <span>{strShowPassword}</span>
-            </label>
-            {user ? <p className="mt-1 text-xs text-gray-500">{strPasswordOptional}</p> : null}
-          </div>
-          <div className="mb-4">
-            <label htmlFor="user-role" className="mb-1 block text-sm font-medium">{strRole}</label>
-            <select id="user-role" value={role} onChange={onRoleChange} required className="w-full rounded-md border border-gray-300 px-3 py-2">
-              {roles.map((item) => (
-                <option key={item.role_name} value={item.role_name}>{item.role_name}</option>
-              ))}
-            </select>
-          </div>
+          <label htmlFor="user-role" className="ozen-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{roles.map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
           {role === "organizer" ? (
-            <div className="mb-6">
-              <label htmlFor="user-retreat" className="mb-1 block text-sm font-medium">{strRetreat}</label>
-              <select id="user-retreat" value={retreatId} onChange={onRetreatChange} className="w-full rounded-md border border-gray-300 px-3 py-2">
-                <option value="">{strNoRetreat}</option>
-                {retreats.map((item) => (
-                  <option key={item.id} value={item.id}>{item.title}</option>
-                ))}
-              </select>
-            </div>
+            <label htmlFor="user-retreat" className="ozen-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{retreats.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           ) : null}
-          {actionError ? <div role="alert" className="mb-4 text-sm text-red-600">{actionError}</div> : null}
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onCancelActionClick} disabled={isSaving} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">{strCancel}</button>
-            <button type="submit" disabled={isSaving || roles.length === 0} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{isSaving ? strSaving : strSave}</button>
-          </div>
+          {actionError ? <div role="alert" className="ozen-state-message ozen-state-error">{actionError}</div> : null}
+          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} disabled={isSaving} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving || roles.length === 0} className="ozen-action-button ozen-action-button-primary">{isSaving ? strSaving : strSave}</button></div>
         </form>
       </div>
     </div>

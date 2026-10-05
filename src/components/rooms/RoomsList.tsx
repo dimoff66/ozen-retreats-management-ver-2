@@ -118,52 +118,29 @@ export default function RoomsList() {
   }, []);
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1>
-      <ActionBar
-        selectedItem={selectedRoom}
-        onAddActionClick={onAddActionClick}
-        onEditActionClick={onEditActionClick}
-        onDeleteActionClick={onDeleteActionClick}
-      />
-      {isLoading ? <div>{strLoading}</div> : null}
-      {isLoadError ? <div>{strLoadError}</div> : null}
+    <section className="ozen-admin-section">
+      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+      <ActionBar selectedItem={selectedRoom} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} />
+      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
+      {isLoadError ? <div className="ozen-state-message ozen-state-error">{strLoadError}</div> : null}
       {!isLoading && !isLoadError ? (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left">{strColumnRoom}</th>
-                <th className="px-4 py-3 text-left">{strColumnHouse}</th>
-                <th className="px-4 py-3 text-left">{strColumnNumber}</th>
-                <th className="px-4 py-3 text-left">{strColumnAvailable}</th>
-              </tr>
-            </thead>
+        <div className="ozen-table-panel">
+          <table className="ozen-data-table">
+            <thead><tr><th>{strColumnRoom}</th><th>{strColumnHouse}</th><th>{strColumnNumber}</th><th>{strColumnAvailable}</th></tr></thead>
             <tbody>
               {roomRows.map((room) => (
-                <tr
-                  key={room.id}
-                  onClick={room.onRowClick}
-                  className={room.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}
-                >
-                  <td className="px-4 py-3">{room.displayName}</td>
-                  <td className="px-4 py-3">{room.houseName}</td>
-                  <td className="px-4 py-3">{room.roomNumber}</td>
-                  <td className="px-4 py-3">{room.availableText}</td>
+                <tr key={room.id} onClick={room.onRowClick} className={room.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
+                  <td className="ozen-admin-primary-cell">{room.displayName}</td>
+                  <td>{room.houseName}</td>
+                  <td>{room.roomNumber}</td>
+                  <td><span className={room.availableText === strYes ? "ozen-admin-badge ozen-admin-badge-positive" : "ozen-admin-badge"}>{room.availableText}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : null}
-      {isFormOpen ? (
-        <RoomForm
-          room={editingRoom}
-          houses={houses}
-          onSaveActionClick={onSaveActionClick}
-          onCancelActionClick={onCancelActionClick}
-        />
-      ) : null}
-    </div>
+      {isFormOpen ? <RoomForm room={editingRoom} houses={houses} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
+    </section>
   );
 }

@@ -65,27 +65,13 @@ export default function HouseForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-6 text-xl font-semibold">{formTitle}</h2>
-        <form onSubmit={onSubmitHandler}>
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium">{strName}</label>
-            <input value={name} onChange={onNameChange} required className="w-full rounded-md border border-gray-300 px-3 py-2" />
-          </div>
-          <div className="mb-6">
-            <label className="mb-1 block text-sm font-medium">{strParent}</label>
-            <select value={parentId} onChange={onParentChange} className="w-full rounded-md border border-gray-300 px-3 py-2">
-              <option value="">{strNoParent}</option>
-              {availableParents.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
-            <button type="submit" disabled={isSaving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{strSave}</button>
-          </div>
+    <div className="ozen-modal-backdrop">
+      <div className="ozen-form-modal">
+        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="ozen-form-body">
+          <label className="ozen-form-field"><span>{strName}</span><input value={name} onChange={onNameChange} required /></label>
+          <label className="ozen-form-field"><span>{strParent}</span><select value={parentId} onChange={onParentChange}><option value="">{strNoParent}</option>{availableParents.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

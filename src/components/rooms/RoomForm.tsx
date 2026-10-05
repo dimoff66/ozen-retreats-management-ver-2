@@ -69,31 +69,14 @@ export default function RoomForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-6 text-xl font-semibold">{formTitle}</h2>
-        <form onSubmit={onSubmitHandler}>
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium">{strRoomNumber}</label>
-            <input value={roomNumber} onChange={onRoomNumberChange} maxLength={3} required className="w-full rounded-md border border-gray-300 px-3 py-2" />
-          </div>
-          <div className="mb-4">
-            <label className="mb-1 block text-sm font-medium">{strHouse}</label>
-            <select value={houseId} onChange={onHouseChange} required className="w-full rounded-md border border-gray-300 px-3 py-2">
-              <option value="">{strSelectHouse}</option>
-              {houses.map((house) => (
-                <option key={house.id} value={house.id}>{house.name}</option>
-              ))}
-            </select>
-          </div>
-          <label className="mb-6 flex items-center gap-2">
-            <input type="checkbox" checked={isAvailable} onChange={onAvailableChange} />
-            <span>{strAvailable}</span>
-          </label>
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
-            <button type="submit" disabled={isSaving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{strSave}</button>
-          </div>
+    <div className="ozen-modal-backdrop">
+      <div className="ozen-form-modal">
+        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="ozen-form-body">
+          <label className="ozen-form-field"><span>{strRoomNumber}</span><input value={roomNumber} onChange={onRoomNumberChange} maxLength={3} required /></label>
+          <label className="ozen-form-field"><span>{strHouse}</span><select value={houseId} onChange={onHouseChange} required><option value="">{strSelectHouse}</option>{houses.map((house) => <option key={house.id} value={house.id}>{house.name}</option>)}</select></label>
+          <label className="ozen-checkbox-field"><input type="checkbox" checked={isAvailable} onChange={onAvailableChange} /><span>{strAvailable}</span></label>
+          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

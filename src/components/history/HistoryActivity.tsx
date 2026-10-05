@@ -5,10 +5,10 @@ type HistoryActivityProps = {
 };
 
 const partClassNames = {
-  text: "",
-  user: "italic",
-  guest: "font-medium text-blue-900",
-  room: "font-bold",
+  text: "ozen-history-text",
+  user: "ozen-history-user",
+  guest: "ozen-history-guest",
+  room: "ozen-history-room",
 };
 
 export default function HistoryActivity({ parts }: HistoryActivityProps) {

@@ -336,143 +336,115 @@ export default function TaxiRidesPanel({ canManage }: TaxiRidesPanelProps) {
   const hasAvailableGuestRows = availableGuestRows.length > 0;
 
   return (
-    <section>
-      <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>
-      {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
-      {retreatError ? <p role="alert" className="mb-4 text-red-600">{retreatError}</p> : null}
-      {isSnapshotLoading ? <p>{strLoading}</p> : null}
+    <section className="ozen-taxi-screen">
+      <div className="ozen-section-toolbar">
+        <div>
+          <h2>{strTitle}</h2>
+        </div>
+        {canManage ? <button type="button" onClick={onNewRideClick} className="ozen-primary-action">{strAddRide}</button> : null}
+      </div>
+      {error ? <p role="alert" className="ozen-state-message ozen-state-error">{error}</p> : null}
+      {retreatError ? <p role="alert" className="ozen-state-message ozen-state-error">{retreatError}</p> : null}
+      {isSnapshotLoading ? <p className="ozen-state-message">{strLoading}</p> : null}
       {!isSnapshotLoading ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-3">
-              {rideRows.map((ride) => (
-                <article key={ride.id} className={ride.isSelected
-                  ? "flex min-w-56 items-stretch rounded-md border border-blue-500 bg-blue-50"
-                  : "flex min-w-56 items-stretch rounded-md border border-gray-200 bg-white"}>
-                  <button type="button" onClick={ride.onSelect} aria-pressed={ride.isSelected} className="flex min-w-0 flex-1 flex-col items-start p-3 text-left">
-                    <span className="text-xs font-bold uppercase text-gray-500">{ride.number}</span>
-                    <span className="mt-1 font-semibold">{ride.arrival}</span>
-                    <span className="mt-1 text-sm text-gray-700">{ride.driverName}</span>
-                    <span className="mt-1 text-xs text-gray-500">{ride.passengerCount}</span>
-                  </button>
-                  {canManage ? (
-                    <button type="button" onClick={ride.onEdit} className="self-start px-3 py-2 text-sm font-medium text-blue-700 hover:underline">
-                      {strEditRide}
-                    </button>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-            {canManage ? (
-              <button type="button" onClick={onNewRideClick} className="rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
-                {strAddRide}
-              </button>
-            ) : null}
+          <div className="ozen-taxi-grid">
+            {rideRows.map((ride) => (
+              <article key={ride.id} className={ride.isSelected ? "ozen-taxi-card ozen-taxi-card-selected" : "ozen-taxi-card"}>
+                <button type="button" onClick={ride.onSelect} aria-pressed={ride.isSelected} className="ozen-taxi-card-main">
+                  <span className="ozen-taxi-number">{ride.number}</span>
+                  <strong>{ride.arrival}</strong>
+                  <span className="ozen-taxi-driver">{ride.driverName}</span>
+                  <span className="ozen-taxi-passenger-count">{ride.passengerCount}</span>
+                </button>
+                {canManage ? <button type="button" onClick={ride.onEdit} className="ozen-taxi-edit">{strEditRide}</button> : null}
+              </article>
+            ))}
           </div>
-          {hasNoRides ? <p className="mt-4 text-gray-600">{strNoRides}</p> : null}
+          {hasNoRides ? <p className="ozen-empty-message">{strNoRides}</p> : null}
           {selectedRide ? (
-            <section className="mt-6">
-              <h3 className="mb-3 font-semibold">{strPassengers}</h3>
-              <div className="max-w-2xl overflow-hidden rounded-md border border-gray-200">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-sm text-gray-600">
-                    <tr>
-                      <th className="px-3 py-2">{strName}</th>
-                      <th className="w-28 px-3 py-2">{strRoom}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {passengerRows.map((passenger) => (
-                      <tr key={passenger.id} className="border-t border-gray-100">
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            {canManage ? (
-                              <button
-                                type="button"
-                                onClick={passenger.onRemoveClick}
-                                aria-label={`${strRemove} ${passenger.name}`}
-                                title={strRemove}
-                                className="flex size-6 shrink-0 items-center justify-center rounded-full border border-red-300 text-sm leading-none text-red-600 hover:bg-red-50"
-                              >
-                                ×
-                              </button>
-                            ) : null}
-                            <span>{passenger.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-sm text-gray-600" title={passenger.roomName}>
-                          {passenger.roomName.slice(0, 8)}
-                        </td>
-                      </tr>
-                    ))}
-                    {!hasPassengerRows ? (
-                      <tr>
-                        <td colSpan={2} className="px-3 py-3 text-sm text-gray-500">{strNoPassengers}</td>
-                      </tr>
-                    ) : null}
-                  </tbody>
-                </table>
+            <section className="ozen-taxi-detail">
+              <div className="ozen-panel-heading-row">
+                <h3>{strPassengers}</h3>
               </div>
-              {canManage ? (
-                <div className="mt-5 max-w-2xl border-t border-gray-200 pt-4">
-                  <label className="block text-sm font-medium">
-                    {strSearchGuests}
-                    <input type="search" value={guestSearch} onChange={onGuestSearchChange} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
-                  </label>
-                  <div className="mt-2 divide-y divide-gray-100 border-y border-gray-100">
-                    {availableGuestRows.map((guest) => (
-                      <button key={guest.id} type="button" onClick={guest.onSelect} className="flex w-full items-center justify-between gap-3 py-2 text-left hover:bg-gray-50">
-                        <span>{guest.name}</span>
-                        {guest.assignmentLabel ? <span className="shrink-0 text-sm text-gray-500">{guest.assignmentLabel}</span> : null}
-                      </button>
-                    ))}
-                    {!hasAvailableGuestRows ? <p className="py-3 text-sm text-gray-500">{strNoMatchingGuests}</p> : null}
-                  </div>
-                  <form onSubmit={onPassengerSubmit} className="mt-4 flex flex-wrap items-end gap-2">
-                    <label className="min-w-52 flex-1 text-sm font-medium">
-                      {strAdditionalPassenger}
-                      <input value={extraPassengerName} onChange={onExtraPassengerNameChange} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
-                    </label>
-                    <button type="submit" className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 font-semibold text-blue-700 hover:bg-blue-100">
-                      {strAddPassenger}
-                    </button>
-                  </form>
+              <div className="ozen-taxi-detail-grid">
+                <div className="ozen-table-panel">
+                  <table className="ozen-data-table ozen-passenger-table">
+                    <thead>
+                      <tr>
+                        <th>{strName}</th>
+                        <th>{strRoom}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {passengerRows.map((passenger) => (
+                        <tr key={passenger.id}>
+                          <td>
+                            <div className="ozen-passenger-name">
+                              {canManage ? (
+                                <button type="button" onClick={passenger.onRemoveClick} aria-label={`${strRemove} ${passenger.name}`} title={strRemove} className="ozen-remove-passenger">×</button>
+                              ) : null}
+                              <span>{passenger.name}</span>
+                            </div>
+                          </td>
+                          <td className="ozen-passenger-room" title={passenger.roomName}>{passenger.roomName.slice(0, 8)}</td>
+                        </tr>
+                      ))}
+                      {!hasPassengerRows ? <tr><td colSpan={2} className="ozen-table-empty">{strNoPassengers}</td></tr> : null}
+                    </tbody>
+                  </table>
                 </div>
-              ) : null}
+                {canManage ? (
+                  <div className="ozen-taxi-passenger-editor">
+                    <label className="ozen-form-field">
+                      <span>{strSearchGuests}</span>
+                      <input type="search" value={guestSearch} onChange={onGuestSearchChange} />
+                    </label>
+                    <div className="ozen-taxi-guest-results">
+                      {availableGuestRows.map((guest) => (
+                        <button key={guest.id} type="button" onClick={guest.onSelect} className="ozen-taxi-guest-result">
+                          <span>{guest.name}</span>
+                          {guest.assignmentLabel ? <small>{guest.assignmentLabel}</small> : null}
+                        </button>
+                      ))}
+                      {!hasAvailableGuestRows ? <p>{strNoMatchingGuests}</p> : null}
+                    </div>
+                    <form onSubmit={onPassengerSubmit} className="ozen-add-passenger-form">
+                      <label className="ozen-form-field">
+                        <span>{strAdditionalPassenger}</span>
+                        <input value={extraPassengerName} onChange={onExtraPassengerNameChange} />
+                      </label>
+                      <button type="submit" className="ozen-secondary-button">{strAddPassenger}</button>
+                    </form>
+                  </div>
+                ) : null}
+              </div>
             </section>
-          ) : !hasNoRides ? <p className="mt-6 text-gray-600">{strSelectRide}</p> : null}
+          ) : !hasNoRides ? <p className="ozen-empty-message">{strSelectRide}</p> : null}
         </>
       ) : null}
       {isRideModalOpen && canManage ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="w-full max-w-lg rounded-md bg-white shadow-xl">
-            <div className="border-b border-gray-200 px-5 py-4">
-              <h3 id="taxi-ride-dialog-title" className="text-lg font-bold">{rideSubmitLabel}</h3>
+        <div className="ozen-modal-backdrop">
+          <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="ozen-form-modal">
+            <div className="ozen-form-modal-header">
+              <h3 id="taxi-ride-dialog-title">{rideSubmitLabel}</h3>
             </div>
-            <form onSubmit={onRideSubmit} className="space-y-4 p-5">
-              <label className="block text-sm font-medium">
-                {strArrival}
-                <input type="datetime-local" value={arrivalDateTime} onChange={onArrivalChange} required className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" />
+            <form onSubmit={onRideSubmit} className="ozen-form-body">
+              <label className="ozen-form-field">
+                <span>{strArrival}</span>
+                <input type="datetime-local" value={arrivalDateTime} onChange={onArrivalChange} required />
               </label>
-              <label className="block text-sm font-medium">
-                {strDriverName}
-                <input value={driverName} onChange={onDriverNameChange} className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" />
+              <label className="ozen-form-field">
+                <span>{strDriverName}</span>
+                <input value={driverName} onChange={onDriverNameChange} />
               </label>
-              <div className="flex flex-wrap justify-between gap-2 border-t border-gray-200 pt-4">
+              <div className="ozen-form-footer ozen-form-footer-split">
                 <div>
-                  {rideBeingEdited ? (
-                    <button type="button" onClick={onDeleteRideClick} className="rounded-md border border-red-200 px-4 py-2 font-semibold text-red-600 hover:bg-red-50">
-                      {strDeleteRide}
-                    </button>
-                  ) : null}
+                  {rideBeingEdited ? <button type="button" onClick={onDeleteRideClick} className="ozen-action-button ozen-action-button-danger">{strDeleteRide}</button> : null}
                 </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setIsRideModalOpen(false)} className="rounded-md border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50">
-                    {strCancel}
-                  </button>
-                  <button type="submit" className="rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
-                    {rideSubmitLabel}
-                  </button>
+                <div className="ozen-form-footer-actions">
+                  <button type="button" onClick={() => setIsRideModalOpen(false)} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button>
+                  <button type="submit" className="ozen-action-button ozen-action-button-primary">{rideSubmitLabel}</button>
                 </div>
               </div>
             </form>

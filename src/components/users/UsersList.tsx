@@ -187,55 +187,30 @@ export default function UsersList() {
   }, [setUsers]);
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1>
-      <ActionBar
-        selectedItem={selectedUser}
-        onAddActionClick={onAddActionClick}
-        onEditActionClick={onEditActionClick}
-        onDeleteActionClick={onDeleteActionClick}
-      />
-      {actionError && !isFormOpen ? <div role="alert" className="mb-4 text-red-600">{actionError}</div> : null}
-      {isLoading ? <div>{strLoading}</div> : null}
-      {loadError ? <div role="alert" className="text-red-600">{loadError}</div> : null}
+    <section className="ozen-admin-section">
+      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+      <ActionBar selectedItem={selectedUser} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} />
+      {actionError && !isFormOpen ? <div role="alert" className="ozen-state-message ozen-state-error">{actionError}</div> : null}
+      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
+      {loadError ? <div role="alert" className="ozen-state-message ozen-state-error">{loadError}</div> : null}
       {!isLoading && !loadError ? (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left">{strColumnName}</th>
-                <th className="px-4 py-3 text-left">{strColumnLogin}</th>
-                <th className="px-4 py-3 text-left">{strColumnRole}</th>
-                <th className="px-4 py-3 text-left">{strColumnRetreat}</th>
-              </tr>
-            </thead>
+        <div className="ozen-table-panel">
+          <table className="ozen-data-table">
+            <thead><tr><th>{strColumnName}</th><th>{strColumnLogin}</th><th>{strColumnRole}</th><th>{strColumnRetreat}</th></tr></thead>
             <tbody>
               {userRows.map((user) => (
-                <tr
-                  key={user.id}
-                  onClick={user.onRowClick}
-                  className={user.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}
-                >
-                  <td className="px-4 py-3">{user.name}</td>
-                  <td className="px-4 py-3">{user.login}</td>
-                  <td className="px-4 py-3">{user.role}</td>
-                  <td className="px-4 py-3">{user.retreatTitle}</td>
+                <tr key={user.id} onClick={user.onRowClick} className={user.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
+                  <td className="ozen-admin-primary-cell">{user.name}</td>
+                  <td>{user.login}</td>
+                  <td><span className="ozen-role-badge">{user.role}</span></td>
+                  <td>{user.retreatTitle}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : null}
-      {isFormOpen ? (
-        <UserForm
-          user={editingUser}
-          roles={roles}
-          retreats={retreats}
-          actionError={actionError}
-          onSaveActionClick={onSaveActionClick}
-          onCancelActionClick={onCancelActionClick}
-        />
-      ) : null}
-    </div>
+      {isFormOpen ? <UserForm user={editingUser} roles={roles} retreats={retreats} actionError={actionError} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
+    </section>
   );
 }

@@ -127,17 +127,11 @@ export default function RetreatsList() {
   }, []);
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1>
-      <ActionBar
-        selectedItem={selectedRetreat}
-        onAddActionClick={onAddActionClick}
-        onEditActionClick={onEditActionClick}
-        onDeleteActionClick={onDeleteActionClick}
-        extraActions={extraActions}
-      />
+    <section className="ozen-admin-section">
+      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+      <ActionBar selectedItem={selectedRetreat} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} extraActions={extraActions} />
       {roomsRetreat ? (
-        <div className="mb-6">
+        <div className="ozen-admin-inline-editor">
           <RetreatProvider
             key={roomsRetreat.id}
             retreatId={roomsRetreat.id}
@@ -150,39 +144,26 @@ export default function RetreatsList() {
           </RetreatProvider>
         </div>
       ) : null}
-      {isLoading ? <div>{strLoading}</div> : null}
-      {isLoadError ? <div>{strLoadError}</div> : null}
+      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
+      {isLoadError ? <div className="ozen-state-message ozen-state-error">{strLoadError}</div> : null}
       {!isLoading && !isLoadError ? (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left">{strColumnTitle}</th>
-                <th className="px-4 py-3 text-left">{strColumnStartDate}</th>
-                <th className="px-4 py-3 text-left">{strColumnEndDate}</th>
-                <th className="px-4 py-3 text-left">{strColumnActive}</th>
-              </tr>
-            </thead>
+        <div className="ozen-table-panel">
+          <table className="ozen-data-table">
+            <thead><tr><th>{strColumnTitle}</th><th>{strColumnStartDate}</th><th>{strColumnEndDate}</th><th>{strColumnActive}</th></tr></thead>
             <tbody>
               {retreatRows.map((retreat) => (
-                <tr key={retreat.id} onClick={retreat.onRowClick} className={retreat.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}>
-                  <td className="px-4 py-3">{retreat.title}</td>
-                  <td className="px-4 py-3">{retreat.startDate}</td>
-                  <td className="px-4 py-3">{retreat.endDate}</td>
-                  <td className="px-4 py-3">{retreat.activeText}</td>
+                <tr key={retreat.id} onClick={retreat.onRowClick} className={retreat.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
+                  <td className="ozen-admin-primary-cell">{retreat.title}</td>
+                  <td>{retreat.startDate}</td>
+                  <td>{retreat.endDate}</td>
+                  <td><span className={retreat.activeText === strYes ? "ozen-admin-badge ozen-admin-badge-positive" : "ozen-admin-badge"}>{retreat.activeText}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : null}
-      {isFormOpen ? (
-        <RetreatForm
-          retreat={editingRetreat}
-          onSaveActionClick={onSaveActionClick}
-          onCancelActionClick={onCancelActionClick}
-        />
-      ) : null}
-    </div>
+      {isFormOpen ? <RetreatForm retreat={editingRetreat} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
+    </section>
   );
 }

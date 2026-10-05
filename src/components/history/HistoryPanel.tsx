@@ -56,41 +56,37 @@ export default function HistoryPanel() {
   const hasHistory = !isSnapshotLoading && !error && historyRows.length > 0;
 
   return (
-    <section>
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">{strTitle}</h2>
-        <label className="relative block w-full max-w-xs">
+    <section className="ozen-history-screen">
+      <div className="ozen-section-toolbar">
+        <div>
+          <h2>{strTitle}</h2>
+        </div>
+        <label className="ozen-search-field ozen-history-search">
           <span className="sr-only">Search history</span>
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={onSearchChange}
-            aria-label="Search history"
-            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm"
-          />
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 fill-none stroke-gray-500 stroke-2">
+          <input type="search" value={searchQuery} onChange={onSearchChange} aria-label="Search history" />
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="ozen-search-icon">
             <circle cx="10.8" cy="10.8" r="6.3" />
             <path d="m15.5 15.5 4.2 4.2" strokeLinecap="round" />
           </svg>
         </label>
       </div>
-      {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
-      {isSnapshotLoading ? <p>{strLoading}</p> : null}
-      {isEmpty ? <p className="text-gray-500">{strNoHistory}</p> : null}
+      {error ? <p role="alert" className="ozen-state-message ozen-state-error">{error}</p> : null}
+      {isSnapshotLoading ? <p className="ozen-state-message">{strLoading}</p> : null}
+      {isEmpty ? <p className="ozen-empty-message">{strNoHistory}</p> : null}
       {hasHistory ? (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+        <div className="ozen-table-panel">
+          <table className="ozen-data-table ozen-history-table">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left">{strDate}</th>
-                <th className="px-4 py-3 text-left">{strActivity}</th>
+                <th>{strDate}</th>
+                <th>{strActivity}</th>
               </tr>
             </thead>
             <tbody>
               {historyRows.map((row) => (
-                <tr key={row.id} className="border-t border-gray-200">
-                  <td className="whitespace-nowrap px-4 py-3">{row.date}</td>
-                  <td className="px-4 py-3"><HistoryActivity parts={row.activityParts} /></td>
+                <tr key={row.id}>
+                  <td className="ozen-history-date">{row.date}</td>
+                  <td><HistoryActivity parts={row.activityParts} /></td>
                 </tr>
               ))}
             </tbody>

@@ -140,61 +140,29 @@ export default function HousesList() {
   }, []);
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1>
-      <ActionBar
-        selectedItem={selectedHouse}
-        onAddActionClick={onAddActionClick}
-        onEditActionClick={onEditActionClick}
-        onDeleteActionClick={onDeleteActionClick}
-      />
-      {isLoading ? <div>{strLoading}</div> : null}
-      {isLoadError ? <div>{strLoadError}</div> : null}
+    <section className="ozen-admin-section">
+      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+      <ActionBar selectedItem={selectedHouse} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} />
+      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
+      {isLoadError ? <div className="ozen-state-message ozen-state-error">{strLoadError}</div> : null}
       {!isLoading && !isLoadError ? (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left">{strColumnName}</th>
-                <th className="px-4 py-3 text-left">{strColumnParent}</th>
-                <th className="px-4 py-3 text-left">{strColumnMap}</th>
-              </tr>
-            </thead>
+        <div className="ozen-table-panel">
+          <table className="ozen-data-table">
+            <thead><tr><th>{strColumnName}</th><th>{strColumnParent}</th><th>{strColumnMap}</th></tr></thead>
             <tbody>
               {houseRows.map((house) => (
-                <tr
-                  key={house.id}
-                  onClick={house.onRowClick}
-                  className={house.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}
-                >
-                  <td className="px-4 py-3">{house.name}</td>
-                  <td className="px-4 py-3">{house.parentName}</td>
-                  <td className="px-4 py-3">
-                    <button onClick={house.onMapClick} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-600 hover:bg-blue-100">{house.mapButtonText}</button>
-                  </td>
+                <tr key={house.id} onClick={house.onRowClick} className={house.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
+                  <td className="ozen-admin-primary-cell">{house.name}</td>
+                  <td>{house.parentName}</td>
+                  <td><button onClick={house.onMapClick} className="ozen-inline-button">{house.mapButtonText}</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : null}
-      {isFormOpen ? (
-        <HouseForm
-          house={editingHouse}
-          houses={houses}
-          onSaveActionClick={onSaveActionClick}
-          onCancelActionClick={onCancelActionClick}
-        />
-      ) : null}
-      {isMapEditorOpen && mapHouse ? (
-        <HouseMapEditor
-          house={mapHouse}
-          houseMap={editingMap}
-          houses={houses}
-          onSaveActionClick={onMapSavedActionClick}
-          onCancelActionClick={onMapEditorCloseActionClick}
-        />
-      ) : null}
-    </div>
+      {isFormOpen ? <HouseForm house={editingHouse} houses={houses} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
+      {isMapEditorOpen && mapHouse ? <HouseMapEditor house={mapHouse} houseMap={editingMap} houses={houses} onSaveActionClick={onMapSavedActionClick} onCancelActionClick={onMapEditorCloseActionClick} /> : null}
+    </section>
   );
 }

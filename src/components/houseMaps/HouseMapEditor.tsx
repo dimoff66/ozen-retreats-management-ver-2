@@ -222,65 +222,33 @@ export default function HouseMapEditor({
   }, [previewUrl]);
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-black/30 p-6">
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-semibold">{formTitle}: {house.name}</h2>
-          <div className="flex gap-2">
-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
-            <button type="button" onClick={onSaveHandler} disabled={isSaving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{strSave}</button>
-          </div>
-        </div>
-        {isLoading ? <div className="p-6">{strLoading}</div> : null}
-        {isLoadError ? <div className="p-6">{strLoadError}</div> : null}
+    <div className="ozen-map-editor-backdrop">
+      <div className="ozen-map-editor-modal">
+        <header className="ozen-map-editor-header">
+          <div><span>{strRooms}</span><h2>{formTitle}: {house.name}</h2></div>
+          <div className="ozen-form-footer-actions"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="button" onClick={onSaveHandler} disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
+        </header>
+        {isLoading ? <div className="ozen-state-message ozen-map-editor-message">{strLoading}</div> : null}
+        {isLoadError ? <div className="ozen-state-message ozen-state-error ozen-map-editor-message">{strLoadError}</div> : null}
         {!isLoading && !isLoadError ? (
-          <div className="flex min-h-0 flex-1">
-            <div className="w-64 shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50 p-4">
-              <h3 className="mb-4 font-semibold">{strRooms}</h3>
-              <div className="flex flex-col gap-2">
-                {availableRoomItems.map((room) => (
-                  <button
-                    key={room.id}
-                    type="button"
-                    draggable
-                    onDragStart={room.onDragStart}
-                    className="cursor-grab rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm font-semibold shadow-sm active:cursor-grabbing"
-                  >
-                    {room.label}
-                  </button>
-                ))}
-                {availableRoomItems.length === 0 ? <div className="text-sm text-gray-500">{strNoUnplacedRooms}</div> : null}
+          <div className="ozen-map-editor-body">
+            <aside className="ozen-map-editor-sidebar">
+              <h3>{strRooms}</h3>
+              <div className="ozen-map-room-list">
+                {availableRoomItems.map((room) => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} className="ozen-map-room-chip">{room.label}</button>)}
+                {availableRoomItems.length === 0 ? <div className="ozen-map-room-empty">{strNoUnplacedRooms}</div> : null}
               </div>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <div className="flex items-center gap-4 border-b border-gray-200 p-4">
-                <span className="text-sm font-medium">{strBackgroundImage}</span>
-                <label className="cursor-pointer rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-gray-50">
-                  {strChooseImage}
-                  <input type="file" accept="image/*" onChange={onBackgroundChange} className="hidden" />
-                </label>
+            </aside>
+            <div className="ozen-map-editor-workspace">
+              <div className="ozen-map-editor-toolbar">
+                <span>{strBackgroundImage}</span>
+                <label className="ozen-inline-button ozen-file-button">{strChooseImage}<input type="file" accept="image/*" onChange={onBackgroundChange} className="sr-only" /></label>
               </div>
-              <div className="min-h-0 flex-1 overflow-auto bg-gray-100 p-4">
-                <div
-                  ref={mapRef}
-                  onDragOver={onDragOverHandler}
-                  onDrop={onDropHandler}
-                  className="relative mx-auto w-full max-w-5xl overflow-hidden border border-gray-300 bg-white shadow-sm"
-                >
-                  {hasImage ? <img src={imageUrl} alt={house.name} className="pointer-events-none block h-auto w-full select-none" draggable={false} /> : null}
-                  {!hasImage ? <div className="flex min-h-[500px] items-center justify-center text-gray-400">{strNoImage}</div> : null}
-                  {placedRoomItems.map((room) => (
-                    <button
-                      key={room.id}
-                      type="button"
-                      draggable
-                      onDragStart={room.onDragStart}
-                      style={room.style}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-md border border-blue-300 bg-white px-2 py-1 text-sm font-bold text-blue-700 shadow-md active:cursor-grabbing"
-                    >
-                      {room.label}
-                    </button>
-                  ))}
+              <div className="ozen-map-canvas-wrap">
+                <div ref={mapRef} onDragOver={onDragOverHandler} onDrop={onDropHandler} className="ozen-map-canvas">
+                  {hasImage ? <img src={imageUrl} alt={house.name} className="ozen-map-background" draggable={false} /> : null}
+                  {!hasImage ? <div className="ozen-map-no-image">{strNoImage}</div> : null}
+                  {placedRoomItems.map((room) => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} style={room.style} className="ozen-map-room-marker">{room.label}</button>)}
                 </div>
               </div>
             </div>

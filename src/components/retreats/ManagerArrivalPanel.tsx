@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from "react";
-import type { Guest, House, Room, TaxiGuest, TaxiRide } from "@/services/database";
+import { useState } from "react";
+import type { Guest, Room } from "@/services/database";
 import type { GuestStatusValue } from "@/services/guestStatusesService";
 import type { GuestAction } from "@/services/guestActionsService";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
@@ -9,15 +9,12 @@ import GuestsCards from "@/components/retreats/GuestsCards";
 import type { GuestCardRow } from "@/components/retreats/GuestsCards";
 import type { GuestMenuAction } from "@/services/guestsService";
 import dateService from "@/services/dateService";
-import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
-import housesService from "@/services/housesService";
 import roomsService from "@/services/roomsService";
-import taxiRidesService from "@/services/taxiRidesService";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
+import { useRetreat } from "@/contexts/RetreatContext";
 
 type ManagerArrivalPanelProps = {
-  retreatId: number;
   mode: "meeting" | "check-in";
 };
 
@@ -32,7 +29,7 @@ type GuestRow = {
 
 type ArrivalGuestCardRow = GuestCardRow & Pick<GuestRow, "houseName" | "houseId" | "status">;
 
-export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalPanelProps) {
+export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) {
   const strTitle = mode === "meeting" ? "Meeting" : "Check in";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load meeting data.";
@@ -56,66 +53,32 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
     not_coming: "Not coming",
   };
   const { currentUser } = useCurrentUser();
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [rides, setRides] = useState<TaxiRide[]>([]);
-  const [taxiGuests, setTaxiGuests] = useState<TaxiGuest[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [houses, setHouses] = useState<House[]>([]);
-  const [statuses, setStatuses] = useState<Map<number, GuestStatusValue>>(new Map());
+  const {
+    snapshot,
+    isLoading,
+    error: retreatError,
+    createStatus,
+    updateGuest,
+  } = useRetreat();
+  const guests = snapshot?.guests ?? [];
+  const rides = snapshot?.taxiRides ?? [];
+  const taxiGuests = snapshot?.taxiGuests ?? [];
+  const rooms = snapshot?.rooms ?? [];
+  const houses = snapshot?.houses ?? [];
+  const statuses = new Map(
+    Array.from(snapshot?.latestStatuses ?? [], ([guestId, status]) => [guestId, status.status])
+  );
+  const isSnapshotLoading = isLoading || !snapshot;
   const [selectedRideIds, setSelectedRideIds] = useState<Set<number>>(new Set());
   const [pendingGuestIds, setPendingGuestIds] = useState<Set<number>>(new Set());
   const [mapGuest, setMapGuest] = useState<Guest | null>(null);
   const [mapSelectionMode, setMapSelectionMode] = useState<"room" | "guest">("room");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const sortedRides = [...rides].sort((left, right) => {
+    const timeDifference = Date.parse(left.arrival_datetime) - Date.parse(right.arrival_datetime);
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    void Promise.all([
-      guestsService.getGuestsByRetreatId(retreatId),
-      taxiRidesService.getByRetreatId(retreatId),
-      housesService.getHouses(),
-      roomsService.getRooms(),
-      guestStatusesService.getLatestForRetreat(retreatId),
-    ])
-      .then(async ([guestData, rideData, houseData, roomData, latestStatuses]) => {
-        const sortedRides = [...rideData].sort((left, right) => {
-          const timeDifference = Date.parse(left.arrival_datetime) - Date.parse(right.arrival_datetime);
-
-          return timeDifference || left.id - right.id;
-        });
-        const taxiGuestData = await taxiRidesService.getGuestsByRideIds(
-          sortedRides.map((ride) => ride.id)
-        );
-
-        if (isCancelled) {
-          return;
-        }
-
-        setGuests(guestData);
-        setRides(sortedRides);
-        setTaxiGuests(taxiGuestData);
-        setHouses(houseData);
-        setRooms(roomData);
-        setStatuses(new Map(Array.from(latestStatuses, ([guestId, status]) => [guestId, status.status])));
-        setError("");
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setError(strLoadError);
-        }
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [retreatId]);
+    return timeDifference || left.id - right.id;
+  });
 
   const onRideToggle = (rideId: number) => {
     setSelectedRideIds((current) => {
@@ -161,14 +124,12 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
     setError("");
 
     try {
-      await guestStatusesService.createStatus(
-        retreatId,
+      await createStatus(
         guestRow.guest.id,
         nextStatus,
         guestRow.roomName === strRoomUnknown ? null : guestRow.roomName,
         currentUser.id
       );
-      setStatuses((current) => new Map(current).set(guestRow.guest.id, nextStatus));
     } catch {
       setError(strStatusError);
     } finally {
@@ -210,11 +171,7 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
     }
 
     try {
-      const updatedGuest = await guestsService.updateGuest(mapGuest.id, {
-        room_id: room.id,
-      });
-      setGuests((current) => current.map((guest) => guest.id === updatedGuest.id ? updatedGuest : guest));
-      setStatuses((current) => new Map(current).set(updatedGuest.id, "booked"));
+      await updateGuest(mapGuest.id, { room_id: room.id });
       setMapGuest(null);
     } catch {
       setError(strStatusError);
@@ -227,25 +184,17 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
     }
 
     try {
-      const [updatedGuest, updatedTargetGuest] = await Promise.all([
-        guestsService.updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
-        guestsService.updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+      await Promise.all([
+        updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+        updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
       ]);
-      const updatedById = new Map([
-        [updatedGuest.id, updatedGuest],
-        [updatedTargetGuest.id, updatedTargetGuest],
-      ]);
-      setGuests((current) => current.map((guest) => updatedById.get(guest.id) ?? guest));
-      setStatuses((current) => new Map(current)
-        .set(updatedGuest.id, "booked")
-        .set(updatedTargetGuest.id, "booked"));
       setMapGuest(null);
     } catch {
       setError(strStatusError);
     }
   };
 
-  const rideRows = rides.map((ride, index) => {
+  const rideRows = sortedRides.map((ride, index) => {
     const rideGuestAssignments = taxiGuests.filter((taxiGuest) => taxiGuest.ride_id === ride.id);
     const passengerCount = rideGuestAssignments.length;
     const isSelected = selectedRideIds.has(ride.id);
@@ -371,7 +320,6 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
   if (mapGuest) {
     return (
       <HouseMapView
-        retreatId={retreatId}
         openMode="selection"
         guest={mapGuest}
         initialSelectionMode={mapSelectionMode}
@@ -386,8 +334,9 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
     <section>
       <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>
       {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
-      {isLoading ? <p>{strLoading}</p> : null}
-      {!isLoading && mode === "meeting" ? (
+      {retreatError ? <p role="alert" className="mb-4 text-red-600">{strLoadError}</p> : null}
+      {isSnapshotLoading ? <p>{strLoading}</p> : null}
+      {!isSnapshotLoading && mode === "meeting" ? (
         <>
           <div className="flex flex-wrap gap-3">
             {rideRows.map((ride) => (
@@ -408,7 +357,7 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
           {hasRideRows && !hasSelectedRides ? <p className="mt-4 text-gray-600">{strChooseRides}</p> : null}
         </>
       ) : null}
-      {!isLoading ? (
+      {!isSnapshotLoading ? (
         <GuestsCards
           guests={guestCardRows}
           getGuestCardGroup={getGuestCardGroup}

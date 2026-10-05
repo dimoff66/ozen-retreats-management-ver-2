@@ -1,16 +1,13 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import type { Guest, House, Room, TaxiGuest, TaxiRide } from "@/services/database";
+import type { Guest, TaxiGuest, TaxiRide } from "@/services/database";
 import dateService from "@/services/dateService";
-import guestsService from "@/services/guestsService";
-import housesService from "@/services/housesService";
 import roomsService from "@/services/roomsService";
-import taxiRidesService from "@/services/taxiRidesService";
+import { useRetreat } from "@/contexts/RetreatContext";
 
 type TaxiRidesPanelProps = {
-  retreatId: number;
   canManage: boolean;
 };
 
@@ -21,7 +18,7 @@ const toLocalDateTimeInput = (value: string): string => {
   return localDate.toISOString().slice(0, 16);
 };
 
-export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelProps) {
+export default function TaxiRidesPanel({ canManage }: TaxiRidesPanelProps) {
   const strTitle = "Taxi rides";
   const strLoading = "Loading...";
   const strNoRides = "No taxi rides yet.";
@@ -48,7 +45,6 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   const strSelectRide = "Select a taxi to view its passengers.";
   const strPassengerCount = "guests";
   const strMoveGuestConfirm = "Move this guest from the other taxi to the selected taxi?";
-  const strLoadRideError = "Failed to load taxi rides.";
   const strSaveError = "Failed to save taxi ride.";
   const strDeleteConfirm = "Delete this taxi ride?";
   const strDeleteError = "Failed to delete taxi ride.";
@@ -56,12 +52,30 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   const strSavePassengerError = "Failed to add taxi passenger.";
   const strRemovePassengerError = "Failed to remove taxi passenger.";
   const strArrivalRequired = "Choose the arrival date and time.";
-  const [rides, setRides] = useState<TaxiRide[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [houses, setHouses] = useState<House[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [taxiGuests, setTaxiGuests] = useState<TaxiGuest[]>([]);
-  const [selectedRide, setSelectedRide] = useState<TaxiRide | null>(null);
+  const {
+    snapshot,
+    isLoading,
+    error: retreatError,
+    createTaxiRide,
+    updateTaxiRide,
+    deleteTaxiRide,
+    addTaxiGuest,
+    moveTaxiGuest,
+    deleteTaxiGuest,
+  } = useRetreat();
+  const rides: TaxiRide[] = [...(snapshot?.taxiRides ?? [])].sort((left, right) => {
+    const timeDifference = Date.parse(left.arrival_datetime) - Date.parse(right.arrival_datetime);
+
+    return timeDifference || left.id - right.id;
+  });
+  const guests = snapshot?.guests ?? [];
+  const houses = snapshot?.houses ?? [];
+  const rooms = snapshot?.rooms ?? [];
+  const taxiGuests = snapshot?.taxiGuests ?? [];
+  const [selectedRideId, setSelectedRideId] = useState<number | null>(null);
+  const selectedRide = rides.find((ride) => ride.id === selectedRideId)
+    ?? (selectedRideId === null ? rides[0] ?? null : null);
+  const isSnapshotLoading = isLoading || !snapshot;
   const [rideBeingEdited, setRideBeingEdited] = useState<TaxiRide | null>(null);
   const [arrivalDateTime, setArrivalDateTime] = useState("");
   const [driverName, setDriverName] = useState("");
@@ -69,42 +83,6 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   const [extraPassengerName, setExtraPassengerName] = useState("");
   const [isRideModalOpen, setIsRideModalOpen] = useState(false);
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadRides = async (preferredRideId?: number) => {
-    try {
-      const [rideData, guestData, houseData, roomData] = await Promise.all([
-        taxiRidesService.getByRetreatId(retreatId),
-        guestsService.getGuestsByRetreatId(retreatId),
-        housesService.getHouses(),
-        roomsService.getRooms(),
-      ]);
-      const sortedRideData = [...rideData].sort((left, right) => {
-        const timeDifference = Date.parse(left.arrival_datetime) - Date.parse(right.arrival_datetime);
-
-        return timeDifference || left.id - right.id;
-      });
-      const taxiGuestData = await taxiRidesService.getGuestsByRideIds(
-        sortedRideData.map((ride) => ride.id)
-      );
-
-      setRides(sortedRideData);
-      setGuests(guestData);
-      setHouses(houseData);
-      setRooms(roomData);
-      setTaxiGuests(taxiGuestData);
-      const rideToKeep = preferredRideId ?? selectedRide?.id;
-      const nextRide = sortedRideData.find((ride) => ride.id === rideToKeep)
-        ?? sortedRideData[0]
-        ?? null;
-      setSelectedRide(nextRide);
-      setError("");
-    } catch {
-      setError(strLoadRideError);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const onArrivalChange = (event: ChangeEvent<HTMLInputElement>) => {
     setArrivalDateTime(event.target.value);
@@ -134,20 +112,18 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
 
     try {
       const ride = rideBeingEdited
-        ? await taxiRidesService.update(rideBeingEdited.id, {
+        ? await updateTaxiRide(rideBeingEdited.id, {
             arrival_datetime: new Date(arrivalDateTime).toISOString(),
             driver_name: driverName.trim() || null,
           })
-        : await taxiRidesService.create({
-            retreat_id: retreatId,
+        : await createTaxiRide({
             arrival_datetime: new Date(arrivalDateTime).toISOString(),
             driver_name: driverName.trim() || null,
           });
 
-      setSelectedRide(ride);
-  setRideBeingEdited(null);
+      setSelectedRideId(ride.id);
+      setRideBeingEdited(null);
       setIsRideModalOpen(false);
-      await loadRides(ride.id);
     } catch {
       setError(strSaveError);
     }
@@ -162,7 +138,7 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   };
 
   const onEditRideClick = (ride: TaxiRide) => {
-    setSelectedRide(ride);
+    setSelectedRideId(ride.id);
     setRideBeingEdited(ride);
     setArrivalDateTime(toLocalDateTimeInput(ride.arrival_datetime));
     setDriverName(ride.driver_name ?? "");
@@ -171,7 +147,7 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   };
 
   const onRideSelect = (ride: TaxiRide) => {
-    setSelectedRide(ride);
+    setSelectedRideId(ride.id);
     setGuestSearch("");
   };
 
@@ -183,13 +159,12 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
     setError("");
 
     try {
-      await taxiRidesService.delete(rideBeingEdited.id);
-      setSelectedRide((current) => current?.id === rideBeingEdited.id ? null : current);
+      await deleteTaxiRide(rideBeingEdited.id);
+      setSelectedRideId((current) => current === rideBeingEdited.id ? null : current);
       setRideBeingEdited(null);
       setIsRideModalOpen(false);
       setArrivalDateTime("");
       setDriverName("");
-      await loadRides();
     } catch {
       setError(strDeleteError);
     }
@@ -212,13 +187,12 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
     setError("");
 
     try {
-      await taxiRidesService.addGuest({
+      await addTaxiGuest({
         ride_id: selectedRide.id,
         guest_id: null,
         unbooked_guest_name: name,
       });
       setExtraPassengerName("");
-      await loadRides(selectedRide.id);
     } catch {
       setError(strSavePassengerError);
     }
@@ -240,14 +214,14 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
       }
 
       try {
-        await taxiRidesService.moveGuest(existingAssignment.id, selectedRide.id);
+        await moveTaxiGuest(existingAssignment.id, selectedRide.id);
       } catch {
         setError(strSavePassengerError);
         return;
       }
     } else {
       try {
-        await taxiRidesService.addGuest({
+        await addTaxiGuest({
           ride_id: selectedRide.id,
           guest_id: guest.id,
           unbooked_guest_name: null,
@@ -260,23 +234,17 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
 
     setError("");
     setGuestSearch("");
-    await loadRides(selectedRide.id);
   };
 
   const onPassengerDeleteClick = async (passenger: TaxiGuest) => {
     setError("");
 
     try {
-      await taxiRidesService.deleteGuest(passenger.id);
-      await loadRides(selectedRide?.id);
+      await deleteTaxiGuest(passenger.id);
     } catch {
       setError(strRemovePassengerError);
     }
   };
-
-  useEffect(() => {
-    void loadRides();
-  }, [retreatId]);
 
   const rideRows = rides.map((ride, index) => {
     const assignedPassengers = taxiGuests.filter((passenger) => passenger.ride_id === ride.id);
@@ -371,8 +339,9 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
     <section>
       <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>
       {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
-      {isLoading ? <p>{strLoading}</p> : null}
-      {!isLoading ? (
+      {retreatError ? <p role="alert" className="mb-4 text-red-600">{retreatError}</p> : null}
+      {isSnapshotLoading ? <p>{strLoading}</p> : null}
+      {!isSnapshotLoading ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-3">

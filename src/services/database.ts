@@ -51,6 +51,7 @@ export type Retreat = {
   end_date: string;
   is_active: boolean;
   created_at: string;
+  version?: number;
 };
 
 export type RetreatRoom = {

@@ -1,34 +1,25 @@
 'use client';
 
-import { useEffect, useState } from "react";
-import type { ChangeEvent, MouseEvent } from "react";
+import { useState } from "react";
+import type { MouseEvent } from "react";
 import ActionBar from "@/components/common/ActionBar";
 import GuestForm from "@/components/guests/GuestForm";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
+import { useRetreat } from "@/contexts/RetreatContext";
 import type {
   CreateGuest,
   Guest,
-  House,
-  Retreat,
   Room,
 } from "@/services/database";
 import dateService from "@/services/dateService";
-import guestsService from "@/services/guestsService";
-import guestStatusesService from "@/services/guestStatusesService";
 import type { GuestAction } from "@/services/guestActionsService";
 import type { GuestStatusValue } from "@/services/guestStatusesService";
-import housesService from "@/services/housesService";
-import retreatsService from "@/services/retreatsService";
+import guestsService from "@/services/guestsService";
 import roomsService from "@/services/roomsService";
 
-type GuestsListProps = {
-  retreatId?: number;
-};
-
-export default function GuestsList({ retreatId }: GuestsListProps) {
+export default function GuestsList() {
   const strTitle = "Guests";
-  const strRetreat = "Retreat";
   const strColumnName = "Name";
   const strColumnDiet = "Diet";
   const strColumnRoom = "Room";
@@ -45,21 +36,32 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
   const strSaveRoomError = "Failed to change room.";
   const strDeleteConfirm = "Delete selected guest?";
   const { currentUser: user } = useCurrentUser();
+  const {
+    snapshot,
+    retreat,
+    isLoading,
+    error: retreatError,
+    createGuest,
+    updateGuest,
+    deleteGuest,
+    createStatus,
+  } = useRetreat();
 
-  const [retreats, setRetreats] = useState<Retreat[]>([]);
-  const [houses, setHouses] = useState<House[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [guestStatuses, setGuestStatuses] = useState<Map<number, GuestStatusValue>>(new Map());
-  const [selectedRetreatId, setSelectedRetreatId] = useState<number | null>(null);
+  const houses = snapshot?.houses ?? [];
+  const rooms: Room[] = snapshot?.rooms ?? [];
+  const guests = snapshot?.guests ?? [];
+  const guestStatuses = new Map(
+    Array.from(snapshot?.latestStatuses ?? [], ([guestId, latestStatus]) => [guestId, latestStatus.status])
+  );
+  const selectedRetreatId = retreat?.id ?? null;
+  const isSnapshotLoading = isLoading || !snapshot;
+  const isLoadError = Boolean(retreatError);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [mapGuest, setMapGuest] = useState<Guest | null>(null);
   const [mapSelectionMode, setMapSelectionMode] = useState<"room" | "guest">("room");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadError, setIsLoadError] = useState(false);
   const [actionError, setActionError] = useState("");
 
   const canManageGuestRecords = user?.role === "admin" || user?.role === "organizer";
@@ -100,93 +102,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     return "bg-gray-100 text-gray-700";
   };
 
-  const loadInitialData = async () => {
-    if (!user) {
-      return;
-    }
-
-    setIsLoading(true);
-    setIsLoadError(false);
-
-    try {
-      const [housesData, roomsData] = await Promise.all([
-        housesService.getHouses(),
-        roomsService.getRooms(),
-      ]);
-
-      setHouses(housesData);
-      setRooms(roomsData);
-
-      if (retreatId !== undefined) {
-        setSelectedRetreatId(retreatId);
-        return;
-      }
-
-      if (user.role === "organizer") {
-        if (!user.retreat_id) {
-          setRetreats([]);
-          setSelectedRetreatId(null);
-          return;
-        }
-
-        const retreat = await retreatsService.getRetreatById(user.retreat_id);
-
-        if (retreat) {
-          setRetreats([retreat]);
-          setSelectedRetreatId(retreat.id);
-        }
-
-        return;
-      }
-
-      const activeRetreats = await retreatsService.getActiveRetreats();
-
-      setRetreats(activeRetreats);
-      setSelectedRetreatId(activeRetreats.length > 0 ? activeRetreats[0].id : null);
-    } catch {
-      setIsLoadError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadGuests = async (retreatId: number): Promise<void> => {
-    setIsLoading(true);
-    setIsLoadError(false);
-
-    try {
-      const [guestsData, statusesData] = await Promise.all([
-        guestsService.getGuestsByRetreatId(retreatId),
-        guestStatusesService.getLatestForRetreat(retreatId),
-      ]);
-
-      const preparedStatuses = new Map<number, GuestStatusValue>();
-
-      statusesData.forEach((guestStatus, guestId) => {
-        preparedStatuses.set(guestId, guestStatus.status);
-      });
-
-      setGuests(guestsData);
-      setGuestStatuses(preparedStatuses);
-    } catch {
-      setIsLoadError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onRetreatChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const retreatId = Number(event.target.value);
-
-    setSelectedRetreatId(retreatId);
-    setSelectedGuest(null);
-    setEditingGuest(null);
-    setMapGuest(null);
-    setIsFormOpen(false);
-    setIsMapOpen(false);
-    setActionError("");
-  };
-
   const onAddActionClick = () => {
     if (!selectedRetreatId) {
       return;
@@ -217,12 +132,8 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     setActionError("");
 
     try {
-      await guestsService.deleteGuest(guest.id);
+      await deleteGuest(guest.id);
       setSelectedGuest(null);
-
-      if (selectedRetreatId) {
-        await loadGuests(selectedRetreatId);
-      }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strLoadError);
     }
@@ -239,18 +150,15 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
 
     try {
       if (editingGuest) {
-        await guestsService.updateGuest(editingGuest.id, data);
+        await updateGuest(editingGuest.id, data);
       } else {
-        await guestsService.createGuest(data);
+        await createGuest(data);
       }
 
       setIsFormOpen(false);
       setEditingGuest(null);
       setSelectedGuest(null);
 
-      if (selectedRetreatId) {
-        await loadGuests(selectedRetreatId);
-      }
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strLoadError);
     }
@@ -270,7 +178,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     setActionError("");
 
     try {
-      await guestsService.updateGuest(mapGuest.id, {
+      await updateGuest(mapGuest.id, {
         room_id: room.id,
       });
 
@@ -278,7 +186,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
       setMapGuest(null);
       setSelectedGuest(null);
 
-      await loadGuests(selectedRetreatId);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strSaveRoomError);
     }
@@ -293,14 +200,13 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
 
     try {
       await Promise.all([
-        guestsService.updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
-        guestsService.updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+        updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+        updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
       ]);
 
       setIsMapOpen(false);
       setMapGuest(null);
       setSelectedGuest(null);
-      await loadGuests(selectedRetreatId);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strSaveRoomError);
     }
@@ -344,28 +250,11 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
         ? roomsService.getRoomDisplayName(room, house)
         : null;
 
-      await guestStatusesService.createStatus(
-        guest.retreat_id,
-        guest.id,
-        nextStatus,
-        roomName,
-        user.id
-      );
-
-      if (selectedRetreatId) {
-        await loadGuests(selectedRetreatId);
-      }
+      await createStatus(guest.id, nextStatus, roomName, user.id);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strLoadError);
     }
   };
-
-  const retreatOptions = retreats.map((retreat) => {
-    return {
-      id: retreat.id,
-      title: retreat.title,
-    };
-  });
 
   const guestRows = guests.map((guest) => {
     const room = rooms.find((item) => item.id === guest.room_id);
@@ -454,20 +343,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     };
   });
 
-  useEffect(() => {
-    loadInitialData();
-  }, [user?.id, retreatId]);
-
-  useEffect(() => {
-    if (!selectedRetreatId) {
-      setGuests([]);
-      setGuestStatuses(new Map());
-      return;
-    }
-
-    loadGuests(selectedRetreatId);
-  }, [selectedRetreatId]);
-
   if (!user) {
     return <div>{strLoading}</div>;
   }
@@ -475,7 +350,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
   if (isMapOpen && mapGuest && selectedRetreatId) {
     return (
       <HouseMapView
-        retreatId={selectedRetreatId}
         openMode="selection"
         guest={mapGuest}
         initialSelectionMode={mapSelectionMode}
@@ -488,20 +362,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
 
   return (
     <div>
-      {retreatId === undefined ? <h1 className="mb-6 text-2xl font-bold">{strTitle}</h1> : null}
-      {retreatId === undefined ? <div className="mb-4 max-w-md">
-        <label className="mb-1 block text-sm font-medium">{strRetreat}</label>
-        <select
-          value={selectedRetreatId ?? ""}
-          onChange={onRetreatChange}
-          disabled={user.role === "organizer"}
-          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 disabled:bg-gray-100"
-        >
-          {retreatOptions.map((retreat) => (
-            <option key={retreat.id} value={retreat.id}>{retreat.title}</option>
-          ))}
-        </select>
-      </div> : null}
+      <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>
       <ActionBar
         selectedItem={selectedGuest}
         onAddActionClick={onAddActionClick}
@@ -510,9 +371,9 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
         disabled={!canManageGuestRecords}
       />
       {actionError ? <div className="mb-4 text-red-600">{actionError}</div> : null}
-      {isLoading ? <div>{strLoading}</div> : null}
+      {isSnapshotLoading ? <div>{strLoading}</div> : null}
       {isLoadError ? <div>{strLoadError}</div> : null}
-      {!isLoading && !isLoadError ? (
+      {!isSnapshotLoading && !isLoadError ? (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
           <table className="w-full">
             <thead className="bg-gray-50">

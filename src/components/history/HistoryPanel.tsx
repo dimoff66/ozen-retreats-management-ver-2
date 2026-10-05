@@ -1,22 +1,17 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ChangeEvent } from "react";
 import HistoryActivity from "./HistoryActivity";
-import type { Guest, GuestStatus } from "@/services/database";
 import dateService from "@/services/dateService";
-import guestStatusesService, {
+import {
   getGuestStatusHistoryMessage,
   getPreviousGuestStatuses,
 } from "@/services/guestStatusesService";
-import guestsService from "@/services/guestsService";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
+import { useRetreat } from "@/contexts/RetreatContext";
 
-type HistoryPanelProps = {
-  retreatId: number;
-};
-
-export default function HistoryPanel({ retreatId }: HistoryPanelProps) {
+export default function HistoryPanel() {
   const strTitle = "History";
   const strLoadError = "Failed to load retreat history.";
   const strLoading = "Loading history...";
@@ -25,43 +20,11 @@ export default function HistoryPanel({ retreatId }: HistoryPanelProps) {
   const strActivity = "Activity";
   const strUnknown = "-";
   const [searchQuery, setSearchQuery] = useState("");
-  const [statuses, setStatuses] = useState<GuestStatus[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
   const { users } = useCurrentUser();
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    void Promise.all([
-      guestStatusesService.getGuestStatusesByRetreatId(retreatId),
-      guestsService.getGuestsByRetreatId(retreatId),
-    ])
-      .then(([statusData, guestData]) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setStatuses(statusData);
-        setGuests(guestData);
-        setError("");
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setError(strLoadError);
-        }
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [retreatId]);
+  const { snapshot, isLoading, error: retreatError } = useRetreat();
+  const statuses = snapshot?.statuses ?? [];
+  const guests = snapshot?.guests ?? [];
+  const error = retreatError ? strLoadError : "";
 
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -88,8 +51,9 @@ export default function HistoryPanel({ retreatId }: HistoryPanelProps) {
       searchableText,
     };
   }).filter((row) => row.searchableText.toLocaleLowerCase().includes(normalizedSearch));
-  const isEmpty = !isLoading && !error && historyRows.length === 0;
-  const hasHistory = !isLoading && !error && historyRows.length > 0;
+  const isSnapshotLoading = isLoading || !snapshot;
+  const isEmpty = !isSnapshotLoading && !error && historyRows.length === 0;
+  const hasHistory = !isSnapshotLoading && !error && historyRows.length > 0;
 
   return (
     <section>
@@ -111,7 +75,7 @@ export default function HistoryPanel({ retreatId }: HistoryPanelProps) {
         </label>
       </div>
       {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
-      {isLoading ? <p>{strLoading}</p> : null}
+      {isSnapshotLoading ? <p>{strLoading}</p> : null}
       {isEmpty ? <p className="text-gray-500">{strNoHistory}</p> : null}
       {hasHistory ? (
         <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">

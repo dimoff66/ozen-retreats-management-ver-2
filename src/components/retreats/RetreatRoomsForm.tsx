@@ -1,21 +1,12 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ChangeEvent } from "react";
-import type {
-  House,
-  Retreat,
-  RetreatRoom,
-  Room,
-} from "@/services/database";
-import housesService from "@/services/housesService";
-import retreatRoomsService, {
-  type RetreatRoomSetting,
-} from "@/services/retreatRoomsService";
+import type { Room } from "@/services/database";
 import roomsService from "@/services/roomsService";
+import { useRetreat } from "@/contexts/RetreatContext";
 
 type RetreatRoomsFormProps = {
-  retreat: Retreat;
   onCloseActionClick: () => void;
 };
 
@@ -25,8 +16,20 @@ type RoomSetting = {
   maxGuests: number;
 };
 
+const prepareRoomSettings = (
+  rooms: Room[],
+  retreatRooms: { room_id: number; max_guests: number }[]
+): RoomSetting[] => rooms.map((room) => {
+  const retreatRoom = retreatRooms.find((item) => item.room_id === room.id);
+
+  return {
+    roomId: room.id,
+    isAvailable: room.is_available && retreatRoom !== undefined,
+    maxGuests: retreatRoom?.max_guests ?? 1,
+  };
+});
+
 export default function RetreatRoomsForm({
-  retreat,
   onCloseActionClick,
 }: RetreatRoomsFormProps) {
   const strTitle = "Retreat rooms";
@@ -42,62 +45,22 @@ export default function RetreatRoomsForm({
   const strLoadError = "Failed to load retreat rooms.";
   const strSaveError = "Failed to save retreat rooms.";
 
-  const [houses, setHouses] = useState<House[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [settings, setSettings] = useState<RoomSetting[]>([]);
+  const { snapshot, retreat, isLoading, error: retreatError, saveRooms } = useRetreat();
+  const houses = snapshot?.houses ?? [];
+  const rooms: Room[] = roomsService.sortRooms(snapshot?.rooms ?? [], houses);
+  const retreatRooms = snapshot?.retreatRooms ?? [];
+  const [settingsOverride, setSettingsOverride] = useState<RoomSetting[] | null>(null);
   const [houseMaxGuests, setHouseMaxGuests] = useState<Record<number, number>>({});
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-
-  const loadData = async () => {
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const [housesData, roomsData, retreatRoomsData] = await Promise.all([
-        housesService.getHouses(),
-        roomsService.getRooms(),
-        retreatRoomsService.getRetreatRooms(retreat.id),
-      ]);
-
-      const sortedRooms = roomsService.sortRooms(roomsData, housesData);
-
-      const preparedSettings = sortedRooms.map((room) => {
-        const retreatRoom = retreatRoomsData.find(
-          (item: RetreatRoom) => item.room_id === room.id
-        );
-
-        return {
-          roomId: room.id,
-          isAvailable: room.is_available && retreatRoom !== undefined,
-          maxGuests: retreatRoom?.max_guests ?? 1,
-        };
-      });
-
-      const preparedHouseMaxGuests: Record<number, number> = {};
-
-      housesData.forEach((house) => {
-        preparedHouseMaxGuests[house.id] = 1;
-      });
-
-      setHouses(housesData);
-      setRooms(sortedRooms);
-      setSettings(preparedSettings);
-      setHouseMaxGuests(preparedHouseMaxGuests);
-    } catch {
-      setError(strLoadError);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const settings = settingsOverride ?? prepareRoomSettings(rooms, retreatRooms);
 
   const onSaveActionClick = async () => {
     setIsSaving(true);
     setError("");
 
     try {
-      const saveSettings: RetreatRoomSetting[] = settings.map((setting) => {
+      const saveSettings = settings.map((setting) => {
         const room = rooms.find((item) => item.id === setting.roomId);
         const isGloballyAvailable = room?.is_available ?? false;
 
@@ -108,12 +71,8 @@ export default function RetreatRoomsForm({
         };
       });
 
-      await retreatRoomsService.saveRetreatRooms(
-        retreat.id,
-        saveSettings
-      );
-
-      await loadData();
+      await saveRooms(saveSettings);
+      setSettingsOverride(null);
     } catch {
       setError(strSaveError);
     } finally {
@@ -145,8 +104,8 @@ export default function RetreatRoomsForm({
         ) => {
           const checked = event.target.checked;
 
-          setSettings((current) =>
-            current.map((item) =>
+          setSettingsOverride((current) =>
+            (current ?? settings).map((item) =>
               item.roomId === room.id
                 ? {
                     ...item,
@@ -162,8 +121,8 @@ export default function RetreatRoomsForm({
         ) => {
           const value = Math.max(1, Number(event.target.value));
 
-          setSettings((current) =>
-            current.map((item) =>
+          setSettingsOverride((current) =>
+            (current ?? settings).map((item) =>
               item.roomId === room.id
                 ? {
                     ...item,
@@ -194,8 +153,8 @@ export default function RetreatRoomsForm({
             .map((room) => room.id)
         );
 
-        setSettings((current) =>
-          current.map((item) =>
+        setSettingsOverride((current) =>
+          (current ?? settings).map((item) =>
             roomIds.has(item.roomId)
               ? {
                   ...item,
@@ -211,8 +170,8 @@ export default function RetreatRoomsForm({
           houseRooms.map((room) => room.id)
         );
 
-        setSettings((current) =>
-          current.map((item) =>
+        setSettingsOverride((current) =>
+          (current ?? settings).map((item) =>
             roomIds.has(item.roomId)
               ? {
                   ...item,
@@ -241,8 +200,8 @@ export default function RetreatRoomsForm({
             .map((room) => room.id)
         );
 
-        setSettings((current) =>
-          current.map((item) =>
+        setSettingsOverride((current) =>
+          (current ?? settings).map((item) =>
             roomIds.has(item.roomId)
               ? {
                   ...item,
@@ -266,20 +225,16 @@ export default function RetreatRoomsForm({
     })
     .filter((house) => house !== null);
 
-  useEffect(() => {
-    loadData();
-  }, [retreat.id]);
-
   return (
     <section className="space-y-4">
       <div>
         <h2 className="text-xl font-bold">{strTitle}</h2>
-        <div className="mt-1 text-gray-600">{retreat.title}</div>
+        {retreat ? <div className="mt-1 text-gray-600">{retreat.title}</div> : null}
       </div>
       <div>
-        {isLoading ? <div>{strLoading}</div> : null}
-        {error ? <div className="mb-4 text-red-600">{error}</div> : null}
-        {!isLoading ? (
+        {isLoading || !snapshot ? <div>{strLoading}</div> : null}
+        {error || retreatError ? <div className="mb-4 text-red-600">{error || strLoadError}</div> : null}
+        {!isLoading && snapshot ? (
           <div className="space-y-6">
             {houseGroups.map((house) => (
               <div key={house.id} className="overflow-hidden rounded-lg border border-gray-200">

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ActionBar from "@/components/common/ActionBar";
 import RetreatForm from "@/components/retreats/RetreatForm";
 import RetreatRoomsForm from "@/components/retreats/RetreatRoomsForm";
+import { RetreatProvider } from "@/contexts/RetreatContext";
 import type { CreateRetreat, Retreat } from "@/services/database";
 import dateService from "@/services/dateService";
 import retreatsService from "@/services/retreatsService";
@@ -137,10 +138,16 @@ export default function RetreatsList() {
       />
       {roomsRetreat ? (
         <div className="mb-6">
-          <RetreatRoomsForm
-            retreat={roomsRetreat}
-            onCloseActionClick={onRoomsCloseActionClick}
-          />
+          <RetreatProvider
+            key={roomsRetreat.id}
+            retreatId={roomsRetreat.id}
+            retreats={retreats}
+            onChangeRetreat={(retreatId) => {
+              setRoomsRetreat(retreats.find((retreat) => retreat.id === retreatId) ?? null);
+            }}
+          >
+            <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} />
+          </RetreatProvider>
         </div>
       ) : null}
       {isLoading ? <div>{strLoading}</div> : null}

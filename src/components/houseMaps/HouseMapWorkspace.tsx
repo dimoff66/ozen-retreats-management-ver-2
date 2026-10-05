@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
 import type { HouseMapOpenMode } from "@/components/houseMaps/HouseMapView";
+import { RetreatProvider } from "@/contexts/RetreatContext";
 import type { Retreat } from "@/services/database";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import retreatsService from "@/services/retreatsService";
@@ -110,10 +111,14 @@ export default function HouseMapWorkspace({
         </select>
       </div>
       <div className="min-h-0 flex-1">
-        <HouseMapView
+        <RetreatProvider
+          key={selectedRetreatId}
           retreatId={selectedRetreatId}
-          openMode={openMode}
-        />
+          retreats={retreats}
+          onChangeRetreat={setSelectedRetreatId}
+        >
+          <HouseMapView openMode={openMode} />
+        </RetreatProvider>
       </div>
     </div>
   );

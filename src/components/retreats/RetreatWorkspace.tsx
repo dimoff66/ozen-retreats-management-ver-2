@@ -8,6 +8,7 @@ import ManagerArrivalPanel from "@/components/retreats/ManagerArrivalPanel";
 import TaxiRidesPanel from "@/components/taxis/TaxiRidesPanel";
 import GuestsList from "@/components/guests/GuestsList";
 import RetreatRoomsForm from "@/components/retreats/RetreatRoomsForm";
+import { RetreatProvider, useRetreat } from "@/contexts/RetreatContext";
 import type { Retreat } from "@/services/database";
 import dateService from "@/services/dateService";
 import retreatsService from "@/services/retreatsService";
@@ -41,6 +42,19 @@ const tabsByRole: Record<string, RetreatTab[]> = {
   taxi: [{ label: "Taxis" }],
 };
 const noTabs: RetreatTab[] = [];
+
+function RetreatHeading({ fallbackRetreat }: { fallbackRetreat: Retreat }) {
+  const { retreat } = useRetreat();
+  const displayedRetreat = retreat ?? fallbackRetreat;
+  const dateRange = `${dateService.formatDate(displayedRetreat.start_date)} – ${dateService.formatDate(displayedRetreat.end_date)}`;
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold">{displayedRetreat.title}</h1>
+      <p className="text-sm text-gray-600">{dateRange}</p>
+    </div>
+  );
+}
 
 export default function RetreatWorkspace() {
   const strLoading = "Loading retreats...";
@@ -178,79 +192,58 @@ export default function RetreatWorkspace() {
   const showMap = activeTab?.mapMode !== undefined;
   const showAdminMap = activeTabName === "Map" && isAdmin;
   const showHistory = activeTabName === "History";
-  const selectedRetreatDateRange = selectedRetreat
-    ? `${dateService.formatDate(selectedRetreat.start_date)} – ${dateService.formatDate(selectedRetreat.end_date)}`
-    : "";
-
   return (
     <div className="space-y-5">
       {selectedRetreat ? (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold">{selectedRetreat.title}</h1>
-              <p className="text-sm text-gray-600">
-                {selectedRetreatDateRange}
-              </p>
+        <RetreatProvider
+          key={selectedRetreat.id}
+          retreatId={selectedRetreat.id}
+          retreats={retreats}
+          onChangeRetreat={(retreatId) => {
+            setSelectedRetreatId(retreatId);
+            setSelectedTab(tabs[0]?.label ?? "");
+          }}
+        >
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <RetreatHeading fallbackRetreat={selectedRetreat} />
+              {canChangeRetreat ? (
+                <button
+                  type="button"
+                  onClick={onChangeRetreatClick}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  {strChooseAnotherRetreat}
+                </button>
+              ) : null}
             </div>
-            {canChangeRetreat ? (
-              <button
-                type="button"
-                onClick={onChangeRetreatClick}
-                className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                {strChooseAnotherRetreat}
-              </button>
-            ) : null}
-          </div>
-          <nav aria-label="Retreat sections" className="flex flex-wrap gap-2 border-b border-gray-200">
-            {tabRows.map((tab) => (
-              <button
-                key={tab.label}
-                type="button"
-                onClick={tab.onClickHandler}
-                aria-current={tab.isSelected ? "page" : undefined}
-                className={tab.isSelected
-                  ? "border-b-2 border-blue-600 px-4 py-2 font-semibold text-blue-700"
-                  : "px-4 py-2 text-gray-600 hover:text-gray-900"}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-          <div>
-            {showGuests ? (
-              <GuestsList retreatId={selectedRetreat.id} />
-            ) : null}
-            {showMeeting ? (
-              <ManagerArrivalPanel retreatId={selectedRetreat.id} mode="meeting" />
-            ) : null}
-            {showCheckIn ? (
-              <ManagerArrivalPanel retreatId={selectedRetreat.id} mode="check-in" />
-            ) : null}
-            {showRooms ? (
-              <RetreatRoomsForm
-                retreat={selectedRetreat}
-                onCloseActionClick={onRoomsCloseActionClick}
-              />
-            ) : null}
-            {showTaxis ? (
-              <TaxiRidesPanel
-                retreatId={selectedRetreat.id}
-                canManage={canManageTaxiRides}
-              />
-            ) : null}
-            {showMap && activeTab?.mapMode ? (
-              <HouseMapView retreatId={selectedRetreat.id} openMode={activeTab.mapMode} />
-            ) : null}
-            {showAdminMap ? (
-              <HouseMapView retreatId={selectedRetreat.id} openMode="normal" />
-            ) : null}
-            {showHistory ? (
-              <HistoryPanel retreatId={selectedRetreat.id} />
-            ) : null}
-          </div>
-        </>
+            <nav aria-label="Retreat sections" className="flex flex-wrap gap-2 border-b border-gray-200">
+              {tabRows.map((tab) => (
+                <button
+                  key={tab.label}
+                  type="button"
+                  onClick={tab.onClickHandler}
+                  aria-current={tab.isSelected ? "page" : undefined}
+                  className={tab.isSelected
+                    ? "border-b-2 border-blue-600 px-4 py-2 font-semibold text-blue-700"
+                    : "px-4 py-2 text-gray-600 hover:text-gray-900"}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+            <div>
+              {showGuests ? <GuestsList /> : null}
+              {showMeeting ? <ManagerArrivalPanel mode="meeting" /> : null}
+              {showCheckIn ? <ManagerArrivalPanel mode="check-in" /> : null}
+              {showRooms ? <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} /> : null}
+              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} /> : null}
+              {showMap && activeTab?.mapMode ? <HouseMapView openMode={activeTab.mapMode} /> : null}
+              {showAdminMap ? <HouseMapView openMode="normal" /> : null}
+              {showHistory ? <HistoryPanel /> : null}
+            </div>
+          </>
+        </RetreatProvider>
       ) : (
         <section>
           <h1 className="mb-5 text-2xl font-bold">{strChooseRetreat}</h1>

@@ -1,12 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import type {
   Guest,
-  House,
-  HouseMap,
-  RetreatRoom,
   Room,
 } from "@/services/database";
 import type {
@@ -15,13 +12,12 @@ import type {
 } from "@/services/guestStatusesService";
 import type { GuestAction } from "@/services/guestActionsService";
 import type { RoomPosition } from "@/services/houseMapsService";
-import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
 import houseMapsService from "@/services/houseMapsService";
-import housesService from "@/services/housesService";
 import retreatRoomsService from "@/services/retreatRoomsService";
 import roomsService from "@/services/roomsService";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
+import { useRetreat } from "@/contexts/RetreatContext";
 
 export type HouseMapOpenMode =
   | "normal"
@@ -38,7 +34,6 @@ type MapAction = {
 };
 
 type HouseMapViewProps = {
-  retreatId: number;
   openMode?: HouseMapOpenMode;
   guest?: Guest | null;
   initialSelectionMode?: Exclude<SelectionMode, null>;
@@ -48,7 +43,6 @@ type HouseMapViewProps = {
 };
 
 export default function HouseMapView({
-  retreatId,
   openMode = "normal",
   guest = null,
   initialSelectionMode: requestedSelectionMode = "room",
@@ -80,13 +74,22 @@ export default function HouseMapView({
     openMode === "selection" && guest ? requestedSelectionMode : null;
 
   const { currentUser: user } = useCurrentUser();
+  const {
+    snapshot,
+    isLoading,
+    error: retreatError,
+    createStatus: saveGuestStatus,
+    updateGuest,
+  } = useRetreat();
 
-  const [houses, setHouses] = useState<House[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [houseMaps, setHouseMaps] = useState<HouseMap[]>([]);
-  const [retreatRooms, setRetreatRooms] = useState<RetreatRoom[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [statuses, setStatuses] = useState<Map<number, LatestGuestStatus>>(new Map());
+  const houses = snapshot?.houses ?? [];
+  const rooms = snapshot?.rooms ?? [];
+  const houseMaps = snapshot?.houseMaps ?? [];
+  const retreatRooms = snapshot?.retreatRooms ?? [];
+  const guests = snapshot?.guests ?? [];
+  const statuses = snapshot?.latestStatuses ?? new Map<number, LatestGuestStatus>();
+  const isSnapshotLoading = isLoading || !snapshot;
+  const isLoadError = Boolean(retreatError);
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
   const [actionGuest, setActionGuest] = useState<Guest | null>(
@@ -94,63 +97,11 @@ export default function HouseMapView({
   );
   const [actions, setActions] = useState<MapAction[]>([]);
   const [actionsTitle, setActionsTitle] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadError, setIsLoadError] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const loadData = useCallback(async () => {
-    if (!user) {
-      return;
-    }
-
-    setIsLoading(true);
-    setIsLoadError(false);
-
-    try {
-      const [
-        housesData,
-        roomsData,
-        mapsData,
-        retreatRoomsData,
-        guestsData,
-        statusesData,
-      ] = await Promise.all([
-        housesService.getHouses(),
-        roomsService.getRooms(),
-        houseMapsService.getHouseMaps(),
-        retreatRoomsService.getRetreatRooms(retreatId),
-        guestsService.getGuestsByRetreatId(retreatId),
-        guestStatusesService.getLatestForRetreat(retreatId),
-      ]);
-
-      setHouses([...housesData].sort((left, right) => left.id - right.id));
-      setRooms(roomsData);
-      const sortedMaps = [...mapsData]
-        .sort((left, right) => left.house_id - right.house_id || left.id - right.id);
-      setHouseMaps(sortedMaps);
-      setRetreatRooms(retreatRoomsData);
-      setGuests(guestsData);
-      setStatuses(statusesData);
-
-      if (sortedMaps.length > 0) {
-        setSelectedMapId((current) => current ?? sortedMaps[0].id);
-      };
-    } catch {
-      setIsLoadError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [retreatId, user]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadData();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [loadData]);
+  const activeMapId = houseMaps.some((houseMap) => houseMap.id === selectedMapId)
+    ? selectedMapId
+    : houseMaps[0]?.id ?? null;
 
   if (!user) {
     return null;
@@ -180,43 +131,10 @@ export default function HouseMapView({
     return getRoomName(room);
   };
 
-  const updateLocalStatus = (
-    targetGuest: Guest,
-    status: GuestStatusValue,
-    roomName: string | null,
-    changedAt: string
-  ) => {
-    setStatuses((current) => {
-      const next = new Map<number, LatestGuestStatus>(current);
-
-      next.set(targetGuest.id, {
-        guestId: targetGuest.id,
-        status,
-        room: roomName,
-        changedAt,
-        });
-
-      return next;
-    });
-  };
-
   const createStatus = async (targetGuest: Guest, status: GuestStatusValue) => {
     const roomName = getGuestRoomName(targetGuest);
 
-    const createdStatus = await guestStatusesService.createStatus(
-      retreatId,
-      targetGuest.id,
-      status,
-      roomName,
-      user.id
-    );
-
-    updateLocalStatus(
-      targetGuest,
-      status,
-      roomName,
-      createdStatus.changed_at
-    );
+    await saveGuestStatus(targetGuest.id, status, roomName, user.id);
   };
 
   const clearActions = () => {
@@ -431,18 +349,7 @@ export default function HouseMapView({
         return;
       }
 
-      const updatedGuest = await guestsService.updateGuest(
-        actionGuest.id,
-        {
-          room_id: room.id,
-        }
-      );
-
-      setGuests((current) =>
-        current.map((item) =>
-          item.id === updatedGuest.id ? updatedGuest : item
-        )
-      );
+      await updateGuest(actionGuest.id, { room_id: room.id });
 
       finishSelection();
     } catch (error) {
@@ -470,33 +377,8 @@ export default function HouseMapView({
         return;
       }
 
-      const firstUpdatedGuest = await guestsService.updateGuest(
-        actionGuest.id,
-        {
-          room_id: secondRoomId,
-        }
-      );
-
-      const secondUpdatedGuest = await guestsService.updateGuest(
-        targetGuest.id,
-        {
-          room_id: firstRoomId,
-        }
-      );
-
-      setGuests((current) =>
-        current.map((item) => {
-          if (item.id === firstUpdatedGuest.id) {
-            return firstUpdatedGuest;
-          }
-
-          if (item.id === secondUpdatedGuest.id) {
-            return secondUpdatedGuest;
-          }
-
-          return item;
-        })
-      );
+      await updateGuest(actionGuest.id, { room_id: secondRoomId });
+      await updateGuest(targetGuest.id, { room_id: firstRoomId });
 
       finishSelection();
     } catch (error) {
@@ -530,7 +412,7 @@ export default function HouseMapView({
   };
 
   const selectedMap =
-    houseMaps.find((item) => item.id === selectedMapId) ?? null;
+    houseMaps.find((item) => item.id === activeMapId) ?? null;
 
   const selectedHouse =
     houses.find((item) => item.id === selectedMap?.house_id) ?? null;
@@ -542,7 +424,7 @@ export default function HouseMapView({
     .map((houseMap) => {
       const house = houses.find((item) => item.id === houseMap.house_id);
       const label = house?.name ?? "";
-      const isSelected = houseMap.id === selectedMapId;
+      const isSelected = houseMap.id === activeMapId;
 
       const onClickHandler = () => {
         setSelectedMapId(houseMap.id);
@@ -848,9 +730,9 @@ export default function HouseMapView({
         </div>
       </div>
       {actionError ? <div className="mb-4 text-red-600">{actionError}</div> : null}
-      {isLoading ? <div>{strLoading}</div> : null}
+      {isSnapshotLoading ? <div>{strLoading}</div> : null}
       {isLoadError ? <div>{strLoadError}</div> : null}
-      {!isLoading && !isLoadError && (houseMaps.length > 0 || rooms.length > 0) ? (
+      {!isSnapshotLoading && !isLoadError && (houseMaps.length > 0 || rooms.length > 0) ? (
         <>
           {mapTabs.length > 0 ? (
             <>

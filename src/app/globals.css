@@ -500,6 +500,14 @@ input:focus-visible {
   background: #fff;
 }
 
+.ozen-action-bar-content {
+  min-width: 0;
+}
+
+.ozen-action-bar-content-right {
+  margin-left: auto;
+}
+
 .ozen-action-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -1333,6 +1341,10 @@ input:focus-visible {
     align-items: stretch;
   }
 
+  .ozen-action-bar-with-content {
+    flex-direction: column;
+  }
+
   .ozen-action-buttons {
     width: 100%;
   }
@@ -1610,7 +1622,16 @@ input:focus-visible {
   width: min(100%, 320px);
 }
 
+.ozen-guest-list-search {
+  position: relative;
+  width: min(100%, 320px);
+}
+
 .ozen-history-search input {
+  padding-right: 34px;
+}
+
+.ozen-guest-list-search input {
   padding-right: 34px;
 }
 
@@ -2065,6 +2086,15 @@ input:focus-visible {
   }
 
   .ozen-history-search {
+    width: 100%;
+  }
+
+  .ozen-action-bar-content-right {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .ozen-guest-list-search {
     width: 100%;
   }
 

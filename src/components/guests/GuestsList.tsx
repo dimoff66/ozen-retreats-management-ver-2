@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import type { MouseEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 import ActionBar from "@/components/common/ActionBar";
 import GuestForm from "@/components/guests/GuestForm";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
@@ -24,6 +24,8 @@ export default function GuestsList() {
   const strColumnDiet = "Diet";
   const strColumnRoom = "Room";
   const strColumnStatus = "Status";
+  const strSearchGuests = "Search guests";
+  const strNoMatchingGuests = "No guests match your search.";
   const strOrganizer = "organizer";
   const strNoRoom = "-";
   const strNoDiet = "-";
@@ -66,6 +68,7 @@ export default function GuestsList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   const canManageGuestRecords = user?.role === "admin" || user?.role === "organizer";
 
@@ -103,6 +106,10 @@ export default function GuestsList() {
     }
 
     return "bg-gray-100 text-gray-700";
+  };
+
+  const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(event.target.value);
   };
 
   const onAddActionClick = () => {
@@ -337,6 +344,12 @@ export default function GuestsList() {
       onRoomClick,
     };
   });
+  const normalizedSearchText = searchText.trim().toLocaleLowerCase();
+  const visibleGuestRows = guestRows.filter((guest) => (
+    `${guest.name} ${guest.arrivalText} ${guest.roomName} ${guest.statusText} ${guest.dietText}`
+      .toLocaleLowerCase()
+      .includes(normalizedSearchText)
+  ));
 
   if (!user) {
     return <div>{strLoading}</div>;
@@ -364,6 +377,17 @@ export default function GuestsList() {
         onEditActionClick={onEditActionClick}
         onDeleteActionClick={onDeleteActionClick}
         disabled={!canManageGuestRecords}
+        extraContent={
+          <label className="ozen-search-field ozen-guest-list-search">
+            <span className="sr-only">{strSearchGuests}</span>
+            <input type="search" value={searchText} onChange={onSearchChange} aria-label={strSearchGuests} />
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="ozen-search-icon">
+              <circle cx="10.8" cy="10.8" r="6.3" />
+              <path d="m15.5 15.5 4.2 4.2" strokeLinecap="round" />
+            </svg>
+          </label>
+        }
+        extraContentPosition="right"
       />
       {actionError ? <div className="mb-4 text-red-600">{actionError}</div> : null}
       {isSnapshotLoading ? <div>{strLoading}</div> : null}
@@ -381,7 +405,7 @@ export default function GuestsList() {
               </tr>
             </thead>
             <tbody>
-              {guestRows.map((guest) => (
+              {visibleGuestRows.map((guest) => (
                 <tr key={guest.id} onClick={guest.onRowClick} className={guest.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
                   <td>
                     <div className="ozen-guest-name">{guest.name}</div>
@@ -434,6 +458,11 @@ export default function GuestsList() {
                   </td>
                 </tr>
               ))}
+              {visibleGuestRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center">{strNoMatchingGuests}</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import type { ReactNode } from "react";
 
 // Структура дополнительного действия
 export interface ExtraAction<T> {
@@ -15,6 +16,8 @@ interface ActionBarProps<T> {
   onEditActionClick: (item: T) => void;
   onDeleteActionClick: (item: T) => void;
   extraActions?: ExtraAction<T>[];
+  extraContent?: ReactNode;
+  extraContentPosition?: "left" | "right";
 }
 
 export default function ActionBar<T>({
@@ -24,6 +27,8 @@ export default function ActionBar<T>({
   onEditActionClick,
   onDeleteActionClick,
   extraActions = [],
+  extraContent,
+  extraContentPosition = "left",
 }: ActionBarProps<T>) {
   const strBtnAdd = 'Add';
   const strBtnEdit = 'Edit';
@@ -67,9 +72,12 @@ export default function ActionBar<T>({
   return (
     <div
       aria-disabled={disabled}
-      className={`ozen-action-bar ${disabled ? "opacity-50 grayscale" : ""}`}
+      className={`ozen-action-bar ${extraContent ? "ozen-action-bar-with-content" : ""}`}
     >
-      <div className="ozen-action-buttons">
+      {extraContent && extraContentPosition === "left" ? (
+        <div className="ozen-action-bar-content">{extraContent}</div>
+      ) : null}
+      <div className={`ozen-action-buttons ${disabled ? "opacity-50 grayscale" : ""}`}>
         <button
           type="button"
           onClick={onAddActionClick}
@@ -110,6 +118,9 @@ export default function ActionBar<T>({
           </button>
         ))}
       </div>
+      {extraContent && extraContentPosition === "right" ? (
+        <div className="ozen-action-bar-content ozen-action-bar-content-right">{extraContent}</div>
+      ) : null}
     </div>
   );
 }

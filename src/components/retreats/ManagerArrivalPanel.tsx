@@ -44,6 +44,7 @@ export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) 
   const strNoHouse = "No assigned house";
   const strNoTaxi = "No taxi assigned";
   const strArrived = "Arrived";
+  const strSetArrived = "SET ARRIVED";
   const strCheckIn = "Check in";
   const strCheckedIn = "Checked in";
   const statusLabels: Record<GuestStatusValue, string> = {
@@ -167,31 +168,27 @@ export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) 
 
   const onRoomSelectActionClick = async (room: Room) => {
     if (!mapGuest) {
-      return;
+      throw new Error(strStatusError);
     }
 
-    try {
-      await updateGuest(mapGuest.id, { room_id: room.id });
-      setMapGuest(null);
-    } catch {
-      setError(strStatusError);
-    }
+    await updateGuest(mapGuest.id, { room_id: room.id });
+    setMapGuest(null);
   };
 
   const onGuestSwapActionClick = async (targetGuest: Guest) => {
     if (!mapGuest?.room_id || !targetGuest.room_id) {
-      return;
+      throw new Error(strStatusError);
     }
 
-    try {
-      await Promise.all([
-        updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
-        updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
-      ]);
-      setMapGuest(null);
-    } catch {
-      setError(strStatusError);
-    }
+    await Promise.all([
+      updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+      updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+    ]);
+    setMapGuest(null);
+  };
+
+  const onMapCancelActionClick = () => {
+    setMapGuest(null);
   };
 
   const rideRows = sortedRides.map((ride, index) => {
@@ -248,9 +245,16 @@ export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) 
 
     return {
       ...guestRow,
-      statusLabel: guestRow.houseId === null ? "" : statusLabels[guestRow.status],
+      statusLabel: statusLabels[guestRow.status],
+      statusBadgeClassName: guestRow.status === "checked_in"
+        ? "bg-blue-100 text-blue-800"
+        : guestRow.status === "arrived"
+          ? "bg-green-100 text-green-800"
+          : guestRow.status === "not_coming"
+            ? "bg-red-100 text-red-800"
+            : "bg-gray-100 text-gray-700",
       isPending: pendingGuestIds.has(guestRow.guest.id),
-      showStatus: mode === "meeting" && guestRow.houseId !== null,
+      showStatus: mode === "meeting",
       fallbackCaption: mode === "check-in"
         && guestRow.houseId !== null
         && guestRow.status === "checked_in"
@@ -276,7 +280,7 @@ export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) 
         groupIndex: guestRow.houseId,
         actionButton: guestRow.status === "booked"
           ? {
-              caption: strArrived,
+              caption: strSetArrived,
               action: () => {
                 void onGuestStatusAction(guestRow, "arrived");
               },
@@ -325,7 +329,7 @@ export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) 
         initialSelectionMode={mapSelectionMode}
         onRoomSelectActionClick={onRoomSelectActionClick}
         onGuestSwapActionClick={onGuestSwapActionClick}
-        onCancelActionClick={() => setMapGuest(null)}
+        onCancelActionClick={onMapCancelActionClick}
       />
     );
   }

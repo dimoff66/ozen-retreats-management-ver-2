@@ -172,44 +172,36 @@ export default function GuestsList() {
 
   const onRoomSelectActionClick = async (room: Room) => {
     if (!mapGuest || !selectedRetreatId || !user) {
-      return;
+      throw new Error(strSaveRoomError);
     }
 
     setActionError("");
 
-    try {
-      await updateGuest(mapGuest.id, {
-        room_id: room.id,
-      });
+    await updateGuest(mapGuest.id, {
+      room_id: room.id,
+    });
 
-      setIsMapOpen(false);
-      setMapGuest(null);
-      setSelectedGuest(null);
+    setIsMapOpen(false);
+    setMapGuest(null);
+    setSelectedGuest(null);
 
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : strSaveRoomError);
-    }
   };
 
   const onGuestSwapActionClick = async (targetGuest: Guest) => {
     if (!mapGuest || !selectedRetreatId || !user || !mapGuest.room_id || !targetGuest.room_id) {
-      return;
+      throw new Error(strSaveRoomError);
     }
 
     setActionError("");
 
-    try {
-      await Promise.all([
-        updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
-        updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
-      ]);
+    await Promise.all([
+      updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+      updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+    ]);
 
-      setIsMapOpen(false);
-      setMapGuest(null);
-      setSelectedGuest(null);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : strSaveRoomError);
-    }
+    setIsMapOpen(false);
+    setMapGuest(null);
+    setSelectedGuest(null);
   };
 
   const onGuestActionClick = async (guest: Guest, action: GuestAction) => {

@@ -7,6 +7,7 @@ export type GuestCardRow = {
   roomName: string;
   taxiNumber: string;
   statusLabel: string;
+  statusBadgeClassName: string;
   isPending: boolean;
   showStatus: boolean;
   fallbackCaption: string;
@@ -107,7 +108,9 @@ export default function GuestsCards<T extends GuestCardRow>({
                       <div className="flex min-w-0 items-baseline justify-between gap-2">
                         <p className="truncate font-semibold">{guest.guest.name}</p>
                         {guest.showStatus ? (
-                          <span className="shrink-0 text-xs text-gray-500">({guest.statusLabel})</span>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${guest.statusBadgeClassName}`}>
+                            {guest.statusLabel}
+                          </span>
                         ) : null}
                       </div>
                       <p className="mt-1 text-sm text-gray-600">{guest.roomName}</p>

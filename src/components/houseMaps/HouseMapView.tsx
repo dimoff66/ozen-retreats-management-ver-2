@@ -37,8 +37,8 @@ type HouseMapViewProps = {
   openMode?: HouseMapOpenMode;
   guest?: Guest | null;
   initialSelectionMode?: Exclude<SelectionMode, null>;
-  onRoomSelectActionClick?: (room: Room) => void;
-  onGuestSwapActionClick?: (guest: Guest) => void;
+  onRoomSelectActionClick?: (room: Room) => Promise<void>;
+  onGuestSwapActionClick?: (guest: Guest) => Promise<void>;
   onCancelActionClick?: () => void;
 };
 
@@ -53,22 +53,40 @@ export default function HouseMapView({
   const strTitle = "House map";
   const strSelectRoom = "Select a room for";
   const strSelectGuest = "Select a guest to swap with";
+  const strChoose = "Choose";
   const strCancel = "Cancel";
   const strCancelSelection = "Cancel selection";
+  const strSelecting = "Updating room assignment...";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load house maps.";
   const strActionError = "Failed to perform action.";
   const strNoMaps = "No house maps available.";
   const strNoRooms = "No rooms available.";
+  const strNoGuests = "No guests assigned to rooms.";
   const strRooms = "Rooms";
+  const strGuests = "Guests";
+  const strColumnRoom = "Room";
+  const strColumnName = "Guest";
+  const strColumnStatus = "Status";
   const strNoBackground = "No map image.";
   const strOrganizer = "organizer";
   const strShowHistory = "Show history";
   const strCloseActions = "Close";
   const strBooked = "booked";
+  const strStatusBooked = "Booked";
   const strCheckedIn = "checked_in";
+  const strStatusCheckedIn = "Checked in";
   const strArrived = "arrived";
+  const strStatusArrived = "Arrived";
   const strNotComingStatus = "not_coming";
+  const strStatusNotComing = "Not coming";
+  const strConfirmNonBookedGuest = "This guest's status is {status}, not Booked. Continue with the room swap?";
+  const statusLabels: Record<GuestStatusValue, string> = {
+    booked: strStatusBooked,
+    arrived: strStatusArrived,
+    checked_in: strStatusCheckedIn,
+    not_coming: strStatusNotComing,
+  };
 
   const initialSelectionMode: SelectionMode =
     openMode === "selection" && guest ? requestedSelectionMode : null;
@@ -98,6 +116,7 @@ export default function HouseMapView({
   const [actions, setActions] = useState<MapAction[]>([]);
   const [actionsTitle, setActionsTitle] = useState("");
   const [actionError, setActionError] = useState("");
+  const [isSelectionPending, setIsSelectionPending] = useState(false);
 
   const activeMapId = houseMaps.some((houseMap) => houseMap.id === selectedMapId)
     ? selectedMapId
@@ -146,6 +165,7 @@ export default function HouseMapView({
     clearActions();
     setActionGuest(null);
     setSelectionMode(null);
+    setIsSelectionPending(false);
   };
 
   const startRoomSelection = (targetGuest: Guest) => {
@@ -337,15 +357,16 @@ export default function HouseMapView({
   };
 
   const onRoomSelected = async (room: Room) => {
-    if (selectionMode !== "room" || !actionGuest || !canSelectRoom(room)) {
+    if (isSelectionPending || selectionMode !== "room" || !actionGuest || !canSelectRoom(room)) {
       return;
     }
 
+    setIsSelectionPending(true);
     setActionError("");
 
     try {
       if (openMode === "selection" && onRoomSelectActionClick) {
-        onRoomSelectActionClick(room);
+        await onRoomSelectActionClick(room);
         return;
       }
 
@@ -354,11 +375,12 @@ export default function HouseMapView({
       finishSelection();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strActionError);
+      setIsSelectionPending(false);
     }
   };
 
   const onGuestSelected = async (targetGuest: Guest) => {
-    if (selectionMode !== "guest" || !actionGuest || !canSelectGuest(targetGuest)) {
+    if (isSelectionPending || selectionMode !== "guest" || !actionGuest || !canSelectGuest(targetGuest)) {
       return;
     }
 
@@ -369,11 +391,20 @@ export default function HouseMapView({
       return;
     }
 
+    const targetStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
+    if (
+      targetStatus !== strBooked
+      && !window.confirm(strConfirmNonBookedGuest.replace("{status}", statusLabels[targetStatus]))
+    ) {
+      return;
+    }
+
+    setIsSelectionPending(true);
     setActionError("");
 
     try {
       if (openMode === "selection" && onGuestSwapActionClick) {
-        onGuestSwapActionClick(targetGuest);
+        await onGuestSwapActionClick(targetGuest);
         return;
       }
 
@@ -383,10 +414,15 @@ export default function HouseMapView({
       finishSelection();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strActionError);
+      setIsSelectionPending(false);
     }
   };
 
   const onCancelSelectionActionClick = () => {
+    if (isSelectionPending) {
+      return;
+    }
+
     if (openMode === "selection" && onCancelActionClick) {
       onCancelActionClick();
       return;
@@ -409,6 +445,38 @@ export default function HouseMapView({
     }
 
     return "text-gray-700";
+  };
+
+  const getStatusLabel = (status: GuestStatusValue): string => {
+    if (status === strCheckedIn) {
+      return strStatusCheckedIn;
+    }
+
+    if (status === strArrived) {
+      return strStatusArrived;
+    }
+
+    if (status === strNotComingStatus) {
+      return strStatusNotComing;
+    }
+
+    return strStatusBooked;
+  };
+
+  const getStatusBadgeClassName = (status: GuestStatusValue): string => {
+    if (status === strCheckedIn) {
+      return "bg-blue-100 text-blue-800";
+    }
+
+    if (status === strArrived) {
+      return "bg-green-100 text-green-800";
+    }
+
+    if (status === strNotComingStatus) {
+      return "bg-red-100 text-red-800";
+    }
+
+    return "bg-gray-100 text-gray-700";
   };
 
   const selectedMap =
@@ -487,6 +555,10 @@ export default function HouseMapView({
       };
 
       const onRoomClickHandler = () => {
+        if (isSelectionPending) {
+          return;
+        }
+
         if (selectionMode === "guest") {
           return;
         }
@@ -530,6 +602,10 @@ export default function HouseMapView({
           event: MouseEvent<HTMLButtonElement>
         ) => {
           event.stopPropagation();
+
+          if (isSelectionPending) {
+            return;
+          }
 
           if (selectionMode === "room") {
             return;
@@ -608,6 +684,10 @@ export default function HouseMapView({
     const roomName = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
 
     const onRoomClickHandler = () => {
+      if (isSelectionPending) {
+        return;
+      }
+
       if (selectionMode === "guest") {
         return;
       }
@@ -630,6 +710,10 @@ export default function HouseMapView({
         : roomGuest.name;
 
       const onGuestClickHandler = () => {
+        if (isSelectionPending) {
+          return;
+        }
+
         if (selectionMode === "room") {
           return;
         }
@@ -683,6 +767,33 @@ export default function HouseMapView({
     }))
     .filter((house) => house.rooms.some((room) => room.isAvailableForRetreat));
 
+  const guestSelectionRows = roomsService.sortRooms(rooms, houses).flatMap((room) => {
+    const house = houses.find((item) => item.id === room.house_id);
+    const roomName = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
+    const roomGuests = guests
+      .filter((roomGuest) => roomGuest.room_id === room.id)
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    return roomGuests.map((roomGuest) => {
+      const status = statuses.get(roomGuest.id)?.status ?? strBooked;
+      const guestName = roomGuest.is_organizer
+        ? `${roomGuest.name} (${strOrganizer})`
+        : roomGuest.name;
+
+      return {
+        id: roomGuest.id,
+        roomName,
+        guestName,
+        statusLabel: getStatusLabel(status),
+        statusBadgeClassName: getStatusBadgeClassName(status),
+        isSelectable: canSelectGuest(roomGuest),
+        onChoose: () => {
+          void onGuestSelected(roomGuest);
+        },
+      };
+    });
+  });
+
   const preparedActions = actions.map((action) => {
     const onClickHandler = () => {
       action.onClickHandler();
@@ -710,7 +821,7 @@ export default function HouseMapView({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col" aria-busy={isSelectionPending}>
       <div className="mb-4 flex shrink-0 items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">{strTitle}</h2>
@@ -792,53 +903,96 @@ export default function HouseMapView({
               ) : null}
             </>
           ) : <div className="mb-6 text-gray-500">{strNoMaps}</div>}
-          <section className="min-h-0 flex-1 overflow-auto">
-            <h3 className="mb-3 text-lg font-semibold">{strRooms}</h3>
-            {roomSelectionGroups.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (
-              <div className="space-y-4">
-                {roomSelectionGroups.map((house) => (
-                  <section key={house.id} className="rounded-lg border border-gray-200 bg-white p-4">
-                    <h4 className="mb-3 font-semibold text-gray-800">{house.name}</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {house.rooms.map((room) => (
-                        <div key={room.id} className={`flex h-24 w-48 shrink-0 flex-col overflow-hidden rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
-                          <div className="flex items-center gap-2">
+          {selectionMode === "guest" ? (
+            <section className="min-h-0 flex-1 overflow-auto">
+              <h3 className="mb-3 text-lg font-semibold">{strGuests}</h3>
+              {guestSelectionRows.length === 0 ? <div className="text-gray-500">{strNoGuests}</div> : (
+                <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left">{strChoose}</th>
+                        <th className="px-4 py-3 text-left">{strColumnRoom}</th>
+                        <th className="px-4 py-3 text-left">{strColumnName}</th>
+                        <th className="px-4 py-3 text-left">{strColumnStatus}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {guestSelectionRows.map((row) => (
+                        <tr key={row.id} className="border-t border-gray-200">
+                          <td className="px-4 py-3">
                             <button
                               type="button"
-                              onClick={room.onRoomClickHandler}
-                              disabled={selectionMode === "room" && !room.isSelectable}
-                              className="text-left text-sm font-semibold text-gray-900 hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+                              onClick={row.onChoose}
+                              disabled={!row.isSelectable}
+                              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                             >
-                              {room.name}
+                              {strChoose}
                             </button>
-                            <span className="text-xs font-medium text-gray-600">{room.occupancyText}</span>
-                          </div>
-                          <div className="mt-1 h-1 w-full rounded-full bg-gray-200">
-                            <div className={`h-full w-full rounded-full ${room.statusBarClassName}`} />
-                          </div>
-                          {room.guestItems.length > 0 ? (
-                            <div className="mt-1 flex min-h-0 flex-1 flex-wrap content-start gap-1 overflow-y-auto">
-                              {room.guestItems.map((roomGuest) => (
-                                <button
-                                  key={roomGuest.id}
-                                  type="button"
-                                  onClick={roomGuest.onClickHandler}
-                                  disabled={roomGuest.isDisabled}
-                                  className={roomGuest.className}
-                                >
-                                  {roomGuest.name}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
+                          </td>
+                          <td className="px-4 py-3">{row.roomName}</td>
+                          <td className="px-4 py-3">{row.guestName}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${row.statusBadgeClassName}`}>
+                              {row.statusLabel}
+                            </span>
+                          </td>
+                        </tr>
                       ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
-          </section>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          ) : (
+            <section className="min-h-0 flex-1 overflow-auto">
+              <h3 className="mb-3 text-lg font-semibold">{strRooms}</h3>
+              {roomSelectionGroups.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (
+                <div className="space-y-4">
+                  {roomSelectionGroups.map((house) => (
+                    <section key={house.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                      <h4 className="mb-3 font-semibold text-gray-800">{house.name}</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {house.rooms.map((room) => (
+                          <div key={room.id} className={`flex h-24 w-48 shrink-0 flex-col overflow-hidden rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={room.onRoomClickHandler}
+                                disabled={selectionMode === "room" && !room.isSelectable}
+                                className="text-left text-sm font-semibold text-gray-900 hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
+                              >
+                                {room.name}
+                              </button>
+                              <span className="text-xs font-medium text-gray-600">{room.occupancyText}</span>
+                            </div>
+                            <div className="mt-1 h-1 w-full rounded-full bg-gray-200">
+                              <div className={`h-full w-full rounded-full ${room.statusBarClassName}`} />
+                            </div>
+                            {room.guestItems.length > 0 ? (
+                              <div className="mt-1 flex min-h-0 flex-1 flex-wrap content-start gap-1 overflow-y-auto">
+                                {room.guestItems.map((roomGuest) => (
+                                  <button
+                                    key={roomGuest.id}
+                                    type="button"
+                                    onClick={roomGuest.onClickHandler}
+                                    disabled={roomGuest.isDisabled}
+                                    className={roomGuest.className}
+                                  >
+                                    {roomGuest.name}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </>
       ) : null}
       {isActionsOpen ? (
@@ -858,6 +1012,11 @@ export default function HouseMapView({
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+      {isSelectionPending ? (
+        <div className="absolute inset-0 z-[60] flex cursor-wait items-center justify-center bg-white/30" role="status">
+          <span className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow">{strSelecting}</span>
         </div>
       ) : null}
     </div>

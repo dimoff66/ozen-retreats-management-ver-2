@@ -44,14 +44,16 @@ const tabsByRole: Record<string, RetreatTab[]> = {
 const noTabs: RetreatTab[] = [];
 
 function RetreatHeading({ fallbackRetreat }: { fallbackRetreat: Retreat }) {
+  const strRetreatWorkspace = "Retreat workspace";
   const { retreat } = useRetreat();
   const displayedRetreat = retreat ?? fallbackRetreat;
   const dateRange = `${dateService.formatDate(displayedRetreat.start_date)} – ${dateService.formatDate(displayedRetreat.end_date)}`;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">{displayedRetreat.title}</h1>
-      <p className="text-sm text-gray-600">{dateRange}</p>
+    <div className="ozen-retreat-heading-copy">
+      <p className="ozen-eyebrow">{strRetreatWorkspace}</p>
+      <h1>{displayedRetreat.title}</h1>
+      <p>{dateRange}</p>
     </div>
   );
 }
@@ -66,6 +68,7 @@ export default function RetreatWorkspace() {
   const strAdmin = "admin";
   const strOrganizer = "organizer";
   const strTaxi = "taxi";
+  const strWorkspace = "Workspace";
   const { currentUser: user } = useCurrentUser();
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [selectedRetreatId, setSelectedRetreatId] = useState<number | null>(null);
@@ -193,7 +196,7 @@ export default function RetreatWorkspace() {
   const showAdminMap = activeTabName === "Map" && isAdmin;
   const showHistory = activeTabName === "History";
   return (
-    <div className="space-y-5">
+    <div className="ozen-retreat-workspace">
       {selectedRetreat ? (
         <RetreatProvider
           key={selectedRetreat.id}
@@ -205,19 +208,19 @@ export default function RetreatWorkspace() {
           }}
         >
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="ozen-retreat-heading">
               <RetreatHeading fallbackRetreat={selectedRetreat} />
               {canChangeRetreat ? (
                 <button
                   type="button"
                   onClick={onChangeRetreatClick}
-                  className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
+                  className="ozen-secondary-button"
                 >
                   {strChooseAnotherRetreat}
                 </button>
               ) : null}
             </div>
-            <nav aria-label="Retreat sections" className="flex flex-wrap gap-2 border-b border-gray-200">
+            <nav aria-label="Retreat sections" className="ozen-tabs">
               {tabRows.map((tab) => (
                 <button
                   key={tab.label}
@@ -225,14 +228,14 @@ export default function RetreatWorkspace() {
                   onClick={tab.onClickHandler}
                   aria-current={tab.isSelected ? "page" : undefined}
                   className={tab.isSelected
-                    ? "border-b-2 border-blue-600 px-4 py-2 font-semibold text-blue-700"
-                    : "px-4 py-2 text-gray-600 hover:text-gray-900"}
+                    ? "ozen-tab ozen-tab-active"
+                    : "ozen-tab"}
                 >
                   {tab.label}
                 </button>
               ))}
             </nav>
-            <div>
+            <div className="ozen-retreat-content">
               {showGuests ? <GuestsList /> : null}
               {showMeeting ? <ManagerArrivalPanel mode="meeting" /> : null}
               {showCheckIn ? <ManagerArrivalPanel mode="check-in" /> : null}
@@ -245,22 +248,20 @@ export default function RetreatWorkspace() {
           </>
         </RetreatProvider>
       ) : (
-        <section>
-          <h1 className="mb-5 text-2xl font-bold">{strChooseRetreat}</h1>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <section className="ozen-retreat-picker">
+          <div className="ozen-page-heading"><div><p className="ozen-eyebrow">{strWorkspace}</p><h1>{strChooseRetreat}</h1></div></div>
+          <div className="ozen-retreat-card-grid">
             {retreatCards.map((retreat) => (
               <button
                 key={retreat.id}
                 type="button"
                 onClick={retreat.onClickHandler}
-                className="rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-400 hover:shadow"
+                className="ozen-retreat-card"
               >
-                <span className="block text-lg font-semibold">{retreat.title}</span>
-                <span className="mt-1 block text-sm text-gray-600">{retreat.dateRange}</span>
+                <span className="ozen-retreat-card-title">{retreat.title}</span>
+                <span className="ozen-retreat-card-date">{retreat.dateRange}</span>
                 {retreat.isInactive ? (
-                  <span className="mt-2 inline-block rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
-                    {strInactive}
-                  </span>
+                  <span className="ozen-retreat-inactive">{strInactive}</span>
                 ) : null}
               </button>
             ))}

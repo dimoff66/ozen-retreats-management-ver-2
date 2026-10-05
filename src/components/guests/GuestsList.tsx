@@ -35,6 +35,9 @@ export default function GuestsList() {
   const strLoadError = "Failed to load guests.";
   const strSaveRoomError = "Failed to change room.";
   const strDeleteConfirm = "Delete selected guest?";
+  const strActions = "Actions";
+  const strGuestActions = "Guest actions";
+  const strNoActions = "-";
   const { currentUser: user } = useCurrentUser();
   const {
     snapshot,
@@ -353,8 +356,8 @@ export default function GuestsList() {
   }
 
   return (
-    <div>
-      <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>
+    <div className="ozen-guests-list">
+      <div className="ozen-section-heading"><h2>{strTitle}</h2></div>
       <ActionBar
         selectedItem={selectedGuest}
         onAddActionClick={onAddActionClick}
@@ -366,47 +369,47 @@ export default function GuestsList() {
       {isSnapshotLoading ? <div>{strLoading}</div> : null}
       {isLoadError ? <div>{strLoadError}</div> : null}
       {!isSnapshotLoading && !isLoadError ? (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+        <div className="ozen-table-panel">
+          <table className="ozen-data-table">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left">{strColumnName}</th>
-                <th className="px-4 py-3 text-left">{strColumnRoom}</th>
-                <th className="px-4 py-3 text-center">{strColumnStatus}</th>
-                <th className="px-4 py-3 text-left">{strColumnDiet}</th>
-                <th aria-label="Actions" className="px-4 py-3" />
+                <th>{strColumnName}</th>
+                <th>{strColumnRoom}</th>
+                <th className="ozen-cell-center">{strColumnStatus}</th>
+                <th>{strColumnDiet}</th>
+                <th aria-label={strActions} />
               </tr>
             </thead>
             <tbody>
               {guestRows.map((guest) => (
-                <tr key={guest.id} onClick={guest.onRowClick} className={guest.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}>
-                  <td className="px-4 py-3">
-                    <div>{guest.name}</div>
+                <tr key={guest.id} onClick={guest.onRowClick} className={guest.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
+                  <td>
+                    <div className="ozen-guest-name">{guest.name}</div>
                     {guest.arrivalText ? (
-                      <div className="mt-0.5 text-sm text-gray-400">{guest.arrivalText}</div>
+                      <div className="ozen-guest-arrival">{guest.arrivalText}</div>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     {!canManageGuestRecords ? guest.roomName : (
-                      <button type="button" onClick={guest.onRoomClick} className="font-semibold text-blue-600 hover:underline">{guest.roomName}</button>
+                      <button type="button" onClick={guest.onRoomClick} className="ozen-room-link">{guest.roomName}</button>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="ozen-cell-center">
                     {guest.statusText ? (
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${guest.statusBadgeClassName}`}>
+                      <span className={`ozen-table-status ${guest.statusBadgeClassName}`}>
                         {guest.statusText}
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3">{guest.dietText}</td>
-                  <td className="px-4 py-3" onClick={guest.onActionsCellClick}>
+                  <td>{guest.dietText}</td>
+                  <td className="ozen-actions-cell" onClick={guest.onActionsCellClick}>
                     {guest.actionRows.length > 0 ? (
                       <details className="relative">
                         <summary
-                          aria-label="Guest actions"
-                          title="Guest actions"
+                          aria-label={strGuestActions}
+                          title={strGuestActions}
                           onClick={guest.onActionsToggleClick}
-                          className="ml-auto flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 [&::-webkit-details-marker]:hidden"
+                          className="ozen-row-more"
                         >
                           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
                             <circle cx="12" cy="5" r="1.8" />
@@ -414,20 +417,20 @@ export default function GuestsList() {
                             <circle cx="12" cy="19" r="1.8" />
                           </svg>
                         </summary>
-                        <div className="absolute right-0 z-20 mt-1 min-w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg">
+                        <div className="ozen-row-menu">
                           {guest.actionRows.map((action) => (
                             <button
                               key={action.id}
                               type="button"
                               onClick={(event) => guest.onActionClick(event, action)}
-                              className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                              className="ozen-row-menu-button"
                             >
                               {action.caption}
                             </button>
                           ))}
                         </div>
                       </details>
-                    ) : <span className="text-gray-400">-</span>}
+                     ) : <span className="text-gray-400">{strNoActions}</span>}
                   </td>
                 </tr>
               ))}

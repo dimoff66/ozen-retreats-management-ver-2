@@ -25,9 +25,9 @@ export default function ActionBar<T>({
   onDeleteActionClick,
   extraActions = [],
 }: ActionBarProps<T>) {
-  const strBtnAdd = '➕ Add';
-  const strBtnEdit = '✏️ Edit';
-  const strBtnDelete = '🗑️ Delete';
+  const strBtnAdd = 'Add';
+  const strBtnEdit = 'Edit';
+  const strBtnDelete = 'Delete';
 
   const isActionDisabled = disabled || !selectedItem;
 
@@ -67,15 +67,15 @@ export default function ActionBar<T>({
   return (
     <div
       aria-disabled={disabled}
-      className={`mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm ${disabled ? "opacity-50 grayscale" : ""}`}
+      className={`ozen-action-bar ${disabled ? "opacity-50 grayscale" : ""}`}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="ozen-action-buttons">
         <button
           type="button"
           onClick={onAddActionClick}
           disabled={disabled}
           aria-disabled={disabled}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-blue-600"
+          className="ozen-action-button ozen-action-button-primary"
         >
           {strBtnAdd}
         </button>
@@ -84,7 +84,7 @@ export default function ActionBar<T>({
           type="button"
           onClick={onEditHandler}
           disabled={isActionDisabled}
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+          className="ozen-action-button ozen-action-button-secondary"
         >
           {strBtnEdit}
         </button>
@@ -93,7 +93,7 @@ export default function ActionBar<T>({
           type="button"
           onClick={onDeleteHandler}
           disabled={isActionDisabled}
-          className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-40 disabled:hover:bg-red-50"
+          className="ozen-action-button ozen-action-button-danger"
         >
           {strBtnDelete}
         </button>
@@ -104,7 +104,7 @@ export default function ActionBar<T>({
             key={action.key}
             onClick={action.onClickHandler}
             disabled={action.disabled}
-            className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100 disabled:opacity-40 disabled:hover:bg-blue-50"
+            className="ozen-action-button ozen-action-button-secondary"
           >
             {action.label}
           </button>

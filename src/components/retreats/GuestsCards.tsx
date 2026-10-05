@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 import type { Guest } from "@/services/database";
 import type { GuestMenuAction } from "@/services/guestsService";
 
@@ -40,6 +41,8 @@ export default function GuestsCards<T extends GuestCardRow>({
   getGuestCardGroup,
   emptyMessage,
 }: GuestsCardsProps<T>) {
+  const strSearch = "Search guests";
+  const strGuestActions = "Guest actions";
   const [searchText, setSearchText] = useState("");
   const normalizedSearchText = searchText.trim().toLocaleLowerCase();
   const groups = new Map<
@@ -82,77 +85,121 @@ export default function GuestsCards<T extends GuestCardRow>({
   const sortedGroups = [...groups.values()].sort((left, right) =>
     left.index - right.index || left.label.localeCompare(right.label)
   );
+  const preparedGroups = sortedGroups.map((group) => {
+    const rows = group.rows.map(({ guest, actionButton }) => {
+      const initials = guest.guest.name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+      const menuActions = guest.menuActions.map((menuAction) => {
+        const onClickHandler = (event: MouseEvent<HTMLButtonElement>) => {
+          event.currentTarget.closest("details")?.removeAttribute("open");
+          menuAction.action();
+        };
+
+        return {
+          ...menuAction,
+          onClickHandler,
+        };
+      });
+
+      return {
+        guest,
+        actionButton,
+        initials,
+        menuActions,
+      };
+    });
+
+    return {
+      ...group,
+      rows,
+    };
+  });
+
+  const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(event.target.value);
+  };
 
   return (
-    <div className="mt-5">
-      <label className="mb-4 block max-w-md text-sm font-medium">
-        Search guests
-        <input
-          type="search"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-        />
-      </label>
-      {guests.length === 0 ? <p className="text-gray-600">{emptyMessage}</p> : (
-        <div className="space-y-5">
-          {sortedGroups.map((group) => (
-            <section key={`${group.index}:${group.label}`}>
-              {group.label ? (
-                <h3 className="mb-2 text-sm font-semibold text-gray-500">{group.label}</h3>
-              ) : null}
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {group.rows.map(({ guest, actionButton }) => (
-                  <article key={guest.guest.id} className="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-white p-3">
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-baseline justify-between gap-2">
-                        <p className="truncate font-semibold">{guest.guest.name}</p>
-                        {guest.showStatus ? (
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${guest.statusBadgeClassName}`}>
-                            {guest.statusLabel}
+    <div className="ozen-guest-cards-screen">
+      <div className="ozen-guest-cards-toolbar">
+        <label className="ozen-search-field">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8">
+            <circle cx="11" cy="11" r="6.5" />
+            <path d="m16 16 4 4" />
+          </svg>
+          <span className="sr-only">{strSearch}</span>
+          <input type="search" value={searchText} onChange={onSearchChange} placeholder={strSearch} />
+        </label>
+      </div>
+      {guests.length === 0 ? <p className="ozen-empty-message">{emptyMessage}</p> : (
+        <div className="ozen-card-groups">
+          {preparedGroups.map((group) => (
+            <section key={`${group.index}:${group.label}`} className="ozen-card-group">
+              {group.label ? <h3 className="ozen-card-group-title">{group.label}</h3> : null}
+              <div className="ozen-guest-card-grid">
+                {group.rows.map(({ guest, actionButton, initials, menuActions }) => (
+                  <article key={guest.guest.id} className="ozen-guest-card">
+                    <div className="ozen-guest-card-main">
+                      <span className="ozen-guest-avatar">{initials}</span>
+                      <div className="ozen-guest-card-copy">
+                        <div className="ozen-guest-card-title-row">
+                          <strong>{guest.guest.name}</strong>
+                          {guest.showStatus ? (
+                            <span className={`ozen-card-status ${guest.statusBadgeClassName}`}><i />{guest.statusLabel}</span>
+                          ) : null}
+                        </div>
+                        <div className="ozen-guest-card-meta">
+                          <span>
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7">
+                              <path d="M4 12v7M20 12v7M4 16h16M6 12V8.5A2.5 2.5 0 0 1 8.5 6h7A2.5 2.5 0 0 1 18 8.5V12" />
+                            </svg>
+                            {guest.roomName}
                           </span>
-                        ) : null}
+                          {guest.taxiNumber ? (
+                            <span>
+                              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7">
+                                <path d="M5 16h14l-1.2-5.2A2.4 2.4 0 0 0 15.5 9h-7a2.4 2.4 0 0 0-2.3 1.8L5 16Z" />
+                                <path d="M4 16v3M20 16v3M7 19h10" />
+                              </svg>
+                              {guest.taxiNumber}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                      <p className="mt-1 text-sm text-gray-600">{guest.roomName}</p>
-                      <p className="mt-1 text-xs text-gray-500">{guest.taxiNumber}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="ozen-guest-card-actions">
                       {actionButton ? (
                         <button
                           type="button"
                           onClick={actionButton.action}
                           disabled={guest.isPending}
-                          className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                          className="ozen-primary-action"
                         >
                           {actionButton.caption}
                         </button>
                       ) : guest.fallbackCaption ? (
-                        <span className="text-sm font-medium text-green-700">{guest.fallbackCaption}</span>
+                        <span className="ozen-fallback-caption">{guest.fallbackCaption}</span>
                       ) : null}
-                      {guest.menuActions.length > 0 ? (
-                        <details className="relative">
-                          <summary
-                            aria-label="Guest actions"
-                            title="Guest actions"
-                            className="flex size-9 cursor-pointer list-none items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 [&::-webkit-details-marker]:hidden"
-                          >
+                      {menuActions.length > 0 ? (
+                        <details className="ozen-card-menu">
+                          <summary aria-label={strGuestActions} title={strGuestActions}>
                             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
                               <circle cx="12" cy="5" r="1.8" />
                               <circle cx="12" cy="12" r="1.8" />
                               <circle cx="12" cy="19" r="1.8" />
                             </svg>
                           </summary>
-                          <div className="absolute right-0 z-20 mt-1 min-w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg">
-                            {guest.menuActions.map((menuAction) => (
+                          <div className="ozen-card-menu-popover">
+                            {menuActions.map((menuAction) => (
                               <button
                                 key={menuAction.id}
                                 type="button"
                                 disabled={guest.isPending}
-                                onClick={(event) => {
-                                  event.currentTarget.closest("details")?.removeAttribute("open");
-                                  menuAction.action();
-                                }}
-                                className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-gray-100 disabled:opacity-50"
+                                onClick={menuAction.onClickHandler}
                               >
                                 {menuAction.caption}
                               </button>

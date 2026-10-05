@@ -226,111 +226,111 @@ export default function RetreatRoomsForm({
     .filter((house) => house !== null);
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">{strTitle}</h2>
-        {retreat ? <div className="mt-1 text-gray-600">{retreat.title}</div> : null}
+    <section className="ozen-room-settings-screen">
+      <div className="ozen-room-settings-header">
+        <div>
+          <h2>{strTitle}</h2>
+          {retreat ? <p>{retreat.title}</p> : null}
+        </div>
       </div>
       <div>
-        {isLoading || !snapshot ? <div>{strLoading}</div> : null}
-        {error || retreatError ? <div className="mb-4 text-red-600">{error || strLoadError}</div> : null}
+        {isLoading || !snapshot ? <div className="ozen-room-settings-message">{strLoading}</div> : null}
+        {error || retreatError ? <div className="ozen-room-settings-message ozen-room-settings-error">{error || strLoadError}</div> : null}
         {!isLoading && snapshot ? (
-          <div className="space-y-6">
+          <div className="ozen-room-house-list">
             {houseGroups.map((house) => (
-              <div key={house.id} className="overflow-hidden rounded-lg border border-gray-200">
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-gray-100 px-4 py-3">
-                  <h3 className="font-bold">{house.name}</h3>
-                  <div className="flex flex-wrap items-center gap-2">
+              <section key={house.id} className="ozen-room-house">
+                <div className="ozen-room-house-header">
+                  <h3>{house.name}</h3>
+                  <div className="ozen-room-house-actions">
                     <button
                       type="button"
                       onClick={house.onAllAvailableActionClick}
-                      className="rounded-md border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700 hover:bg-green-100"
+                      className="ozen-room-small-button ozen-room-small-button-positive"
                     >
                       {strAllAvailable}
                     </button>
                     <button
                       type="button"
                       onClick={house.onAllUnavailableActionClick}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                      className="ozen-room-small-button"
                     >
                       {strAllUnavailable}
                     </button>
-                    <label className="text-sm font-medium">{strMaxGuests}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={house.groupMaxGuests}
-                      onChange={house.onHouseMaxGuestsChange}
-                      className="w-16 rounded-md border border-gray-300 px-2 py-1.5"
-                    />
+                    <label className="ozen-room-max-control">
+                      <span>{strMaxGuests}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={house.groupMaxGuests}
+                        onChange={house.onHouseMaxGuestsChange}
+                        className="ozen-room-number-input"
+                      />
+                    </label>
                     <button
                       type="button"
                       onClick={house.onSetMaxActionClick}
-                      className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                      className="ozen-room-small-button ozen-room-small-button-positive"
                     >
                       {strSetMax}
                     </button>
                   </div>
                 </div>
-                <div className="grid max-w-4xl grid-cols-1 gap-2 p-3 sm:grid-cols-2">
-                    {house.roomRows.map((room) => (
-                      <div key={room.id} className="flex min-w-0 items-center gap-3 rounded-md border border-gray-200 px-3 py-2">
-                        <label className="flex shrink-0 items-center">
-                          <input
-                            type="checkbox"
-                            checked={room.isAvailable}
-                            disabled={!room.isGloballyAvailable}
-                            onChange={room.onAvailableChange}
-                            aria-label={`${strAvailable}: ${room.roomNumber}`}
-                            className="size-5 accent-blue-600"
-                          />
-                        </label>
-                        <div className="min-w-0 flex-1">
-                          <span className="truncate font-medium">{room.roomNumber}</span>
-                          {!room.isGloballyAvailable ? (
-                            <span className="ml-2 text-xs text-gray-500">
-                              {strGloballyUnavailable}
-                            </span>
-                          ) : null}
-                        </div>
-                        <label className="flex shrink-0 items-center gap-2 text-sm">
-                          <span>{strMaxGuests}</span>
-                          <input
-                            type="number"
-                            min={1}
-                            value={room.maxGuests}
-                            disabled={!room.isGloballyAvailable}
-                            onChange={room.onMaxGuestsChange}
-                            aria-label={`${strMaxGuests}: ${room.roomNumber}`}
-                            title={strMaxGuests}
-                            className="w-16 rounded-md border border-gray-300 px-2 py-1 disabled:bg-gray-100"
-                          />
-                        </label>
+                <div className="ozen-room-grid">
+                  {house.roomRows.map((room) => (
+                    <div key={room.id} className="ozen-room-setting-row">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={room.isAvailable}
+                          disabled={!room.isGloballyAvailable}
+                          onChange={room.onAvailableChange}
+                          aria-label={`${strAvailable}: ${room.roomNumber}`}
+                          className="ozen-room-checkbox"
+                        />
+                      </label>
+                      <div className="ozen-room-setting-copy">
+                        <span className="ozen-room-setting-name">{room.roomNumber}</span>
+                        {!room.isGloballyAvailable ? <span className="ozen-room-unavailable-note">{strGloballyUnavailable}</span> : null}
                       </div>
-                    ))}
+                      <label className="ozen-room-capacity">
+                        <span>{strMaxGuests}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={room.maxGuests}
+                          disabled={!room.isGloballyAvailable}
+                          onChange={room.onMaxGuestsChange}
+                          aria-label={`${strMaxGuests}: ${room.roomNumber}`}
+                          title={strMaxGuests}
+                          className="ozen-room-number-input"
+                        />
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         ) : null}
       </div>
-      <div className="flex justify-end gap-2 border-t border-gray-200 pt-4">
-          <button
-            type="button"
-            onClick={onCloseActionClick}
-            disabled={isSaving}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 disabled:opacity-40"
-          >
-            {strCancel}
-          </button>
-          <button
-            type="button"
-            onClick={onSaveActionClick}
-            disabled={isSaving}
-            className="rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
-          >
-            {strSave}
-          </button>
+      <div className="ozen-room-settings-footer">
+        <button
+          type="button"
+          onClick={onCloseActionClick}
+          disabled={isSaving}
+          className="ozen-secondary-button"
+        >
+          {strCancel}
+        </button>
+        <button
+          type="button"
+          onClick={onSaveActionClick}
+          disabled={isSaving}
+          className="ozen-primary-action"
+        >
+          {strSave}
+        </button>
       </div>
     </section>
   );

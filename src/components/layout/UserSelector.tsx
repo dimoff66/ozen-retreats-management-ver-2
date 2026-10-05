@@ -33,27 +33,34 @@ export default function UserSelector() {
       label: `${user.name} (${user.role})`,
     };
   });
+  const initials = currentUser?.name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() ?? "";
 
   if (isLoadingUsers) {
-    return <div className="text-sm text-gray-500">{strLoading}</div>;
+    return <div className="ozen-user-message">{strLoading}</div>;
   }
 
   if (usersLoadError) {
-    return <div className="text-sm text-red-600">{strLoadError}</div>;
+    return <div className="ozen-user-message ozen-user-message-error">{strLoadError}</div>;
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <label className="text-sm font-medium text-gray-700">{strCurrentUser}</label>
-      <select
-        value={currentUser?.id ?? ""}
-        onChange={onUserChange}
-        className="min-w-56 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-      >
+    <label className="ozen-user-selector" aria-label={strCurrentUser}>
+      <span className="ozen-user-avatar">{initials}</span>
+      <span className="ozen-user-copy">
+        <strong>{currentUser?.name}</strong>
+        <small>{currentUser?.role}</small>
+      </span>
+      <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7"><path d="m6 8 4 4 4-4" /></svg>
+      <select value={currentUser?.id ?? ""} onChange={onUserChange}>
         {userOptions.map((user) => (
           <option key={user.id} value={user.id}>{user.label}</option>
         ))}
       </select>
-    </div>
+    </label>
   );
 }

@@ -3,43 +3,30 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import HistoryActivity from "./HistoryActivity";
-import type { Guest, GuestStatus, House, Room } from "@/services/database";
+import type { Guest, GuestStatus } from "@/services/database";
 import dateService from "@/services/dateService";
 import guestStatusesService, {
   getGuestStatusHistoryMessage,
   getPreviousGuestStatuses,
 } from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
-import housesService from "@/services/housesService";
-import roomsService from "@/services/roomsService";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
-
-export type HistoryFilter =
-  | { type: "guest"; guestId: number }
-  | { type: "room"; roomName: string };
 
 type HistoryPanelProps = {
   retreatId: number;
-  filter?: HistoryFilter;
 };
 
-export default function HistoryPanel({ retreatId, filter }: HistoryPanelProps) {
+export default function HistoryPanel({ retreatId }: HistoryPanelProps) {
   const strTitle = "History";
-  const strFilter = "Filter by guest or room";
-  const strAllHistory = "All history";
-  const strGuests = "Guests";
-  const strRooms = "Rooms";
   const strLoadError = "Failed to load retreat history.";
   const strLoading = "Loading history...";
   const strNoHistory = "No history found.";
   const strDate = "Date";
   const strActivity = "Activity";
   const strUnknown = "-";
+  const [searchQuery, setSearchQuery] = useState("");
   const [statuses, setStatuses] = useState<GuestStatus[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
-  const [houses, setHouses] = useState<House[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<HistoryFilter | null>(filter ?? null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const { users } = useCurrentUser();
@@ -50,18 +37,14 @@ export default function HistoryPanel({ retreatId, filter }: HistoryPanelProps) {
     void Promise.all([
       guestStatusesService.getGuestStatusesByRetreatId(retreatId),
       guestsService.getGuestsByRetreatId(retreatId),
-      housesService.getHouses(),
-      roomsService.getRooms(),
     ])
-      .then(([statusData, guestData, houseData, roomData]) => {
+      .then(([statusData, guestData]) => {
         if (isCancelled) {
           return;
         }
 
         setStatuses(statusData);
         setGuests(guestData);
-        setHouses(houseData);
-        setRooms(roomsService.sortRooms(roomData, houseData));
         setError("");
       })
       .catch(() => {
@@ -80,100 +63,53 @@ export default function HistoryPanel({ retreatId, filter }: HistoryPanelProps) {
     };
   }, [retreatId]);
 
-  const onFilterChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const value = event.target.value;
-
-    if (value === "") {
-      setSelectedFilter(null);
-      return;
-    }
-
-    if (value.startsWith("guest:")) {
-      setSelectedFilter({ type: "guest", guestId: Number(value.slice(6)) });
-      return;
-    }
-
-    setSelectedFilter({ type: "room", roomName: value.slice(5) });
+  const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
   };
 
-  const roomNames = Array.from(new Set([
-    ...rooms.flatMap((room) => {
-      const house = houses.find((item) => item.id === room.house_id);
-
-      return house ? [roomsService.getRoomDisplayName(room, house)] : [];
-    }),
-    ...statuses.flatMap((status) => status.room ? [status.room] : []),
-  ])).sort((left, right) => left.localeCompare(right));
-
-  const filteredStatuses = statuses.filter((status) => {
-    if (!selectedFilter) {
-      return true;
-    }
-
-    if (selectedFilter.type === "guest") {
-      return status.guest_id === selectedFilter.guestId;
-    }
-
-    return status.room === selectedFilter.roomName;
-  });
-
-  const selectedFilterValue = selectedFilter
-    ? selectedFilter.type === "guest"
-      ? `guest:${selectedFilter.guestId}`
-      : `room:${selectedFilter.roomName}`
-    : "";
-  const guestOptions = guests.map((guest) => ({
-    id: guest.id,
-    value: `guest:${guest.id}`,
-    name: guest.name,
-  }));
-  const roomOptions = roomNames.map((roomName) => ({
-    id: roomName,
-    value: `room:${roomName}`,
-    name: roomName,
-  }));
   const previousStatuses = getPreviousGuestStatuses(statuses);
-  const historyRows = filteredStatuses.map((status) => {
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const historyRows = statuses.map((status) => {
     const guest = guests.find((item) => item.id === status.guest_id);
     const user = users.find((item) => item.id === status.updated_by);
+    const activityParts = getGuestStatusHistoryMessage(
+      status,
+      previousStatuses.get(status.id),
+      guest?.name ?? strUnknown,
+      user?.name ?? strUnknown
+    );
+    const date = dateService.formatDateTime(status.changed_at);
+    const searchableText = `${date} ${activityParts.map((part) => part.text).join("")}`;
 
     return {
       id: status.id,
-      date: dateService.formatDateTime(status.changed_at),
-      activityParts: getGuestStatusHistoryMessage(
-        status,
-        previousStatuses.get(status.id),
-        guest?.name ?? strUnknown,
-        user?.name ?? strUnknown
-      ),
+      date,
+      activityParts,
+      searchableText,
     };
-  });
+  }).filter((row) => row.searchableText.toLocaleLowerCase().includes(normalizedSearch));
   const isEmpty = !isLoading && !error && historyRows.length === 0;
   const hasHistory = !isLoading && !error && historyRows.length > 0;
 
   return (
     <section>
-      <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>
-      <label className="mb-4 block max-w-lg text-sm font-medium">
-        {strFilter}
-        <select
-          value={selectedFilterValue}
-          onChange={onFilterChange}
-          className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2"
-        >
-          <option value="">{strAllHistory}</option>
-          <optgroup label={strGuests}>
-            {guestOptions.map((guest) => (
-              <option key={guest.id} value={guest.value}>{guest.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label={strRooms}>
-            {roomOptions.map((room) => (
-              <option key={room.id} value={room.value}>{room.name}</option>
-            ))}
-          </optgroup>
-        </select>
-      </label>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-xl font-bold">{strTitle}</h2>
+        <label className="relative block w-full max-w-xs">
+          <span className="sr-only">Search history</span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={onSearchChange}
+            aria-label="Search history"
+            className="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm"
+          />
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 fill-none stroke-gray-500 stroke-2">
+            <circle cx="10.8" cy="10.8" r="6.3" />
+            <path d="m15.5 15.5 4.2 4.2" strokeLinecap="round" />
+          </svg>
+        </label>
+      </div>
       {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
       {isLoading ? <p>{strLoading}</p> : null}
       {isEmpty ? <p className="text-gray-500">{strNoHistory}</p> : null}

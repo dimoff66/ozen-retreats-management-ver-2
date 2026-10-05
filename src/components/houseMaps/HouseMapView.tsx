@@ -453,13 +453,6 @@ export default function HouseMapView({
         }
       );
 
-      if (actionGuest.room_id !== room.id) {
-        await createStatus(
-          updatedGuest,
-          statuses.get(actionGuest.id)?.status ?? strBooked
-        );
-      }
-
       setGuests((current) =>
         current.map((item) =>
           item.id === updatedGuest.id ? updatedGuest : item
@@ -505,19 +498,6 @@ export default function HouseMapView({
           room_id: firstRoomId,
         }
       );
-
-      if (firstRoomId !== secondRoomId) {
-        await Promise.all([
-          createStatus(
-            firstUpdatedGuest,
-            statuses.get(actionGuest.id)?.status ?? strBooked
-          ),
-          createStatus(
-            secondUpdatedGuest,
-            statuses.get(targetGuest.id)?.status ?? strBooked
-          ),
-        ]);
-      }
 
       setGuests((current) =>
         current.map((item) => {
@@ -597,12 +577,6 @@ export default function HouseMapView({
         return null;
       }
 
-      const label = houseMapsService.getRoomLabel(
-        room,
-        selectedHouse,
-        houses
-      );
-
       const retreatRoom = retreatRooms.find(
         (item) => item.room_id === room.id
       );
@@ -627,8 +601,16 @@ export default function HouseMapView({
         retreatRoom !== undefined &&
         activeGuests.length >= maxGuests;
 
-      const isCurrentActionRoom = actionGuest?.room_id === room.id;
       const isRoomSelectable = canSelectRoom(room);
+      const canAddGuest = room.is_available && retreatRoom !== undefined && !isFull;
+      const isRoomInteractive = selectionMode === "room"
+        ? isRoomSelectable
+        : selectionMode === null && canAddGuest;
+      const statusBarClassName = activeGuests.length > 0
+        ? "bg-green-600"
+        : canAddGuest
+          ? "bg-blue-600"
+          : "bg-gray-400";
 
       const style: CSSProperties = {
         left: `${position.x}%`,
@@ -655,27 +637,15 @@ export default function HouseMapView({
         setActionsTitle(getRoomName(room));
       };
 
-      let roomClassName =
-        "absolute -translate-x-1/2 -translate-y-1/2 border px-3 py-2 shadow-md";
-
-      if (selectionMode === "room") {
-        if (isRoomSelectable) {
-          roomClassName +=
-            " cursor-pointer rounded-full border-2 border-blue-400 bg-blue-50 hover:bg-blue-100";
-        } else if (isCurrentActionRoom) {
-          roomClassName +=
-            " cursor-default rounded-md border-blue-300 bg-blue-100";
-        } else {
-          roomClassName +=
-            " cursor-default rounded-md border-gray-300 bg-gray-100 text-gray-400";
-        }
-      } else if (!room.is_available || !retreatRoom || isFull) {
-        roomClassName +=
-          " cursor-default rounded-md border-gray-400 bg-gray-300 text-gray-500";
-      } else {
-        roomClassName +=
-          " cursor-pointer rounded-md border-gray-300 bg-white";
-      }
+      const roomClassName = [
+        "aspect-square w-12 max-w-[12vw] rounded-xl border-[3px] p-1 shadow-lg",
+        activeGuests.length > 0
+          ? "border-green-700 bg-green-100 text-green-950"
+          : canAddGuest
+            ? "border-blue-700 bg-blue-100 text-blue-950"
+            : "border-gray-400 bg-gray-100 text-gray-500",
+        isRoomInteractive ? "cursor-pointer" : "cursor-default",
+      ].join(" ");
 
       const guestItems = roomGuests.map((roomGuest) => {
         const guestStatus = statuses.get(roomGuest.id);
@@ -730,6 +700,7 @@ export default function HouseMapView({
         return {
           id: roomGuest.id,
           name,
+          shortName: roomGuest.name.trim().split(/\s+/)[0] ?? roomGuest.name,
           className,
           onClickHandler: onGuestClickHandler,
         };
@@ -737,10 +708,12 @@ export default function HouseMapView({
 
       return {
         id: room.id,
-        label,
+        label: room.room_number,
         occupancyText,
         style,
         roomClassName,
+        canAddGuest,
+        statusBarClassName,
         onRoomClickHandler,
         guestItems,
       };
@@ -819,16 +792,39 @@ export default function HouseMapView({
                   <div className="flex min-h-[500px] items-center justify-center text-gray-500">{strNoBackground}</div>
                 )}
                 {mapRoomItems.map((room) => (
-                  <div key={room.id} style={room.style} onClick={room.onRoomClickHandler} className={room.roomClassName}>
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-sm font-bold">{room.label}</span>
-                      {room.occupancyText ? <span className="text-xs font-normal">{room.occupancyText}</span> : null}
+                  <div
+                    key={room.id}
+                    style={room.style}
+                    onClick={room.onRoomClickHandler}
+                    className="absolute z-10 flex w-12 max-w-[12vw] -translate-x-1/2 -translate-y-1/2 flex-col items-stretch"
+                  >
+                    <div className={`${room.roomClassName} group/room relative flex flex-col items-center transition-transform duration-150 ${room.canAddGuest ? "hover:z-20 hover:scale-110" : ""}`}>
+                      <span className="max-w-full truncate text-xs font-extrabold" title={room.label}>{room.label}</span>
+                      {room.occupancyText ? (
+                        <span className="flex flex-1 items-center text-[10px] font-medium text-gray-500">{room.occupancyText}</span>
+                      ) : <span className="flex-1" />}
+                      <span className={`h-1 w-full rounded-full ${room.statusBarClassName}`} />
                     </div>
-                    <div className="mt-1 flex flex-col text-xs">
-                      {room.guestItems.map((roomGuest) => (
-                        <button key={roomGuest.id} type="button" onClick={roomGuest.onClickHandler} className={roomGuest.className}>
-                          {roomGuest.name}
-                        </button>
+                    <div
+                      className="mt-1 flex min-h-5 flex-wrap items-center justify-center gap-x-1 px-0.5 text-[10px]"
+                    >
+                      {room.guestItems.map((roomGuest, index) => (
+                        <span key={roomGuest.id} className="group/guest relative flex items-center gap-x-0.5">
+                          {index > 0 ? <span aria-hidden="true" className="text-gray-500">+</span> : null}
+                          <button
+                            type="button"
+                            onClick={roomGuest.onClickHandler}
+                            className={roomGuest.className}
+                          >
+                            {roomGuest.shortName}
+                          </button>
+                          <span
+                            role="tooltip"
+                            className="invisible absolute bottom-full left-1/2 z-30 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white shadow group-hover/guest:visible"
+                          >
+                            {roomGuest.name}
+                          </span>
+                        </span>
                       ))}
                     </div>
                   </div>

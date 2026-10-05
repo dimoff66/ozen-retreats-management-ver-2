@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import type { Guest, House, Room, TaxiGuest, TaxiRide } from "@/services/database";
 import type { GuestStatusValue } from "@/services/guestStatusesService";
+import GuestsCards from "@/components/retreats/GuestsCards";
+import type { GuestCardRow } from "@/components/retreats/GuestsCards";
 import dateService from "@/services/dateService";
 import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
@@ -20,9 +22,12 @@ type GuestRow = {
   guest: Guest;
   roomName: string;
   houseName: string;
+  houseId: number | null;
   taxiNumber: string;
   status: GuestStatusValue;
 };
+
+type ArrivalGuestCardRow = GuestCardRow & Pick<GuestRow, "houseName" | "houseId" | "status">;
 
 export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalPanelProps) {
   const strTitle = mode === "meeting" ? "Meeting" : "Check in";
@@ -30,8 +35,8 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
   const strLoadError = "Failed to load meeting data.";
   const strStatusError = "Failed to update guest status.";
   const strNoRides = "No taxi rides for this retreat.";
-  const strChooseRides = "Select taxis to see their guests.";
-  const strNoGuests = mode === "meeting" ? "No guests assigned to selected taxis." : "No guests have arrived yet.";
+  const strChooseRides = "No taxis selected. Showing all guests.";
+  const strNoGuests = "No guests available.";
   const strTaxi = "Taxi";
   const strDriver = "Driver";
   const strPassengers = "guests";
@@ -41,6 +46,12 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
   const strArrived = "Arrived";
   const strCheckIn = "Check in";
   const strCheckedIn = "Checked in";
+  const statusLabels: Record<GuestStatusValue, string> = {
+    booked: "Booked",
+    arrived: strArrived,
+    checked_in: strCheckedIn,
+    not_coming: "Not coming",
+  };
   const { currentUser } = useCurrentUser();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [rides, setRides] = useState<TaxiRide[]>([]);
@@ -177,11 +188,10 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
     .filter((taxiGuest) => selectedRideIds.has(taxiGuest.ride_id) && taxiGuest.guest_id !== null)
     .flatMap((taxiGuest) => taxiGuest.guest_id === null ? [] : [taxiGuest.guest_id]));
   const visibleGuests = mode === "meeting"
-    ? guests.filter((guest) => meetingGuestIds.has(guest.id))
-    : guests.filter((guest) => {
-        const status = statuses.get(guest.id) ?? "booked";
-        return status === "arrived" || status === "checked_in";
-      });
+    ? selectedRideIds.size === 0
+      ? guests
+      : guests.filter((guest) => meetingGuestIds.has(guest.id))
+    : guests;
   const guestRows = visibleGuests.map((guest): GuestRow => {
     const room = guest.room_id === null ? undefined : roomById.get(guest.room_id);
     const house = room ? houseById.get(room.house_id) : undefined;
@@ -194,6 +204,7 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
       guest,
       roomName,
       houseName: house?.name ?? strNoHouse,
+      houseId: house?.id ?? null,
       taxiNumber: taxiAssignment
         ? taxiNumberById.get(taxiAssignment.ride_id) ?? strNoTaxi
         : strNoTaxi,
@@ -202,47 +213,68 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
   }).sort((left, right) => left.houseName.localeCompare(right.houseName)
     || left.roomName.localeCompare(right.roomName)
     || left.guest.name.localeCompare(right.guest.name));
-  const guestCardRows = guestRows.map((guestRow) => {
-    const actionStatus = mode === "meeting" && guestRow.status === "booked"
-      ? "arrived"
-      : mode === "check-in" && guestRow.status === "arrived"
-        ? "checked_in"
-        : null;
-    const actionLabel = actionStatus === "arrived"
-      ? strArrived
-      : actionStatus === "checked_in"
-        ? strCheckIn
-        : guestRow.status === "checked_in"
-          ? strCheckedIn
-          : "";
+  const guestCardRows: ArrivalGuestCardRow[] = guestRows.map((guestRow) => ({
+    ...guestRow,
+    statusLabel: statusLabels[guestRow.status],
+    isPending: pendingGuestIds.has(guestRow.guest.id),
+    showStatus: mode === "meeting",
+    fallbackCaption: mode === "check-in" && guestRow.status === "checked_in"
+      ? strCheckedIn
+      : "",
+  }));
+  const hasRideRows = rideRows.length > 0;
+  const hasSelectedRides = selectedRideIds.size > 0;
+  const getGuestCardGroup = (guestRow: ArrivalGuestCardRow) => {
+    if (mode === "meeting") {
+      if (guestRow.houseId === null) {
+        return null;
+      }
 
-    return {
-      ...guestRow,
-      actionStatus,
-      actionLabel,
-      isPending: pendingGuestIds.has(guestRow.guest.id),
-      onAction: () => {
-        if (actionStatus) {
-          void onGuestStatusAction(guestRow, actionStatus);
-        }
-      },
-    };
-  });
-  const guestGroups: { houseName: string; rows: typeof guestCardRows }[] = [];
-
-  guestCardRows.forEach((row) => {
-    const existingGroup = guestGroups.find((group) => group.houseName === row.houseName);
-
-    if (existingGroup) {
-      existingGroup.rows.push(row);
-      return;
+      return {
+        groupLabel: guestRow.houseName,
+        groupIndex: guestRow.houseId,
+        actionButton: guestRow.status === "booked"
+          ? {
+              caption: strArrived,
+              action: () => {
+                void onGuestStatusAction(guestRow, "arrived");
+              },
+            }
+          : null,
+      };
     }
 
-    guestGroups.push({ houseName: row.houseName, rows: [row] });
-  });
-  const hasRideRows = rideRows.length > 0;
-  const hasGuestRows = guestCardRows.length > 0;
-  const hasSelectedRides = selectedRideIds.size > 0;
+    if (guestRow.status === "arrived") {
+      return {
+        groupLabel: strArrived,
+        groupIndex: 0,
+        actionButton: {
+          caption: strCheckIn,
+          action: () => {
+            void onGuestStatusAction(guestRow, "checked_in");
+          },
+        },
+      };
+    }
+
+    if (guestRow.status === "booked") {
+      return {
+        groupLabel: "Booked",
+        groupIndex: 1,
+        actionButton: null,
+      };
+    }
+
+    if (guestRow.status === "checked_in") {
+      return {
+        groupLabel: strCheckedIn,
+        groupIndex: 2,
+        actionButton: null,
+      };
+    }
+
+    return null;
+  };
 
   return (
     <section>
@@ -270,33 +302,12 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
           {hasRideRows && !hasSelectedRides ? <p className="mt-4 text-gray-600">{strChooseRides}</p> : null}
         </>
       ) : null}
-      {!isLoading && (mode === "check-in" || hasSelectedRides) ? (
-        <div className="mt-5 space-y-5">
-          {guestGroups.map((group) => (
-            <section key={group.houseName}>
-              <h3 className="mb-2 text-sm font-semibold text-gray-500">{group.houseName}</h3>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {group.rows.map((row) => (
-                  <article key={row.guest.id} className="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-white p-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">{row.guest.name}</p>
-                      <p className="mt-1 text-sm text-gray-600">{row.roomName}</p>
-                      <p className="mt-1 text-xs text-gray-500">{row.taxiNumber}</p>
-                    </div>
-                    {row.actionStatus ? (
-                      <button type="button" onClick={row.onAction} disabled={row.isPending} className="shrink-0 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                        {row.actionLabel}
-                      </button>
-                    ) : row.actionLabel ? (
-                      <span className="shrink-0 text-sm font-medium text-green-700">{row.actionLabel}</span>
-                    ) : null}
-                  </article>
-                ))}
-              </div>
-            </section>
-          ))}
-          {!hasGuestRows ? <p className="text-gray-600">{strNoGuests}</p> : null}
-        </div>
+      {!isLoading ? (
+        <GuestsCards
+          guests={guestCardRows}
+          getGuestCardGroup={getGuestCardGroup}
+          emptyMessage={strNoGuests}
+        />
       ) : null}
     </section>
   );

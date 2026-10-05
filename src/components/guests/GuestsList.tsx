@@ -31,15 +31,12 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
   const strTitle = "Guests";
   const strRetreat = "Retreat";
   const strColumnName = "Name";
-  const strColumnArrival = "Arrival date";
   const strColumnDiet = "Diet";
   const strColumnRoom = "Room";
   const strColumnStatus = "Status";
-  const strColumnActions = "Actions";
   const strOrganizer = "organizer";
   const strNoRoom = "-";
   const strNoDiet = "-";
-  const strDefaultArrival = "-";
   const strStatusBooked = "Booked";
   const strStatusCheckedIn = "Checked in";
   const strStatusArrived = "Arrived";
@@ -276,26 +273,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
     setActionError("");
   };
 
-  const recordRoomAssignment = async (guestId: number, roomId: number): Promise<void> => {
-    if (!user) {
-      return;
-    }
-
-    const room = rooms.find((item) => item.id === roomId);
-    const house = houses.find((item) => item.id === room?.house_id);
-
-    if (!room || !house) {
-      return;
-    }
-
-    await guestStatusesService.createStatus(
-      guestId,
-      guestStatuses.get(guestId) ?? "booked",
-      roomsService.getRoomDisplayName(room, house),
-      user.id
-    );
-  };
-
   const onRoomSelectActionClick = async (room: Room) => {
     if (!mapGuest || !selectedRetreatId || !user) {
       return;
@@ -307,10 +284,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
       await guestsService.updateGuest(mapGuest.id, {
         room_id: room.id,
       });
-
-      if (mapGuest.room_id !== room.id) {
-        await recordRoomAssignment(mapGuest.id, room.id);
-      }
 
       setIsMapOpen(false);
       setMapGuest(null);
@@ -334,13 +307,6 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
         guestsService.updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
         guestsService.updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
       ]);
-
-      if (mapGuest.room_id !== targetGuest.room_id) {
-        await Promise.all([
-          recordRoomAssignment(mapGuest.id, targetGuest.room_id),
-          recordRoomAssignment(targetGuest.id, mapGuest.room_id),
-        ]);
-      }
 
       setIsMapOpen(false);
       setMapGuest(null);
@@ -432,10 +398,10 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
 
     const arrivalText = guest.arrival_date
       ? dateService.formatDate(guest.arrival_date)
-      : strDefaultArrival;
+      : "";
     const dietText = guest.diet_notes ?? strNoDiet;
     const status = guestStatuses.get(guest.id) ?? "booked";
-    const statusText = getStatusLabel(status);
+    const statusText = guest.room_id === null ? "" : getStatusLabel(status);
     const statusBadgeClassName = getStatusBadgeClassName(status);
     const isSelected = selectedGuest?.id === guest.id;
     const availableActions = user
@@ -566,29 +532,34 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left">{strColumnName}</th>
-                <th className="px-4 py-3 text-left">{strColumnArrival}</th>
-                <th className="px-4 py-3 text-left">{strColumnDiet}</th>
                 <th className="px-4 py-3 text-left">{strColumnRoom}</th>
-                <th className="px-4 py-3 text-left">{strColumnStatus}</th>
-                <th className="px-4 py-3 text-left">{strColumnActions}</th>
+                <th className="px-4 py-3 text-center">{strColumnStatus}</th>
+                <th className="px-4 py-3 text-left">{strColumnDiet}</th>
+                <th aria-label="Actions" className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {guestRows.map((guest) => (
                 <tr key={guest.id} onClick={guest.onRowClick} className={guest.isSelected ? "cursor-pointer border-t border-gray-200 bg-blue-50" : "cursor-pointer border-t border-gray-200 hover:bg-gray-50"}>
-                  <td className="px-4 py-3">{guest.name}</td>
-                  <td className="px-4 py-3">{guest.arrivalText}</td>
-                  <td className="px-4 py-3">{guest.dietText}</td>
+                  <td className="px-4 py-3">
+                    <div>{guest.name}</div>
+                    {guest.arrivalText ? (
+                      <div className="mt-0.5 text-sm text-gray-400">{guest.arrivalText}</div>
+                    ) : null}
+                  </td>
                   <td className="px-4 py-3">
                     {!canManageGuestRecords ? guest.roomName : (
                       <button type="button" onClick={guest.onRoomClick} className="font-semibold text-blue-600 hover:underline">{guest.roomName}</button>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${guest.statusBadgeClassName}`}>
-                      {guest.statusText}
-                    </span>
+                  <td className="px-4 py-3 text-center">
+                    {guest.statusText ? (
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${guest.statusBadgeClassName}`}>
+                        {guest.statusText}
+                      </span>
+                    ) : null}
                   </td>
+                  <td className="px-4 py-3">{guest.dietText}</td>
                   <td className="px-4 py-3" onClick={guest.onActionsCellClick}>
                     {guest.actionRows.length > 0 ? (
                       <details className="relative">

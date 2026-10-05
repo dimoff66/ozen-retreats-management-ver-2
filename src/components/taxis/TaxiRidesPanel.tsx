@@ -37,6 +37,8 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   const strRideNumber = "Taxi";
   const strPassengers = "Passengers";
   const strGuest = "Guest";
+  const strName = "Name";
+  const strRoom = "Room";
   const strRemove = "Remove";
   const strSearchGuests = "Search guests";
   const strNoMatchingGuests = "No matching guests.";
@@ -311,6 +313,13 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
   const passengerRows = selectedTaxiGuests.map((passenger) => {
     const matchedGuest = guests.find((guest) => guest.id === passenger.guest_id);
     const name = matchedGuest?.name ?? passenger.unbooked_guest_name ?? strGuest;
+    const room = matchedGuest?.room_id
+      ? rooms.find((item) => item.id === matchedGuest.room_id)
+      : undefined;
+    const house = room ? houses.find((item) => item.id === room.house_id) : undefined;
+    const roomName = room && house
+      ? roomsService.getRoomDisplayName(room, house)
+      : strUnknown;
     const onRemoveClick = () => {
       void onPassengerDeleteClick(passenger);
     };
@@ -318,9 +327,11 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
     return {
       id: passenger.id,
       name,
+      roomName,
       onRemoveClick,
     };
-  });
+  }).sort((left, right) => left.roomName.localeCompare(right.roomName)
+    || left.name.localeCompare(right.name));
   const selectedGuestIds = selectedTaxiGuests.flatMap((passenger) =>
     passenger.guest_id === null ? [] : [passenger.guest_id]
   );
@@ -385,21 +396,48 @@ export default function TaxiRidesPanel({ retreatId, canManage }: TaxiRidesPanelP
           {selectedRide ? (
             <section className="mt-6">
               <h3 className="mb-3 font-semibold">{strPassengers}</h3>
-              <div className="divide-y divide-gray-100 border-y border-gray-100">
-                {passengerRows.map((passenger) => (
-                  <div key={passenger.id} className="flex items-center justify-between gap-3 py-2">
-                    <span>{passenger.name}</span>
-                    {canManage ? (
-                      <button type="button" onClick={passenger.onRemoveClick} className="text-sm text-red-600 hover:underline">
-                        {strRemove}
-                      </button>
+              <div className="max-w-2xl overflow-hidden rounded-md border border-gray-200">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-sm text-gray-600">
+                    <tr>
+                      <th className="px-3 py-2">{strName}</th>
+                      <th className="w-28 px-3 py-2">{strRoom}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {passengerRows.map((passenger) => (
+                      <tr key={passenger.id} className="border-t border-gray-100">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            {canManage ? (
+                              <button
+                                type="button"
+                                onClick={passenger.onRemoveClick}
+                                aria-label={`${strRemove} ${passenger.name}`}
+                                title={strRemove}
+                                className="flex size-6 shrink-0 items-center justify-center rounded-full border border-red-300 text-sm leading-none text-red-600 hover:bg-red-50"
+                              >
+                                ×
+                              </button>
+                            ) : null}
+                            <span>{passenger.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-600" title={passenger.roomName}>
+                          {passenger.roomName.slice(0, 8)}
+                        </td>
+                      </tr>
+                    ))}
+                    {!hasPassengerRows ? (
+                      <tr>
+                        <td colSpan={2} className="px-3 py-3 text-sm text-gray-500">{strNoPassengers}</td>
+                      </tr>
                     ) : null}
-                  </div>
-                ))}
-                {!hasPassengerRows ? <p className="py-3 text-sm text-gray-500">{strNoPassengers}</p> : null}
+                  </tbody>
+                </table>
               </div>
               {canManage ? (
-                <div className="mt-4 max-w-2xl">
+                <div className="mt-5 max-w-2xl border-t border-gray-200 pt-4">
                   <label className="block text-sm font-medium">
                     {strSearchGuests}
                     <input type="search" value={guestSearch} onChange={onGuestSearchChange} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />

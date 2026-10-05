@@ -57,7 +57,11 @@ const guestsService = {
     const createdGuest = await db.guests.create(data);
 
     if (createdGuest.room_id) {
-      await createBookedStatus(createdGuest.id, createdGuest.room_id);
+      await createBookedStatus(
+        createdGuest.retreat_id,
+        createdGuest.id,
+        createdGuest.room_id
+      );
     }
 
     return createdGuest;
@@ -83,7 +87,11 @@ const guestsService = {
     const updatedGuest = await db.guests.update(id, data);
 
     if (roomChanged && updatedGuest.room_id) {
-      await createBookedStatus(updatedGuest.id, updatedGuest.room_id);
+      await createBookedStatus(
+        updatedGuest.retreat_id,
+        updatedGuest.id,
+        updatedGuest.room_id
+      );
     }
 
     return updatedGuest;
@@ -94,7 +102,11 @@ const guestsService = {
   },
 };
 
-async function createBookedStatus(guestId: number, roomId: number): Promise<void> {
+async function createBookedStatus(
+  retreatId: number,
+  guestId: number,
+  roomId: number
+): Promise<void> {
   const room = await db.rooms.getById(roomId);
 
   if (!room) {
@@ -116,6 +128,7 @@ async function createBookedStatus(guestId: number, roomId: number): Promise<void
   const roomDisplayName = roomsService.getRoomDisplayName(room, house);
 
   await guestStatusesService.createStatus(
+    retreatId,
     guestId,
     "booked",
     roomDisplayName,

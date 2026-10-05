@@ -345,6 +345,7 @@ export default function GuestsList({ retreatId }: GuestsListProps) {
         : null;
 
       await guestStatusesService.createStatus(
+        guest.retreat_id,
         guest.id,
         nextStatus,
         roomName,

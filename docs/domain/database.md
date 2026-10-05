@@ -145,12 +145,17 @@ created_at timestamptz
 
 ```text
 id bigint primary key
+retreat_id bigint not null references retreats(id)
 guest_id bigint
 status text
 room text nullable
 updated_by bigint
 changed_at timestamptz
 ```
+
+На `retreat_id` создан индекс `idx_guest_statuses_retreat_id`; все записи
+истории содержат идентификатор ретрита гостя. Это позволяет читать историю и
+статусы напрямую по ретриту без соединения с `guests`.
 
 История статусов не перезаписывается: каждое изменение создаёт новую запись.
 Основные статусы:

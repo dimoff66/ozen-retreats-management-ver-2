@@ -129,12 +129,14 @@ const guestStatusesService = {
   },
 
   createStatus: async (
+    retreatId: number,
     guestId: number,
     status: GuestStatusValue,
     room: string | null,
     updatedBy: number
   ): Promise<GuestStatus> => {
     return db.guestStatuses.create({
+      retreat_id: retreatId,
       guest_id: guestId,
       status,
       room,

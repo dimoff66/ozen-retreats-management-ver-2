@@ -204,6 +204,7 @@ export default function HouseMapView({
     const roomName = getGuestRoomName(targetGuest);
 
     const createdStatus = await guestStatusesService.createStatus(
+      retreatId,
       targetGuest.id,
       status,
       roomName,

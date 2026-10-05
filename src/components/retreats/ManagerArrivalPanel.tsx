@@ -162,6 +162,7 @@ export default function ManagerArrivalPanel({ retreatId, mode }: ManagerArrivalP
 
     try {
       await guestStatusesService.createStatus(
+        retreatId,
         guestRow.guest.id,
         nextStatus,
         guestRow.roomName === strRoomUnknown ? null : guestRow.roomName,

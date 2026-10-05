@@ -73,6 +73,7 @@ export type Guest = {
 
 export type GuestStatus = {
   id: number;
+  retreat_id: number;
   guest_id: number;
   status: string;
   room: string | null;
@@ -163,6 +164,7 @@ export type CreateGuest = {
 export type UpdateGuest = Partial<CreateGuest>;
 
 export type CreateGuestStatus = {
+  retreat_id: number;
   guest_id: number;
   status: string;
   room: string | null;
@@ -938,12 +940,10 @@ const db = {
     getByRetreatId: async (retreatId: number): Promise<GuestStatus[]> => {
       const { data, error } = await supabase
         .from("guest_statuses")
-        .select(`
-          *,
-          guests!inner(retreat_id)
-        `)
-        .eq("guests.retreat_id", retreatId)
-        .order("changed_at", { ascending: false });
+        .select("*")
+        .eq("retreat_id", retreatId)
+        .order("changed_at", { ascending: false })
+        .order("id", { ascending: false });
 
       if (error) {
         throwDatabaseError("Failed to get guest statuses by retreat", error);

@@ -56,3 +56,5 @@ npm run build
 [`.github/copilot-instructions.md`](.github/copilot-instructions.md), а правила
 TypeScript и React — в
 [`.github/instructions/react-typescript.instructions.md`](.github/instructions/react-typescript.instructions.md).
+
+// Тест CodeRabbit

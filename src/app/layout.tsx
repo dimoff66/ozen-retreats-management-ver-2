@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import FontSizeHotkeys from "@/components/layout/FontSizeHotkeys";
+import { FontSizeSettingsProvider } from "@/components/layout/FontSizeSettings";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,8 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <FontSizeHotkeys />
-        {children}
+        <FontSizeSettingsProvider>{children}</FontSizeSettingsProvider>
       </body>
     </html>
   );

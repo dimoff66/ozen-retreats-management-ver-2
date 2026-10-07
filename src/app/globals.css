@@ -299,6 +299,19 @@ input:focus-visible {
   cursor: pointer;
 }
 
+.ozen-mobile-user-menu {
+  display: none;
+  position: relative;
+}
+
+.ozen-font-settings-modal {
+  max-width: 420px;
+}
+
+.ozen-font-settings-modal .ozen-form-body {
+  padding: 18px 22px 20px;
+}
+
 .ozen-user-avatar,
 .ozen-guest-avatar {
   display: grid;
@@ -1282,6 +1295,80 @@ input:focus-visible {
   .ozen-topbar {
     height: 60px;
     padding: 0 18px;
+  }
+
+  .ozen-mobile-user-menu {
+    display: block;
+    margin-right: auto;
+    order: -1;
+  }
+
+  .ozen-mobile-user-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #52665a;
+    cursor: pointer;
+  }
+
+  .ozen-mobile-user-dropdown {
+    position: absolute;
+    top: calc(100% + 14px);
+    left: 0;
+    z-index: 50;
+    width: min(260px, calc(100vw - 24px));
+    padding: 8px;
+    border: 1px solid #e4eae5;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(28, 42, 32, .15);
+  }
+
+  .ozen-mobile-user-menu-heading {
+    display: block;
+    padding: 9px 10px 7px;
+    color: #87928b;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .ozen-mobile-user-state {
+    display: block;
+    padding: 10px;
+    color: #87928b;
+  }
+
+  .ozen-mobile-user-option {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #405247;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .ozen-mobile-user-option:hover,
+  .ozen-mobile-user-option-active {
+    background: #eff5f0;
+    color: #365c43;
+  }
+
+  .ozen-mobile-user-menu-divider {
+    height: 1px;
+    margin: 6px 0;
+    background: #edf0ed;
+  }
+
+  .ozen-topbar > .ozen-user-selector {
+    display: none;
   }
 
   .ozen-page-content {

@@ -1165,7 +1165,7 @@ input:focus-visible {
   }
 
   .ozen-room-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1198,7 +1198,27 @@ input:focus-visible {
   .ozen-room-capacity {
     grid-column: 2;
   }
+
+  .ozen-room-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .ozen-room-setting-row {
+    gap: 6px;
+    padding: 8px 6px;
+  }
+
+  .ozen-room-capacity span {
+    display: none;
+  }
+
+  .ozen-room-number-input {
+    width: 50px;
+  }
 }
+
 
 .sr-only {
   position: absolute;

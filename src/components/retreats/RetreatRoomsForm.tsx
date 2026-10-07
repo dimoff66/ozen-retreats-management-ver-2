@@ -46,11 +46,26 @@ export default function RetreatRoomsForm({
   const strLoading = "Loading...";
   const strLoadError = "Failed to load retreat rooms.";
   const strSaveError = "Failed to save retreat rooms.";
+  const strOccupiedRoomWarning = "This room already has assigned guests and cannot be made unavailable.";
+  const strOccupiedHouseWarning = "Some rooms in this house already have assigned guests and cannot be made unavailable.";
 
   const { snapshot, retreat, isLoading, error: retreatError, saveRooms } = useRetreat();
   const houses = snapshot?.houses ?? [];
   const rooms: Room[] = roomsService.sortRooms(snapshot?.rooms ?? [], houses);
   const retreatRooms = snapshot?.retreatRooms ?? [];
+  const guests = snapshot?.guests ?? [];
+  const latestStatuses = snapshot?.latestStatuses ?? new Map();
+  const occupiedRoomIds = new Set(
+    guests.flatMap((guest) => {
+      if (!guest.room_id) {
+        return [];
+      }
+
+      const status = latestStatuses.get(guest.id);
+
+      return status?.status === "not_coming" ? [] : [guest.room_id];
+    })
+  );
   const [settingsOverride, setSettingsOverride] = useState<RoomSetting[] | null>(null);
   const [houseMaxGuests, setHouseMaxGuests] = useState<Record<number, number>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -105,6 +120,11 @@ export default function RetreatRoomsForm({
           event: ChangeEvent<HTMLInputElement>
         ) => {
           const checked = event.target.checked;
+
+          if (!checked && occupiedRoomIds.has(room.id)) {
+            window.alert(strOccupiedRoomWarning);
+            return;
+          }
 
           setSettingsOverride((current) =>
             (current ?? settings).map((item) =>
@@ -168,6 +188,13 @@ export default function RetreatRoomsForm({
       };
 
       const onAllUnavailableActionClick = () => {
+        const hasOccupiedRooms = houseRooms.some((room) => occupiedRoomIds.has(room.id));
+
+        if (hasOccupiedRooms) {
+          window.alert(strOccupiedHouseWarning);
+          return;
+        }
+
         const roomIds = new Set(
           houseRooms.map((room) => room.id)
         );

@@ -17,7 +17,35 @@ const retreatRoomsService = {
     retreatId: number,
     settings: RetreatRoomSetting[]
   ): Promise<void> => {
-    const currentRetreatRooms = await db.retreatRooms.getByRetreatId(retreatId);
+    const [currentRetreatRooms, guests, statuses] = await Promise.all([
+      db.retreatRooms.getByRetreatId(retreatId),
+      db.guests.getByRetreatId(retreatId),
+      db.guestStatuses.getByRetreatId(retreatId),
+    ]);
+    const latestStatuses = new Map<number, string>();
+
+    statuses.forEach((status) => {
+      if (!latestStatuses.has(status.guest_id)) {
+        latestStatuses.set(status.guest_id, status.status);
+      }
+    });
+
+    const occupiedRoomIds = new Set(
+      guests.flatMap((guest) => {
+        if (!guest.room_id) {
+          return [];
+        }
+
+        return latestStatuses.get(guest.id) === "not_coming" ? [] : [guest.room_id];
+      })
+    );
+    const unavailableOccupiedRoom = settings.find((setting) => (
+      !setting.isAvailable && occupiedRoomIds.has(setting.roomId)
+    ));
+
+    if (unavailableOccupiedRoom) {
+      throw new Error("Occupied rooms cannot be made unavailable for the retreat.");
+    }
 
     const operations = settings.map(async (setting) => {
       const current = currentRetreatRooms.find(

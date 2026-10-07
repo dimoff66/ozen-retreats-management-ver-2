@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ChangeEvent, SyntheticEvent } from "react";
-import type { CreateGuest, Guest, House, Room } from "@/services/database";
+import type { CreateGuest, Guest, House, RetreatRoom, Room } from "@/services/database";
 import roomsService from "@/services/roomsService";
 
 type GuestFormProps = {
@@ -10,6 +10,7 @@ type GuestFormProps = {
   retreatId: number;
   houses: House[];
   rooms: Room[];
+  retreatRooms: RetreatRoom[];
   onSaveActionClick: (data: CreateGuest) => Promise<void>;
   onCancelActionClick: () => void;
 };
@@ -19,6 +20,7 @@ export default function GuestForm({
   retreatId,
   houses,
   rooms,
+  retreatRooms,
   onSaveActionClick,
   onCancelActionClick,
 }: GuestFormProps) {
@@ -43,7 +45,9 @@ export default function GuestForm({
   const [roomId, setRoomId] = useState(guest?.room_id?.toString() ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
-  const sortedRooms = roomsService.sortRooms(rooms, houses);
+  const availableRoomIds = new Set(retreatRooms.map((retreatRoom) => retreatRoom.room_id));
+  const availableRooms = rooms.filter((room) => room.is_available && availableRoomIds.has(room.id));
+  const sortedRooms = roomsService.sortRooms(availableRooms, houses);
 
   const roomOptions = sortedRooms.map((room) => {
     const house = houses.find((item) => item.id === room.house_id);

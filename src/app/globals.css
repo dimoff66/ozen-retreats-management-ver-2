@@ -822,10 +822,10 @@ input:focus-visible {
 .ozen-guest-card {
   min-width: 0;
   min-height: 106px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 13px;
+  gap: 11px;
   padding: 14px;
   border: 1px solid #e9ede9;
   border-radius: 8px;
@@ -836,14 +836,6 @@ input:focus-visible {
 .ozen-guest-card:hover {
   border-color: #d7e1d9;
   box-shadow: 0 5px 18px rgba(39, 58, 45, .06);
-}
-
-.ozen-guest-card-main {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  flex: 1;
 }
 
 .ozen-guest-avatar {
@@ -874,11 +866,20 @@ input:focus-visible {
   white-space: nowrap;
 }
 
+.ozen-guest-card-lower-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+}
+
 .ozen-guest-card-meta {
+  min-width: 0;
+  flex: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 7px 13px;
-  margin-top: 9px;
 }
 
 .ozen-guest-card-meta span {
@@ -1465,13 +1466,17 @@ input:focus-visible {
   }
 
   .ozen-guest-card {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: start;
   }
 
-  .ozen-guest-card-actions {
-    width: 100%;
-    justify-content: flex-end;
+  .ozen-guest-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ozen-guest-card-lower-row {
+    align-items: center;
   }
 }
 
@@ -1819,11 +1824,11 @@ input:focus-visible {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   padding: 13px 11px;
   border: 0;
   background: transparent;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -1864,7 +1869,7 @@ input:focus-visible {
 }
 
 .ozen-taxi-edit {
-  align-self: flex-start;
+  align-self: center;
   margin: 0 8px 8px;
   padding: 5px 7px;
   border: 0;
@@ -1878,6 +1883,103 @@ input:focus-visible {
 
 .ozen-taxi-edit:hover {
   background: #f2f6f2;
+}
+
+.ozen-taxi-add-card {
+  min-width: 0;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px dashed #d7ded8;
+  border-radius: 8px;
+  background: #fafbfa;
+  color: #9aa39d;
+  font-size: calc(11px + var(--ui-font-offset));
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ozen-taxi-add-card:hover {
+  border-color: #bdc9bf;
+  background: #f6f8f6;
+  color: #758178;
+}
+
+.ozen-taxi-add-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d4dbd5;
+  border-radius: 50%;
+  background: #fff;
+  color: #89948c;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.ozen-meeting-taxi-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ozen-meeting-taxi-card {
+  position: relative;
+  min-width: 0;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 10px;
+  border: 1px solid #e8ede9;
+  border-radius: 8px;
+  background: #fff;
+  color: #6c786f;
+  text-align: center;
+  cursor: pointer;
+}
+
+.ozen-meeting-taxi-card-selected {
+  border-color: #9fbaa5;
+  background: #f3f8f4;
+  box-shadow: 0 0 0 2px rgba(91, 133, 99, .08);
+}
+
+.ozen-meeting-taxi-checkbox {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 15px;
+  height: 15px;
+  accent-color: #5c8065;
+}
+
+.ozen-meeting-taxi-number {
+  color: #8f9992;
+  font-size: calc(10px + var(--ui-font-offset));
+  font-weight: 750;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+
+.ozen-meeting-taxi-card strong {
+  color: #405046;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(14px + var(--ui-font-offset));
+  font-weight: 500;
+}
+
+.ozen-meeting-taxi-card span:not(.ozen-meeting-taxi-number),
+.ozen-meeting-taxi-card small {
+  font-size: calc(10px + var(--ui-font-offset));
 }
 
 .ozen-taxi-house-summary {
@@ -2208,7 +2310,8 @@ input:focus-visible {
 }
 
 @media (max-width: 1180px) {
-  .ozen-taxi-grid {
+  .ozen-taxi-grid,
+  .ozen-meeting-taxi-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
@@ -2237,7 +2340,8 @@ input:focus-visible {
     width: 100%;
   }
 
-  .ozen-taxi-grid {
+  .ozen-taxi-grid,
+  .ozen-meeting-taxi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2273,6 +2377,10 @@ input:focus-visible {
 @media (max-width: 600px) {
   .ozen-taxi-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ozen-meeting-taxi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .ozen-form-grid-two {

@@ -255,7 +255,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
             ? "bg-red-100 text-red-800"
             : "bg-gray-100 text-gray-700",
       isPending: pendingGuestIds.has(guestRow.guest.id),
-      showStatus: mode === "meeting",
+      showStatus: true,
       fallbackCaption: mode === "check-in"
         && guestRow.houseId !== null
         && guestRow.status === "checked_in"
@@ -343,18 +343,16 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
       {isSnapshotLoading ? <p>{strLoading}</p> : null}
       {!isSnapshotLoading && mode === "meeting" ? (
         <>
-          <div className="flex flex-wrap gap-3">
+          <div className="ozen-meeting-taxi-grid">
             {rideRows.map((ride) => (
               <label key={ride.id} className={ride.isSelected
-                ? "flex min-w-56 cursor-pointer items-start gap-3 rounded-md border border-blue-500 bg-blue-50 p-3"
-                : "flex min-w-56 cursor-pointer items-start gap-3 rounded-md border border-gray-200 bg-white p-3"}>
-                <input type="checkbox" checked={ride.isSelected} onChange={ride.onChange} className="mt-1 size-4 accent-blue-600" />
-                <span className="flex flex-col">
-                  <span className="text-xs font-bold uppercase text-gray-500">{ride.number}</span>
-                  <span className="mt-1 font-semibold">{ride.arrival}</span>
-                  <span className="mt-1 text-sm text-gray-700">{ride.driver}</span>
-                  <span className="mt-1 text-xs text-gray-500">{ride.passengerCount}</span>
-                </span>
+                ? "ozen-meeting-taxi-card ozen-meeting-taxi-card-selected"
+                : "ozen-meeting-taxi-card"}>
+                <input type="checkbox" checked={ride.isSelected} onChange={ride.onChange} className="ozen-meeting-taxi-checkbox" />
+                <span className="ozen-meeting-taxi-number">{ride.number}</span>
+                <strong>{ride.arrival}</strong>
+                <span>{ride.driver}</span>
+                <small>{ride.passengerCount}</small>
               </label>
             ))}
           </div>

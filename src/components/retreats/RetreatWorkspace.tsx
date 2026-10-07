@@ -26,6 +26,8 @@ const tabsByRole: Record<string, RetreatTab[]> = {
     { label: "Taxis" },
     { label: "Map" },
     { label: "History" },
+    { label: "Meeting" },
+    { label: "Check in" },
   ],
   manager: [
     { label: "Guests" },
@@ -188,8 +190,9 @@ export default function RetreatWorkspace() {
     };
   });
   const showGuests = activeTabName === "Guests";
-  const showMeeting = activeTabName === "Meeting" && user.role === "manager";
-  const showCheckIn = activeTabName === "Check in" && user.role === "manager";
+  const canUseArrivalWorkflow = user.role === "manager" || user.role === "admin";
+  const showMeeting = activeTabName === "Meeting" && canUseArrivalWorkflow;
+  const showCheckIn = activeTabName === "Check in" && canUseArrivalWorkflow;
   const showRooms = activeTabName === "Rooms" && isAdmin;
   const showTaxis = activeTabName === "Taxis";
   const showMap = activeTab?.mapMode !== undefined;

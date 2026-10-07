@@ -143,15 +143,15 @@ export default function GuestsCards<T extends GuestCardRow>({
               <div className="ozen-guest-card-grid">
                 {group.rows.map(({ guest, actionButton, initials, menuActions }) => (
                   <article key={guest.guest.id} className="ozen-guest-card">
-                    <div className="ozen-guest-card-main">
-                      <span className="ozen-guest-avatar">{initials}</span>
-                      <div className="ozen-guest-card-copy">
-                        <div className="ozen-guest-card-title-row">
-                          <strong>{guest.guest.name}</strong>
-                          {guest.showStatus ? (
-                            <span className={`ozen-card-status ${guest.statusBadgeClassName}`}><i />{guest.statusLabel}</span>
-                          ) : null}
-                        </div>
+                    <span className="ozen-guest-avatar">{initials}</span>
+                    <div className="ozen-guest-card-copy">
+                      <div className="ozen-guest-card-title-row">
+                        <strong>{guest.guest.name}</strong>
+                        {guest.showStatus ? (
+                          <span className={`ozen-card-status ${guest.statusBadgeClassName}`}><i />{guest.statusLabel}</span>
+                        ) : null}
+                      </div>
+                      <div className="ozen-guest-card-lower-row">
                         <div className="ozen-guest-card-meta">
                           <span>
                             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7">
@@ -169,44 +169,44 @@ export default function GuestsCards<T extends GuestCardRow>({
                             </span>
                           ) : null}
                         </div>
+                        <div className="ozen-guest-card-actions">
+                          {actionButton ? (
+                            <button
+                              type="button"
+                              onClick={actionButton.action}
+                              disabled={guest.isPending}
+                              className="ozen-primary-action"
+                            >
+                              {actionButton.caption}
+                            </button>
+                          ) : guest.fallbackCaption ? (
+                            <span className="ozen-fallback-caption">{guest.fallbackCaption}</span>
+                          ) : null}
+                          {menuActions.length > 0 ? (
+                            <details className="ozen-card-menu">
+                              <summary aria-label={strGuestActions} title={strGuestActions}>
+                                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+                                  <circle cx="12" cy="5" r="1.8" />
+                                  <circle cx="12" cy="12" r="1.8" />
+                                  <circle cx="12" cy="19" r="1.8" />
+                                </svg>
+                              </summary>
+                              <div className="ozen-card-menu-popover">
+                                {menuActions.map((menuAction) => (
+                                  <button
+                                    key={menuAction.id}
+                                    type="button"
+                                    disabled={guest.isPending}
+                                    onClick={menuAction.onClickHandler}
+                                  >
+                                    {menuAction.caption}
+                                  </button>
+                                ))}
+                              </div>
+                            </details>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    <div className="ozen-guest-card-actions">
-                      {actionButton ? (
-                        <button
-                          type="button"
-                          onClick={actionButton.action}
-                          disabled={guest.isPending}
-                          className="ozen-primary-action"
-                        >
-                          {actionButton.caption}
-                        </button>
-                      ) : guest.fallbackCaption ? (
-                        <span className="ozen-fallback-caption">{guest.fallbackCaption}</span>
-                      ) : null}
-                      {menuActions.length > 0 ? (
-                        <details className="ozen-card-menu">
-                          <summary aria-label={strGuestActions} title={strGuestActions}>
-                            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-                              <circle cx="12" cy="5" r="1.8" />
-                              <circle cx="12" cy="12" r="1.8" />
-                              <circle cx="12" cy="19" r="1.8" />
-                            </svg>
-                          </summary>
-                          <div className="ozen-card-menu-popover">
-                            {menuActions.map((menuAction) => (
-                              <button
-                                key={menuAction.id}
-                                type="button"
-                                disabled={guest.isPending}
-                                onClick={menuAction.onClickHandler}
-                              >
-                                {menuAction.caption}
-                              </button>
-                            ))}
-                          </div>
-                        </details>
-                      ) : null}
                     </div>
                   </article>
                 ))}

@@ -58,6 +58,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
 
   const houses = snapshot?.houses ?? [];
   const rooms: Room[] = snapshot?.rooms ?? [];
+  const retreatRooms = snapshot?.retreatRooms ?? [];
   const guests = snapshot?.guests ?? [];
   const guestStatuses = new Map(
     Array.from(snapshot?.latestStatuses ?? [], ([guestId, latestStatus]) => [guestId, latestStatus.status])
@@ -477,6 +478,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
           retreatId={selectedRetreatId}
           houses={houses}
           rooms={rooms}
+          retreatRooms={retreatRooms}
           onSaveActionClick={onSaveActionClick}
           onCancelActionClick={onCancelActionClick}
         />

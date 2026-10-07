@@ -24,7 +24,7 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
   const strLoading = "Loading...";
   const strNoRides = "No taxi rides yet.";
   const strUnknown = "-";
-  const strAddRide = "Add taxi ride";
+  const strAddRide = "Add ride";
   const strEditRide = "Edit";
   const strArrival = "Arrival date and time";
   const strDriverName = "Driver name";
@@ -346,10 +346,7 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
 
   return (
     <section className="ozen-taxi-screen">
-      <div className="ozen-section-toolbar">
-        {showTitle ? <div><h2>{strTitle}</h2></div> : <span />}
-        {canManage ? <button type="button" onClick={onNewRideClick} className="ozen-primary-action">{strAddRide}</button> : null}
-      </div>
+      {showTitle ? <div className="ozen-section-toolbar"><div><h2>{strTitle}</h2></div></div> : null}
       {error ? <p role="alert" className="ozen-state-message ozen-state-error">{error}</p> : null}
       {retreatError ? <p role="alert" className="ozen-state-message ozen-state-error">{retreatError}</p> : null}
       {isSnapshotLoading ? <p className="ozen-state-message">{strLoading}</p> : null}
@@ -368,6 +365,12 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
                 {canManage ? <button type="button" onClick={ride.onEdit} className="ozen-taxi-edit">{strEditRide}</button> : null}
               </article>
             ))}
+            {canManage ? (
+              <button type="button" onClick={onNewRideClick} className="ozen-taxi-add-card">
+                <span className="ozen-taxi-add-icon">+</span>
+                <span>{strAddRide}</span>
+              </button>
+            ) : null}
           </div>
           {selectedRideRow ? (
             <div className="ozen-taxi-house-summary">

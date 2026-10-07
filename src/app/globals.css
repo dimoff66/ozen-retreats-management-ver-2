@@ -1786,13 +1786,15 @@ input:focus-visible {
 
 .ozen-taxi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .ozen-taxi-card {
   min-width: 0;
+  min-height: 190px;
   display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid #e8ede9;
   border-radius: 8px;
@@ -1812,12 +1814,13 @@ input:focus-visible {
 }
 
 .ozen-taxi-card-main {
+  width: 100%;
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 14px;
+  padding: 13px 11px;
   border: 0;
   background: transparent;
   text-align: left;
@@ -1833,21 +1836,28 @@ input:focus-visible {
 }
 
 .ozen-taxi-card-main strong {
-  margin-top: 7px;
+  margin-top: 12px;
   color: #405046;
   font-family: Georgia, "Times New Roman", serif;
   font-size: calc(15px + var(--ui-font-offset));
   font-weight: 500;
 }
 
+.ozen-taxi-date {
+  margin-top: 4px;
+  color: #a0a8a3;
+  font-size: calc(10px + var(--ui-font-offset));
+}
+
 .ozen-taxi-driver {
-  margin-top: 6px;
+  margin-top: 13px;
   color: #69766d;
   font-size: calc(12px + var(--ui-font-offset));
 }
 
 .ozen-taxi-passenger-count {
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 12px;
   color: #939d96;
   font-size: calc(10px + var(--ui-font-offset));
   line-height: 1.4;
@@ -1855,7 +1865,7 @@ input:focus-visible {
 
 .ozen-taxi-edit {
   align-self: flex-start;
-  margin: 9px 9px 0 0;
+  margin: 0 8px 8px;
   padding: 5px 7px;
   border: 0;
   border-radius: 5px;
@@ -1868,6 +1878,28 @@ input:focus-visible {
 
 .ozen-taxi-edit:hover {
   background: #f2f6f2;
+}
+
+.ozen-taxi-house-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 8px 2px 0;
+  color: #7f8b83;
+  font-size: calc(11px + var(--ui-font-offset));
+}
+
+.ozen-taxi-house-summary span {
+  color: #a0a8a3;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.ozen-taxi-house-summary strong {
+  color: #5f6d63;
+  font-weight: 600;
 }
 
 .ozen-taxi-detail {
@@ -2177,7 +2209,7 @@ input:focus-visible {
 
 @media (max-width: 1180px) {
   .ozen-taxi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .ozen-taxi-detail-grid {
@@ -2206,7 +2238,7 @@ input:focus-visible {
   }
 
   .ozen-taxi-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .ozen-map-editor-backdrop {
@@ -2239,6 +2271,10 @@ input:focus-visible {
 }
 
 @media (max-width: 600px) {
+  .ozen-taxi-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .ozen-form-grid-two {
     grid-template-columns: minmax(0, 1fr);
   }

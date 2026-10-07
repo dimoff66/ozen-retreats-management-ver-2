@@ -749,6 +749,7 @@ export default function HouseMapView({
     return {
       id: room.id,
       name: roomName,
+      roomNumber: room.room_number,
       houseId: room.house_id,
       isAvailableForRetreat: isRoomAvailable,
       occupancyText: retreatRoom ? `${activeGuests.length}/${maxGuests}` : "—",
@@ -762,11 +763,28 @@ export default function HouseMapView({
 
   const roomSelectionGroups = [...houses]
     .sort((left, right) => left.id - right.id)
-    .map((house) => ({
-      id: house.id,
-      name: house.name,
-      rooms: roomSelectionItems.filter((room) => room.houseId === house.id),
-    }))
+    .map((house) => {
+      const houseRooms = roomSelectionItems.filter((room) => room.houseId === house.id);
+      const roomGroups = houseRooms.reduce<Array<{ prefix: string; rooms: typeof houseRooms }>>((groups, room) => {
+        const prefix = room.roomNumber.match(/^[A-Za-z]+/)?.[0] ?? "";
+        const currentGroup = groups[groups.length - 1];
+
+        if (!currentGroup || currentGroup.prefix !== prefix) {
+          groups.push({ prefix, rooms: [room] });
+          return groups;
+        }
+
+        currentGroup.rooms.push(room);
+        return groups;
+      }, []);
+
+      return {
+        id: house.id,
+        name: house.name,
+        rooms: houseRooms,
+        roomGroups,
+      };
+    })
     .filter((house) => house.rooms.some((room) => room.isAvailableForRetreat));
 
   const guestSelectionRows = roomsService.sortRooms(rooms, houses).flatMap((room) => {
@@ -954,8 +972,10 @@ export default function HouseMapView({
                   {roomSelectionGroups.map((house) => (
                     <section key={house.id} className="rounded-lg border border-gray-200 bg-white p-4">
                       <h4 className="mb-3 font-semibold text-gray-800">{house.name}</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {house.rooms.map((room) => (
+                      <div className="space-y-2">
+                        {house.roomGroups.map((roomGroup) => (
+                          <div key={`${house.id}-${roomGroup.prefix || "numeric"}`} className="flex flex-wrap gap-2">
+                            {roomGroup.rooms.map((room) => (
                           <div key={room.id} className={`flex h-24 w-48 shrink-0 flex-col overflow-hidden rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
                             <div className="flex items-center gap-2">
                               <button
@@ -986,6 +1006,8 @@ export default function HouseMapView({
                                 ))}
                               </div>
                             ) : null}
+                          </div>
+                            ))}
                           </div>
                         ))}
                       </div>

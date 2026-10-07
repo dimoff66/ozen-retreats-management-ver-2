@@ -34,6 +34,8 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
   const strCancel = "Cancel";
   const strRideNumber = "Taxi";
   const strPassengers = "Passengers";
+  const strHouses = "Houses";
+  const strNoAssignedHouses = "No assigned houses";
   const strGuest = "Guest";
   const strName = "Name";
   const strRoom = "Room";
@@ -266,21 +268,27 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
 
       return house ? [house.name] : [];
     });
-    const houseSummary = assignedHouseNames.length > 0
-      ? ` (${assignedHouseNames.join(", ")})`
-      : "";
+    const arrivalDate = new Date(ride.arrival_datetime);
+    const arrivalTime = arrivalDate.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
 
     return {
       id: ride.id,
       number: `${strRideNumber} ${index + 1}`,
-      arrival: dateService.formatDateTime(ride.arrival_datetime),
-      driverName: ride.driver_name || strUnknown,
-      passengerCount: `${passengerCount} ${strPassengerCount}${houseSummary}`,
+      arrivalTime,
+      arrivalDate: dateService.formatDate(ride.arrival_datetime),
+      driverName: ride.driver_name,
+      passengerCount: `${passengerCount} ${strPassengerCount}`,
+      houseNames: assignedHouseNames,
       isSelected: selectedRide?.id === ride.id,
       onSelect: () => onRideSelect(ride),
       onEdit: () => onEditRideClick(ride),
     };
   });
+  const selectedRideRow = rideRows.find((ride) => ride.id === selectedRide?.id) ?? null;
   const selectedTaxiGuests = selectedRide
     ? taxiGuests.filter((passenger) => passenger.ride_id === selectedRide.id)
     : [];
@@ -352,14 +360,21 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
               <article key={ride.id} className={ride.isSelected ? "ozen-taxi-card ozen-taxi-card-selected" : "ozen-taxi-card"}>
                 <button type="button" onClick={ride.onSelect} aria-pressed={ride.isSelected} className="ozen-taxi-card-main">
                   <span className="ozen-taxi-number">{ride.number}</span>
-                  <strong>{ride.arrival}</strong>
-                  <span className="ozen-taxi-driver">{ride.driverName}</span>
+                  <strong>{ride.arrivalTime}</strong>
+                  <span className="ozen-taxi-date">{ride.arrivalDate}</span>
+                  {ride.driverName ? <span className="ozen-taxi-driver">{ride.driverName}</span> : null}
                   <span className="ozen-taxi-passenger-count">{ride.passengerCount}</span>
                 </button>
                 {canManage ? <button type="button" onClick={ride.onEdit} className="ozen-taxi-edit">{strEditRide}</button> : null}
               </article>
             ))}
           </div>
+          {selectedRideRow ? (
+            <div className="ozen-taxi-house-summary">
+              <span>{strHouses}</span>
+              <strong>{selectedRideRow.houseNames.length > 0 ? selectedRideRow.houseNames.join(", ") : strNoAssignedHouses}</strong>
+            </div>
+          ) : null}
           {hasNoRides ? <p className="ozen-empty-message">{strNoRides}</p> : null}
           {selectedRide ? (
             <section className="ozen-taxi-detail">

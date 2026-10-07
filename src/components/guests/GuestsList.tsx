@@ -18,7 +18,11 @@ import type { GuestStatusValue } from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
 import roomsService from "@/services/roomsService";
 
-export default function GuestsList() {
+type GuestsListProps = {
+  showTitle?: boolean;
+};
+
+export default function GuestsList({ showTitle = true }: GuestsListProps) {
   const strTitle = "Guests";
   const strColumnName = "Name";
   const strColumnDiet = "Diet";
@@ -370,7 +374,7 @@ export default function GuestsList() {
 
   return (
     <div className="ozen-guests-list">
-      <div className="ozen-section-heading"><h2>{strTitle}</h2></div>
+      {showTitle ? <div className="ozen-section-heading"><h2>{strTitle}</h2></div> : null}
       <ActionBar
         selectedItem={selectedGuest}
         onAddActionClick={onAddActionClick}

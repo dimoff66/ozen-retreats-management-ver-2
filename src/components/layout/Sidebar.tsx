@@ -33,12 +33,9 @@ export default function Sidebar({
   const strBrand = "ozen";
   const strBrandMark = "✦";
   const strBrandCaption = "RETREAT MANAGEMENT";
-  const strWorkspace = "Ozen Retreats";
-  const strWorkspaceCaption = "Workspace";
   const strWorkspaceGroup = "WORKSPACE";
   const strManageGroup = "MANAGE";
   const strMainNavigation = "Main navigation";
-  const strWorkspaceInitial = "O";
   const retreatItems = menuItems.filter((label) => label !== "Admin");
   const manageItems = menuItems.filter((label) => label === "Admin");
 
@@ -62,11 +59,6 @@ export default function Sidebar({
       <div className="ozen-brand" aria-label={strBrand}>
         <span className="ozen-brand-mark">{strBrandMark}</span>
         <span className="ozen-brand-copy"><strong>{strBrand}</strong><small>{strBrandCaption}</small></span>
-      </div>
-      <div className="ozen-workspace-card">
-        <span className="ozen-workspace-avatar">{strWorkspaceInitial}</span>
-        <span className="ozen-workspace-name"><strong>{strWorkspace}</strong><small>{strWorkspaceCaption}</small></span>
-        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7"><path d="m6 8 4 4 4-4" /></svg>
       </div>
       <nav className="ozen-side-nav" aria-label={strMainNavigation}>
         <div className="ozen-nav-group">

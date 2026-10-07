@@ -67,10 +67,6 @@ export default function AppShell() {
       </div>
       <div className="ozen-center-column">
         <header className="ozen-topbar">
-          <div className="ozen-topbar-context">
-            <span className="ozen-retreat-indicator" />
-            <span>{strRetreats}</span>
-          </div>
           <UserSelector />
         </header>
         <main className="ozen-page-content">

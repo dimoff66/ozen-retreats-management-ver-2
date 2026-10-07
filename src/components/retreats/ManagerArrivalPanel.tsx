@@ -16,6 +16,7 @@ import { useRetreat } from "@/contexts/RetreatContext";
 
 type ManagerArrivalPanelProps = {
   mode: "meeting" | "check-in";
+  showTitle?: boolean;
 };
 
 type GuestRow = {
@@ -29,7 +30,7 @@ type GuestRow = {
 
 type ArrivalGuestCardRow = GuestCardRow & Pick<GuestRow, "houseName" | "houseId" | "status">;
 
-export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) {
+export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerArrivalPanelProps) {
   const strTitle = mode === "meeting" ? "Meeting" : "Check in";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load meeting data.";
@@ -336,7 +337,7 @@ export default function ManagerArrivalPanel({ mode }: ManagerArrivalPanelProps) 
 
   return (
     <section>
-      <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>
+      {showTitle ? <h2 className="mb-4 text-xl font-bold">{strTitle}</h2> : null}
       {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
       {retreatError ? <p role="alert" className="mb-4 text-red-600">{strLoadError}</p> : null}
       {isSnapshotLoading ? <p>{strLoading}</p> : null}

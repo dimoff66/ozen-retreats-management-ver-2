@@ -9,6 +9,7 @@ import { useRetreat } from "@/contexts/RetreatContext";
 
 type TaxiRidesPanelProps = {
   canManage: boolean;
+  showTitle?: boolean;
 };
 
 const toLocalDateTimeInput = (value: string): string => {
@@ -18,7 +19,7 @@ const toLocalDateTimeInput = (value: string): string => {
   return localDate.toISOString().slice(0, 16);
 };
 
-export default function TaxiRidesPanel({ canManage }: TaxiRidesPanelProps) {
+export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRidesPanelProps) {
   const strTitle = "Taxi rides";
   const strLoading = "Loading...";
   const strNoRides = "No taxi rides yet.";
@@ -338,9 +339,7 @@ export default function TaxiRidesPanel({ canManage }: TaxiRidesPanelProps) {
   return (
     <section className="ozen-taxi-screen">
       <div className="ozen-section-toolbar">
-        <div>
-          <h2>{strTitle}</h2>
-        </div>
+        {showTitle ? <div><h2>{strTitle}</h2></div> : <span />}
         {canManage ? <button type="button" onClick={onNewRideClick} className="ozen-primary-action">{strAddRide}</button> : null}
       </div>
       {error ? <p role="alert" className="ozen-state-message ozen-state-error">{error}</p> : null}

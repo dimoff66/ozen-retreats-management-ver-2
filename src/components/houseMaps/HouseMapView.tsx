@@ -40,6 +40,7 @@ type HouseMapViewProps = {
   onRoomSelectActionClick?: (room: Room) => Promise<void>;
   onGuestSwapActionClick?: (guest: Guest) => Promise<void>;
   onCancelActionClick?: () => void;
+  showTitle?: boolean;
 };
 
 export default function HouseMapView({
@@ -49,6 +50,7 @@ export default function HouseMapView({
   onRoomSelectActionClick,
   onGuestSwapActionClick,
   onCancelActionClick,
+  showTitle = true,
 }: HouseMapViewProps) {
   const strTitle = "House map";
   const strSelectRoom = "Select a room for";
@@ -824,7 +826,7 @@ export default function HouseMapView({
     <div className="relative flex h-full flex-col" aria-busy={isSelectionPending}>
       <div className="mb-4 flex shrink-0 items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold">{strTitle}</h2>
+          {showTitle ? <h2 className="text-xl font-bold">{strTitle}</h2> : null}
           {selectionText ? <div className="mt-1 text-sm text-gray-600">{selectionText}</div> : null}
         </div>
         <div className="flex gap-2">

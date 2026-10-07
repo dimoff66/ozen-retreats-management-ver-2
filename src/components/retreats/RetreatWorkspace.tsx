@@ -44,15 +44,15 @@ const tabsByRole: Record<string, RetreatTab[]> = {
 const noTabs: RetreatTab[] = [];
 
 function RetreatHeading({ fallbackRetreat }: { fallbackRetreat: Retreat }) {
-  const strRetreatWorkspace = "Retreat workspace";
   const { retreat } = useRetreat();
   const displayedRetreat = retreat ?? fallbackRetreat;
   const dateRange = `${dateService.formatDate(displayedRetreat.start_date)} – ${dateService.formatDate(displayedRetreat.end_date)}`;
 
   return (
     <div className="ozen-retreat-heading-copy">
-      <p className="ozen-eyebrow">{strRetreatWorkspace}</p>
-      <h1>{displayedRetreat.title}</h1>
+      <div className="ozen-retreat-title-line">
+        <h1>{displayedRetreat.title}</h1>
+      </div>
       <p>{dateRange}</p>
     </div>
   );
@@ -214,9 +214,15 @@ export default function RetreatWorkspace() {
                 <button
                   type="button"
                   onClick={onChangeRetreatClick}
-                  className="ozen-secondary-button"
+                  aria-label={strChooseAnotherRetreat}
+                  title={strChooseAnotherRetreat}
+                  className="ozen-retreat-more-button"
                 >
-                  {strChooseAnotherRetreat}
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+                    <circle cx="5" cy="12" r="1.8" />
+                    <circle cx="12" cy="12" r="1.8" />
+                    <circle cx="19" cy="12" r="1.8" />
+                  </svg>
                 </button>
               ) : null}
             </div>
@@ -236,14 +242,14 @@ export default function RetreatWorkspace() {
               ))}
             </nav>
             <div className="ozen-retreat-content">
-              {showGuests ? <GuestsList /> : null}
-              {showMeeting ? <ManagerArrivalPanel mode="meeting" /> : null}
-              {showCheckIn ? <ManagerArrivalPanel mode="check-in" /> : null}
-              {showRooms ? <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} /> : null}
-              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} /> : null}
-              {showMap && activeTab?.mapMode ? <HouseMapView openMode={activeTab.mapMode} /> : null}
-              {showAdminMap ? <HouseMapView openMode="normal" /> : null}
-              {showHistory ? <HistoryPanel /> : null}
+              {showGuests ? <GuestsList showTitle={false} /> : null}
+              {showMeeting ? <ManagerArrivalPanel mode="meeting" showTitle={false} /> : null}
+              {showCheckIn ? <ManagerArrivalPanel mode="check-in" showTitle={false} /> : null}
+              {showRooms ? <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} showTitle={false} /> : null}
+              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} showTitle={false} /> : null}
+              {showMap && activeTab?.mapMode ? <HouseMapView openMode={activeTab.mapMode} showTitle={false} /> : null}
+              {showAdminMap ? <HouseMapView openMode="normal" showTitle={false} /> : null}
+              {showHistory ? <HistoryPanel showTitle={false} /> : null}
             </div>
           </>
         </RetreatProvider>

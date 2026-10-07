@@ -11,7 +11,11 @@ import {
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import { useRetreat } from "@/contexts/RetreatContext";
 
-export default function HistoryPanel() {
+type HistoryPanelProps = {
+  showTitle?: boolean;
+};
+
+export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
   const strTitle = "History";
   const strLoadError = "Failed to load retreat history.";
   const strLoading = "Loading history...";
@@ -58,9 +62,7 @@ export default function HistoryPanel() {
   return (
     <section className="ozen-history-screen">
       <div className="ozen-section-toolbar">
-        <div>
-          <h2>{strTitle}</h2>
-        </div>
+        {showTitle ? <div><h2>{strTitle}</h2></div> : <span />}
         <label className="ozen-search-field ozen-history-search">
           <span className="sr-only">Search history</span>
           <input type="search" value={searchQuery} onChange={onSearchChange} aria-label="Search history" />

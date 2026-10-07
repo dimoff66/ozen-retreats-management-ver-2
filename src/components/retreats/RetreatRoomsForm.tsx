@@ -8,6 +8,7 @@ import { useRetreat } from "@/contexts/RetreatContext";
 
 type RetreatRoomsFormProps = {
   onCloseActionClick: () => void;
+  showTitle?: boolean;
 };
 
 type RoomSetting = {
@@ -31,6 +32,7 @@ const prepareRoomSettings = (
 
 export default function RetreatRoomsForm({
   onCloseActionClick,
+  showTitle = true,
 }: RetreatRoomsFormProps) {
   const strTitle = "Retreat rooms";
   const strAvailable = "Available";
@@ -227,12 +229,14 @@ export default function RetreatRoomsForm({
 
   return (
     <section className="ozen-room-settings-screen">
-      <div className="ozen-room-settings-header">
-        <div>
-          <h2>{strTitle}</h2>
-          {retreat ? <p>{retreat.title}</p> : null}
+      {showTitle ? (
+        <div className="ozen-room-settings-header">
+          <div>
+            <h2>{strTitle}</h2>
+            {retreat ? <p>{retreat.title}</p> : null}
+          </div>
         </div>
-      </div>
+      ) : null}
       <div>
         {isLoading || !snapshot ? <div className="ozen-room-settings-message">{strLoading}</div> : null}
         {error || retreatError ? <div className="ozen-room-settings-message ozen-room-settings-error">{error || strLoadError}</div> : null}

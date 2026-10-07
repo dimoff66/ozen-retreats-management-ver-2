@@ -1209,4 +1209,6 @@ const db = {
   },
 };
 
+export type DatabaseAdapter = typeof db;
+
 export default db;

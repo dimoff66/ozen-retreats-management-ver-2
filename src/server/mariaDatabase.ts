@@ -1,3 +1,4 @@
+import type { ExecuteValues } from "mysql2";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type {
   CreateGuest,
@@ -67,9 +68,9 @@ function normalizeRow<T>(row: RowDataPacket): T {
   return normalized as T;
 }
 
-function normalizeWriteValue(key: string, value: unknown): unknown {
+function normalizeWriteValue(key: string, value: unknown): ExecuteValues {
   if (value === undefined) {
-    return undefined;
+    throw new Error(`Cannot write undefined value for ${key}`);
   }
 
   if (booleanColumns.has(key) && typeof value === "boolean") {
@@ -80,13 +81,26 @@ function normalizeWriteValue(key: string, value: unknown): unknown {
     return JSON.stringify(value);
   }
 
-  return value;
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "bigint" ||
+    typeof value === "boolean" ||
+    value instanceof Date ||
+    Buffer.isBuffer(value) ||
+    value instanceof Uint8Array
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unsupported MariaDB value for ${key}`);
 }
 
 function getWriteEntries(
   data: object,
   allowedColumns: readonly string[]
-): Array<[string, unknown]> {
+): Array<[string, ExecuteValues]> {
   const record = data as Record<string, unknown>;
 
   return allowedColumns
@@ -95,12 +109,12 @@ function getWriteEntries(
     .map((key) => [key, normalizeWriteValue(key, record[key])]);
 }
 
-async function selectMany<T>(sql: string, values: unknown[] = []): Promise<T[]> {
+async function selectMany<T>(sql: string, values: ExecuteValues = []): Promise<T[]> {
   const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(sql, values);
   return rows.map((row) => normalizeRow<T>(row));
 }
 
-async function selectOne<T>(sql: string, values: unknown[] = []): Promise<T | null> {
+async function selectOne<T>(sql: string, values: ExecuteValues = []): Promise<T | null> {
   const rows = await selectMany<T>(sql, values);
   return rows[0] ?? null;
 }

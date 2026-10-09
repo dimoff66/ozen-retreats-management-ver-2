@@ -1,0 +1,445 @@
+diff --git a/test-kit/README.md b/test-kit/README.md
+new file mode 100644
+index 0000000..015c941
+--- /dev/null
++++ b/test-kit/README.md
+@@ -0,0 +1,53 @@
++# Retreat service test kit
++
++Это ручной integration test-kit без Vitest/Jest и без собственного runner.
++Каждая экспортируемая функция вызывает настоящий service, перечитывает результат
++через service API и возвращает:
++
++```ts
++Promise<true | string>
++```
++
++`true` означает успех, строка — описание первой обнаруженной ошибки.
++
++## Важно
++
++Функции выполняют реальные записи в настроенную базу. Запускайте их только на
++тестовом ретрите/тестовой базе и передавайте специально подготовленные id.
++Функции create/update/delete намеренно не скрывают побочные эффекты и не пытаются
++автоматически откатить данные, потому что автоматический cleanup сам является
++дополнительной записью и может скрыть исходную ошибку.
++
++Файлы:
++
++```text
++test-kit/retreat-services/
++  retreatsService.ts
++  retreatRoomsService.ts
++  guestsService.ts
++  guestStatusesService.ts
++  taxiRidesService.ts
++  types.ts
++```
++
++Глобальные справочники Houses/Rooms/Users не включены: этот kit сфокусирован на
++записи данных конкретного ретрита. `retreatSnapshotService` также не включён,
++поскольку он только читает агрегат.
++
++## Пример
++
++```ts
++import { testSwapGuestRooms } from "./retreat-services/guestsService";
++
++const result = await testSwapGuestRooms({
++  firstGuestId: 101,
++  secondGuestId: 102,
++  retreatId: 5,
++  expectedFirstRoomLabel: "Buddha 2",
++  expectedSecondRoomLabel: "Buddha 1",
++});
++
++if (result !== true) {
++  console.error(result);
++}
++```
+diff --git a/test-kit/retreat-services/guestStatusesService.ts b/test-kit/retreat-services/guestStatusesService.ts
+new file mode 100644
+index 0000000..f21799f
+--- /dev/null
++++ b/test-kit/retreat-services/guestStatusesService.ts
+@@ -0,0 +1,34 @@
++import guestStatusesService from "@/services/guestStatusesService";
++import type { GuestStatusValue } from "@/services/guestStatusesService";
++import { assertTest, runServiceTest } from "./types";
++import type { ServiceTestResult } from "./types";
++
++export type CreateStatusTestInput = {
++  retreatId: number;
++  guestId: number;
++  status: GuestStatusValue;
++  room: string | null;
++  updatedBy: number;
++};
++
++export async function testCreateGuestStatus(
++  input: CreateStatusTestInput
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const created = await guestStatusesService.createStatus(
++      input.retreatId,
++      input.guestId,
++      input.status,
++      input.room,
++      input.updatedBy
++    );
++    const latest = await guestStatusesService.getLatestForRetreat(input.retreatId);
++    const latestForGuest = latest.get(input.guestId);
++
++    assertTest(created.guest_id === input.guestId, "Created status has the wrong guest_id.");
++    assertTest(created.status === input.status, "Created status value does not match.");
++    assertTest(created.room === input.room, "Created status room does not match.");
++    assertTest(latestForGuest?.status === input.status, "Latest guest status was not updated.");
++    assertTest(latestForGuest?.room === input.room, "Latest guest status room does not match.");
++  });
++}
+diff --git a/test-kit/retreat-services/guestsService.ts b/test-kit/retreat-services/guestsService.ts
+new file mode 100644
+index 0000000..32c3e59
+--- /dev/null
++++ b/test-kit/retreat-services/guestsService.ts
+@@ -0,0 +1,125 @@
++import guestsService from "@/services/guestsService";
++import guestStatusesService from "@/services/guestStatusesService";
++import type { CreateGuest, UpdateGuest } from "@/services/database";
++import { assertTest, runServiceTest } from "./types";
++import type { ServiceTestResult } from "./types";
++
++export type GuestWriteTestInput = {
++  guest: CreateGuest;
++  expectedRoomLabel?: string;
++};
++
++export async function testCreateGuest(input: GuestWriteTestInput): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const created = await guestsService.createGuest(input.guest);
++    const loaded = await guestsService.getGuestById(created.id);
++
++    assertTest(loaded !== null, "Created guest cannot be loaded.");
++    assertTest(loaded.name === input.guest.name.trim(), "Created guest name does not match.");
++    assertTest(loaded.room_id === (input.guest.room_id ?? null), "Created guest room does not match.");
++
++    if (input.guest.room_id) {
++      const latest = await guestStatusesService.getLatestForRetreat(input.guest.retreat_id);
++      const status = latest.get(created.id);
++
++      assertTest(status?.status === "booked", "Creating a guest with a room did not create booked status.");
++
++      if (input.expectedRoomLabel !== undefined) {
++        assertTest(status?.room === input.expectedRoomLabel, "Booked status room label does not match.");
++      }
++    }
++  });
++}
++
++export type UpdateGuestTestInput = {
++  guestId: number;
++  changes: UpdateGuest;
++  retreatId: number;
++  expectedRoomLabel?: string;
++};
++
++export async function testUpdateGuest(input: UpdateGuestTestInput): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const before = await guestsService.getGuestById(input.guestId);
++    assertTest(before !== null, "Guest does not exist before update test.");
++
++    const updated = await guestsService.updateGuest(input.guestId, input.changes);
++    const loaded = await guestsService.getGuestById(input.guestId);
++
++    assertTest(loaded !== null, "Updated guest cannot be loaded.");
++
++    Object.entries(input.changes).forEach(([key, value]) => {
++      if (value !== undefined) {
++        const actual = updated[key as keyof typeof updated];
++        assertTest(actual === value, `Updated guest field ${key} does not match.`);
++      }
++    });
++
++    if (input.changes.room_id && input.changes.room_id !== before.room_id) {
++      const latest = await guestStatusesService.getLatestForRetreat(input.retreatId);
++      const status = latest.get(input.guestId);
++
++      assertTest(status?.status === "booked", "Changing room did not create booked status.");
++
++      if (input.expectedRoomLabel !== undefined) {
++        assertTest(status?.room === input.expectedRoomLabel, "Room-change status label does not match.");
++      }
++    }
++  });
++}
++
++export type SwapRoomsTestInput = {
++  firstGuestId: number;
++  secondGuestId: number;
++  retreatId: number;
++  expectedFirstRoomLabel?: string;
++  expectedSecondRoomLabel?: string;
++};
++
++export async function testSwapGuestRooms(input: SwapRoomsTestInput): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const [beforeFirst, beforeSecond] = await Promise.all([
++      guestsService.getGuestById(input.firstGuestId),
++      guestsService.getGuestById(input.secondGuestId),
++    ]);
++
++    assertTest(beforeFirst !== null && beforeSecond !== null, "Both guests must exist before swap test.");
++    assertTest(beforeFirst.room_id !== null && beforeSecond.room_id !== null, "Both guests need rooms before swap test.");
++
++    await guestsService.swapRooms(input.firstGuestId, input.secondGuestId);
++
++    const [afterFirst, afterSecond, latest] = await Promise.all([
++      guestsService.getGuestById(input.firstGuestId),
++      guestsService.getGuestById(input.secondGuestId),
++      guestStatusesService.getLatestForRetreat(input.retreatId),
++    ]);
++
++    assertTest(afterFirst?.room_id === beforeSecond.room_id, "First guest did not receive second guest room.");
++    assertTest(afterSecond?.room_id === beforeFirst.room_id, "Second guest did not receive first guest room.");
++    assertTest(latest.get(input.firstGuestId)?.status === "booked", "First guest swap status is not booked.");
++    assertTest(latest.get(input.secondGuestId)?.status === "booked", "Second guest swap status is not booked.");
++
++    if (input.expectedFirstRoomLabel !== undefined) {
++      assertTest(
++        latest.get(input.firstGuestId)?.room === input.expectedFirstRoomLabel,
++        "First guest swap room label does not match."
++      );
++    }
++
++    if (input.expectedSecondRoomLabel !== undefined) {
++      assertTest(
++        latest.get(input.secondGuestId)?.room === input.expectedSecondRoomLabel,
++        "Second guest swap room label does not match."
++      );
++    }
++  });
++}
++
++export async function testDeleteGuest(guestId: number): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    await guestsService.deleteGuest(guestId);
++    const loaded = await guestsService.getGuestById(guestId);
++
++    assertTest(loaded === null, "Deleted guest still exists.");
++  });
++}
+diff --git a/test-kit/retreat-services/retreatRoomsService.ts b/test-kit/retreat-services/retreatRoomsService.ts
+new file mode 100644
+index 0000000..7ca5eeb
+--- /dev/null
++++ b/test-kit/retreat-services/retreatRoomsService.ts
+@@ -0,0 +1,46 @@
++import retreatRoomsService from "@/services/retreatRoomsService";
++import type { RetreatRoomSetting } from "@/services/retreatRoomsService";
++import { assertTest, runServiceTest } from "./types";
++import type { ServiceTestResult } from "./types";
++
++export async function testSaveRetreatRooms(
++  retreatId: number,
++  settings: RetreatRoomSetting[]
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    await retreatRoomsService.saveRetreatRooms(retreatId, settings);
++    const saved = await retreatRoomsService.getRetreatRooms(retreatId);
++
++    settings.forEach((setting) => {
++      const row = saved.find((item) => item.room_id === setting.roomId);
++
++      if (!setting.isAvailable) {
++        assertTest(!row, `Room ${setting.roomId} is still available for the retreat.`);
++        return;
++      }
++
++      assertTest(Boolean(row), `Room ${setting.roomId} was not enabled for the retreat.`);
++      assertTest(
++        row?.max_guests === Math.max(1, setting.maxGuests),
++        `Room ${setting.roomId} max_guests does not match.`
++      );
++    });
++  });
++}
++
++export async function testRejectOccupiedRoomDisable(
++  retreatId: number,
++  roomId: number,
++  currentMaxGuests: number
++): Promise<ServiceTestResult> {
++  try {
++    await retreatRoomsService.saveRetreatRooms(retreatId, [{
++      roomId,
++      isAvailable: false,
++      maxGuests: currentMaxGuests,
++    }]);
++    return "Occupied retreat room was disabled instead of being rejected.";
++  } catch {
++    return true;
++  }
++}
+diff --git a/test-kit/retreat-services/retreatsService.ts b/test-kit/retreat-services/retreatsService.ts
+new file mode 100644
+index 0000000..4523b72
+--- /dev/null
++++ b/test-kit/retreat-services/retreatsService.ts
+@@ -0,0 +1,44 @@
++import retreatsService from "@/services/retreatsService";
++import type { CreateRetreat, UpdateRetreat } from "@/services/database";
++import { assertTest, runServiceTest } from "./types";
++import type { ServiceTestResult } from "./types";
++
++export async function testCreateRetreat(retreat: CreateRetreat): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const created = await retreatsService.createRetreat(retreat);
++    const loaded = await retreatsService.getRetreatById(created.id);
++
++    assertTest(loaded !== null, "Created retreat cannot be loaded.");
++    assertTest(loaded.title === retreat.title, "Created retreat title does not match.");
++    assertTest(loaded.start_date === retreat.start_date, "Created retreat start date does not match.");
++    assertTest(loaded.end_date === retreat.end_date, "Created retreat end date does not match.");
++  });
++}
++
++export async function testUpdateRetreat(
++  retreatId: number,
++  changes: UpdateRetreat
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const updated = await retreatsService.updateRetreat(retreatId, changes);
++    const loaded = await retreatsService.getRetreatById(retreatId);
++
++    assertTest(loaded !== null, "Updated retreat cannot be loaded.");
++
++    Object.entries(changes).forEach(([key, value]) => {
++      if (value !== undefined) {
++        const actual = updated[key as keyof typeof updated];
++        assertTest(actual === value, `Updated retreat field ${key} does not match.`);
++      }
++    });
++  });
++}
++
++export async function testDeleteRetreat(retreatId: number): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    await retreatsService.deleteRetreat(retreatId);
++    const loaded = await retreatsService.getRetreatById(retreatId);
++
++    assertTest(loaded === null, "Deleted retreat still exists.");
++  });
++}
+diff --git a/test-kit/retreat-services/taxiRidesService.ts b/test-kit/retreat-services/taxiRidesService.ts
+new file mode 100644
+index 0000000..9f47ccc
+--- /dev/null
++++ b/test-kit/retreat-services/taxiRidesService.ts
+@@ -0,0 +1,81 @@
++import taxiRidesService from "@/services/taxiRidesService";
++import type { CreateTaxiGuest, CreateTaxiRide, UpdateTaxiRide } from "@/services/database";
++import { assertTest, runServiceTest } from "./types";
++import type { ServiceTestResult } from "./types";
++
++export async function testCreateTaxiRide(ride: CreateTaxiRide): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const created = await taxiRidesService.create(ride);
++    const rides = await taxiRidesService.getByRetreatId(ride.retreat_id);
++
++    assertTest(rides.some((item) => item.id === created.id), "Created taxi ride is missing from retreat rides.");
++    assertTest(created.arrival_datetime === ride.arrival_datetime, "Taxi ride arrival time does not match.");
++  });
++}
++
++export async function testUpdateTaxiRide(
++  rideId: number,
++  changes: UpdateTaxiRide,
++  retreatId: number
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const updated = await taxiRidesService.update(rideId, changes);
++    const rides = await taxiRidesService.getByRetreatId(retreatId);
++    const loaded = rides.find((item) => item.id === rideId);
++
++    assertTest(Boolean(loaded), "Updated taxi ride cannot be loaded.");
++
++    Object.entries(changes).forEach(([key, value]) => {
++      if (value !== undefined) {
++        const actual = updated[key as keyof typeof updated];
++        assertTest(actual === value, `Updated taxi ride field ${key} does not match.`);
++      }
++    });
++  });
++}
++
++export async function testAddTaxiGuest(guest: CreateTaxiGuest): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const created = await taxiRidesService.addGuest(guest);
++    const guests = await taxiRidesService.getGuestsByRideId(guest.ride_id);
++
++    assertTest(guests.some((item) => item.id === created.id), "Taxi guest was not added to the ride.");
++  });
++}
++
++export async function testMoveTaxiGuest(
++  taxiGuestId: number,
++  targetRideId: number
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const moved = await taxiRidesService.moveGuest(taxiGuestId, targetRideId);
++    const guests = await taxiRidesService.getGuestsByRideId(targetRideId);
++
++    assertTest(moved.ride_id === targetRideId, "Moved taxi guest has the wrong ride_id.");
++    assertTest(guests.some((item) => item.id === taxiGuestId), "Moved taxi guest is missing from target ride.");
++  });
++}
++
++export async function testDeleteTaxiGuest(
++  taxiGuestId: number,
++  rideId: number
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    await taxiRidesService.deleteGuest(taxiGuestId);
++    const guests = await taxiRidesService.getGuestsByRideId(rideId);
++
++    assertTest(!guests.some((item) => item.id === taxiGuestId), "Deleted taxi guest still exists in ride.");
++  });
++}
++
++export async function testDeleteTaxiRide(
++  rideId: number,
++  retreatId: number
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    await taxiRidesService.delete(rideId);
++    const rides = await taxiRidesService.getByRetreatId(retreatId);
++
++    assertTest(!rides.some((item) => item.id === rideId), "Deleted taxi ride still exists.");
++  });
++}
+diff --git a/test-kit/retreat-services/types.ts b/test-kit/retreat-services/types.ts
+new file mode 100644
+index 0000000..bebd9ac
+--- /dev/null
++++ b/test-kit/retreat-services/types.ts
+@@ -0,0 +1,20 @@
++export type ServiceTestResult = true | string;
++
++export function getErrorMessage(error: unknown): string {
++  return error instanceof Error ? error.message : String(error);
++}
++
++export function assertTest(condition: boolean, message: string): asserts condition {
++  if (!condition) {
++    throw new Error(message);
++  }
++}
++
++export async function runServiceTest(action: () => Promise<void>): Promise<ServiceTestResult> {
++  try {
++    await action();
++    return true;
++  } catch (error) {
++    return getErrorMessage(error);
++  }
++}

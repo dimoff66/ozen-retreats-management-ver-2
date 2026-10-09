@@ -10,7 +10,8 @@
 - TypeScript
 - Tailwind CSS
 - Supabase / PostgreSQL
-- Supabase Storage
+- MariaDB через серверный adapter (альтернативный backend)
+- Supabase Storage / файловое хранилище карт на собственном сервере
 
 ## Запуск локально
 
@@ -49,6 +50,9 @@ npm run build
 - [Схема базы данных и доменные правила](docs/domain/database.md)
 - [Роли и рабочие сценарии](docs/domain/roles-and-workflows.md)
 - [Правила рабочей карты домов](docs/domain/house-maps.md)
+- [Интерфейс и адаптивный дизайн](docs/ui.md)
+- [MariaDB adapter](docs/mariadb.md)
+- [Атомарные записи гостей](docs/transactions.md)
 
 ## Инструкции для AI-агентов
 

@@ -1,7 +1,7 @@
 # MariaDB adapter
 
-The project keeps the existing Supabase adapter unchanged and adds a parallel
-MariaDB adapter with the same client API.
+The project keeps the Supabase adapter and a parallel MariaDB adapter with the
+same client API. Services should not contain backend-specific branches.
 
 Client-side services can later switch from:
 
@@ -85,3 +85,17 @@ The current application does not yet have production authentication. Enabling th
 MariaDB API therefore exposes the allowed application operations to clients that
 can reach the site. Keep `MARIADB_API_ENABLED` disabled until authentication and
 server-side authorization are added for production use.
+
+## Atomic guest writes
+
+`guests.create()` and `guests.update()` accept an optional status record prepared
+by the service. When it is present, the MariaDB server adapter uses one connection
+and wraps the guest write plus the history INSERT in `BEGIN / COMMIT`, rolling back
+on error. For a new guest only the generated `guest_id` is added by the adapter.
+
+`guests.swapRooms()` receives both prepared guest updates and both prepared status
+records and performs all four writes in one MariaDB transaction. The adapter does
+not calculate room names, status values, capacity, permissions or availability.
+
+The Supabase adapter exposes the same contract through PostgreSQL functions in
+`supabase/migrations/202610070002_guest_write_transactions.sql`.

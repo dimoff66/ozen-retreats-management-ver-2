@@ -1,5 +1,5 @@
 import db from "./database";
-import type { CreateTaxiGuest, CreateTaxiRide, TaxiGuest, TaxiRide } from "./database";
+import type { CreateTaxiGuest, CreateTaxiRide, CreateTaxiRideBatch, TaxiGuest, TaxiRide } from "./database";
 
 const taxiRidesService = {
   getByRetreatId: (retreatId: number): Promise<TaxiRide[]> => {
@@ -12,6 +12,10 @@ const taxiRidesService = {
 
   getGuestsByRideIds: (rideIds: number[]): Promise<TaxiGuest[]> => {
     return db.taxiGuests.getByRideIds(rideIds);
+  },
+
+  createRides: (retreatId: number, rides: CreateTaxiRideBatch[]): Promise<TaxiRide[]> => {
+    return db.taxiRides.createRides(retreatId, rides);
   },
 
   create: (ride: CreateTaxiRide): Promise<TaxiRide> => {

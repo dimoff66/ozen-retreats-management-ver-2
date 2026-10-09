@@ -5,10 +5,12 @@ import type { ChangeEvent, FormEvent } from "react";
 import type { Guest, TaxiGuest, TaxiRide } from "@/services/database";
 import dateService from "@/services/dateService";
 import roomsService from "@/services/roomsService";
+import ImportRides from "@/components/taxis/ImportRides";
 import { useRetreat } from "@/contexts/RetreatContext";
 
 type TaxiRidesPanelProps = {
   canManage: boolean;
+  canImport?: boolean;
   showTitle?: boolean;
 };
 
@@ -19,12 +21,13 @@ const toLocalDateTimeInput = (value: string): string => {
   return localDate.toISOString().slice(0, 16);
 };
 
-export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRidesPanelProps) {
+export default function TaxiRidesPanel({ canManage, canImport = false, showTitle = true }: TaxiRidesPanelProps) {
   const strTitle = "Taxi rides";
   const strLoading = "Loading...";
   const strNoRides = "No taxi rides yet.";
   const strUnknown = "-";
   const strAddRide = "Add ride";
+  const strImportRides = "Import rides";
   const strEditRide = "Edit";
   const strArrival = "Arrival date and time";
   const strDriverName = "Driver name";
@@ -85,6 +88,7 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
   const [guestSearch, setGuestSearch] = useState("");
   const [extraPassengerName, setExtraPassengerName] = useState("");
   const [isRideModalOpen, setIsRideModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [error, setError] = useState("");
 
   const onArrivalChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -138,6 +142,15 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
     setDriverName("");
     setError("");
     setIsRideModalOpen(true);
+  };
+
+  const onImportRidesClick = () => {
+    setError("");
+    setIsImportOpen(true);
+  };
+
+  const onImportCloseActionClick = () => {
+    setIsImportOpen(false);
   };
 
   const onEditRideClick = (ride: TaxiRide) => {
@@ -352,6 +365,11 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
       {isSnapshotLoading ? <p className="ozen-state-message">{strLoading}</p> : null}
       {!isSnapshotLoading ? (
         <>
+          {canImport ? (
+            <div className="ozen-taxi-import-toolbar">
+              <button type="button" onClick={onImportRidesClick} className="ozen-action-button ozen-action-button-secondary">{strImportRides}</button>
+            </div>
+          ) : null}
           <div className="ozen-taxi-grid">
             {rideRows.map((ride) => (
               <article key={ride.id} className={ride.isSelected ? "ozen-taxi-card ozen-taxi-card-selected" : "ozen-taxi-card"}>
@@ -440,6 +458,7 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
           ) : !hasNoRides ? <p className="ozen-empty-message">{strSelectRide}</p> : null}
         </>
       ) : null}
+      {isImportOpen && canImport ? <ImportRides onCloseActionClick={onImportCloseActionClick} /> : null}
       {isRideModalOpen && canManage ? (
         <div className="ozen-modal-backdrop">
           <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="ozen-form-modal">

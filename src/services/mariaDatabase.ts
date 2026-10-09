@@ -9,6 +9,7 @@ import type {
   CreateRoom,
   CreateTaxiGuest,
   CreateTaxiRide,
+  CreateTaxiRideBatch,
   CreateUser,
   DatabaseAdapter,
   Guest,
@@ -293,6 +294,10 @@ const mariaDb = {
 
     getByRetreatId: async (retreatId: number): Promise<TaxiRide[]> => {
       return callMariaDb<TaxiRide[]>("taxiRides", "getByRetreatId", [retreatId]);
+    },
+
+    createRides: async (retreatId: number, rides: CreateTaxiRideBatch[]): Promise<TaxiRide[]> => {
+      return callMariaDb<TaxiRide[]>("taxiRides", "createRides", [retreatId, rides]);
     },
 
     create: async (taxiRide: CreateTaxiRide): Promise<TaxiRide> => {

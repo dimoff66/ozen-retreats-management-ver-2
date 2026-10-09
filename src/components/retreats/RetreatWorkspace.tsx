@@ -249,7 +249,7 @@ export default function RetreatWorkspace() {
               {showMeeting ? <ManagerArrivalPanel mode="meeting" showTitle={false} /> : null}
               {showCheckIn ? <ManagerArrivalPanel mode="check-in" showTitle={false} /> : null}
               {showRooms ? <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} showTitle={false} /> : null}
-              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} showTitle={false} /> : null}
+              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} canImport={isAdmin} showTitle={false} /> : null}
               {showMap && activeTab?.mapMode ? <HouseMapView openMode={activeTab.mapMode} showTitle={false} /> : null}
               {showAdminMap ? <HouseMapView openMode="normal" showTitle={false} /> : null}
               {showHistory ? <HistoryPanel showTitle={false} /> : null}

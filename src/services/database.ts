@@ -204,6 +204,17 @@ export type CreateTaxiGuest = {
 
 export type UpdateTaxiGuest = Partial<CreateTaxiGuest>;
 
+export type CreateTaxiRideGuest = {
+  guest_id: number | null;
+  unbooked_guest_name: string | null;
+};
+
+export type CreateTaxiRideBatch = {
+  arrival_datetime: string;
+  driver_name: string | null;
+  guests: CreateTaxiRideGuest[];
+};
+
 /*
 |--------------------------------------------------------------------------
 | Helpers
@@ -1080,6 +1091,22 @@ const db = {
           "Failed to get taxi rides by retreat",
           error
         );
+      }
+
+      return data as TaxiRide[];
+    },
+
+    createRides: async (
+      retreatId: number,
+      rides: CreateTaxiRideBatch[]
+    ): Promise<TaxiRide[]> => {
+      const { data, error } = await supabase.rpc("replace_taxi_rides_for_retreat", {
+        p_retreat_id: retreatId,
+        p_rides: rides,
+      });
+
+      if (error) {
+        throwDatabaseError("Failed to replace taxi rides for retreat", error);
       }
 
       return data as TaxiRide[];

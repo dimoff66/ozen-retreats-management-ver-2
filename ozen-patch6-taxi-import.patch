@@ -1,0 +1,1069 @@
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 8cb3c91..1094b72 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -2598,3 +2598,234 @@ input:focus-visible {
+     font-size: 15px;
+   }
+ }
++
++/* Taxi import */
++.ozen-taxi-import-toolbar {
++  display: flex;
++  justify-content: flex-end;
++  margin-bottom: 12px;
++}
++
++.ozen-import-rides-modal {
++  width: min(1180px, calc(100vw - 32px));
++  max-height: 90vh;
++  display: flex;
++  flex-direction: column;
++  overflow: hidden;
++  border: 1px solid #dfe6e0;
++  border-radius: 12px;
++  background: #fff;
++  box-shadow: 0 24px 70px rgba(35, 52, 40, .18);
++}
++
++.ozen-import-rides-body {
++  min-height: 0;
++  flex: 1;
++  overflow: auto;
++  padding: 18px 20px;
++}
++
++.ozen-import-preview-body {
++  display: flex;
++  flex-direction: column;
++  gap: 16px;
++}
++
++.ozen-import-warning {
++  margin: 0 0 14px;
++  padding: 10px 12px;
++  border: 1px solid #ead8b9;
++  border-radius: 7px;
++  background: #fffaf0;
++  color: #886d3f;
++  font-size: calc(12px + var(--ui-font-offset));
++  line-height: 1.45;
++}
++
++.ozen-import-text-field textarea {
++  min-height: 320px;
++  resize: vertical;
++  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
++  font-size: calc(12px + var(--ui-font-offset));
++  line-height: 1.45;
++}
++
++.ozen-import-error {
++  margin: 14px 0 0;
++  padding: 10px 12px;
++  overflow: auto;
++  border: 1px solid #edcece;
++  border-radius: 7px;
++  background: #fff7f7;
++  color: #a54a4a;
++  font-family: inherit;
++  font-size: calc(11px + var(--ui-font-offset));
++  line-height: 1.45;
++  white-space: pre-wrap;
++}
++
++.ozen-import-taxi-grid {
++  flex: 0 0 auto;
++}
++
++.ozen-import-taxi-card {
++  min-height: 138px;
++  align-items: center;
++  justify-content: center;
++  gap: 6px;
++  padding: 12px 8px;
++  color: #59675e;
++  text-align: center;
++  cursor: pointer;
++}
++
++.ozen-import-taxi-card strong {
++  color: #405046;
++  font-family: Georgia, "Times New Roman", serif;
++  font-size: calc(15px + var(--ui-font-offset));
++  font-weight: 500;
++}
++
++.ozen-import-taxi-card .ozen-taxi-passenger-count {
++  margin-top: 8px;
++  padding-top: 0;
++}
++
++.ozen-import-table-wrap {
++  width: 100%;
++  overflow: hidden;
++  border: 1px solid #e5eae6;
++  border-radius: 8px;
++}
++
++.ozen-import-table {
++  width: 100%;
++  table-layout: fixed;
++}
++
++.ozen-import-table th:nth-child(1),
++.ozen-import-table td:nth-child(1) {
++  width: 24%;
++}
++
++.ozen-import-table th:nth-child(2),
++.ozen-import-table td:nth-child(2) {
++  width: 14%;
++}
++
++.ozen-import-table th:nth-child(3),
++.ozen-import-table td:nth-child(3) {
++  width: 27%;
++}
++
++.ozen-import-table th:nth-child(4),
++.ozen-import-table td:nth-child(4) {
++  width: 35%;
++}
++
++.ozen-import-table td {
++  vertical-align: top;
++  overflow-wrap: anywhere;
++}
++
++.ozen-import-guest-badge {
++  max-width: 100%;
++  display: inline-flex;
++  flex-direction: column;
++  align-items: flex-start;
++  gap: 2px;
++  padding: 6px 8px;
++  border: 1px solid #dbe5dc;
++  border-radius: 7px;
++  background: #f6faf6;
++  color: #4b6251;
++  text-align: left;
++  line-height: 1.25;
++}
++
++.ozen-import-guest-badge strong {
++  max-width: 100%;
++  overflow-wrap: anywhere;
++  font-size: calc(11px + var(--ui-font-offset));
++  font-weight: 700;
++}
++
++.ozen-import-guest-badge small {
++  color: #8b968e;
++  font-size: calc(10px + var(--ui-font-offset));
++}
++
++.ozen-import-suggestions {
++  display: flex;
++  flex-direction: column;
++  align-items: flex-start;
++  gap: 6px;
++}
++
++.ozen-import-guest-suggestion {
++  width: 100%;
++  border-color: #d9e0da;
++  cursor: pointer;
++}
++
++.ozen-import-guest-suggestion:hover {
++  border-color: #aebfb1;
++  background: #eef5ef;
++}
++
++.ozen-import-empty-match {
++  color: #a0aaa3;
++  font-size: calc(11px + var(--ui-font-offset));
++}
++
++@media (max-width: 700px) {
++  .ozen-import-rides-modal {
++    width: calc(100vw - 12px);
++    max-height: 96vh;
++    border-radius: 8px;
++  }
++
++  .ozen-import-rides-body {
++    padding: 12px 10px;
++  }
++
++  .ozen-import-table th,
++  .ozen-import-table td {
++    padding-left: 5px;
++    padding-right: 5px;
++    font-size: calc(9px + var(--ui-font-offset));
++  }
++
++  .ozen-import-table th:nth-child(1),
++  .ozen-import-table td:nth-child(1) {
++    width: 23%;
++  }
++
++  .ozen-import-table th:nth-child(2),
++  .ozen-import-table td:nth-child(2) {
++    width: 13%;
++  }
++
++  .ozen-import-table th:nth-child(3),
++  .ozen-import-table td:nth-child(3) {
++    width: 27%;
++  }
++
++  .ozen-import-table th:nth-child(4),
++  .ozen-import-table td:nth-child(4) {
++    width: 37%;
++  }
++
++  .ozen-import-guest-badge {
++    padding: 5px 6px;
++  }
++
++  .ozen-import-guest-badge strong {
++    font-size: calc(9px + var(--ui-font-offset));
++  }
++
++  .ozen-import-guest-badge small,
++  .ozen-import-empty-match {
++    font-size: calc(8px + var(--ui-font-offset));
++  }
++}
+diff --git a/src/components/retreats/RetreatWorkspace.tsx b/src/components/retreats/RetreatWorkspace.tsx
+index 5171565..30e4b0a 100644
+--- a/src/components/retreats/RetreatWorkspace.tsx
++++ b/src/components/retreats/RetreatWorkspace.tsx
+@@ -249,7 +249,7 @@ export default function RetreatWorkspace() {
+               {showMeeting ? <ManagerArrivalPanel mode="meeting" showTitle={false} /> : null}
+               {showCheckIn ? <ManagerArrivalPanel mode="check-in" showTitle={false} /> : null}
+               {showRooms ? <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} showTitle={false} /> : null}
+-              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} showTitle={false} /> : null}
++              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} canImport={isAdmin} showTitle={false} /> : null}
+               {showMap && activeTab?.mapMode ? <HouseMapView openMode={activeTab.mapMode} showTitle={false} /> : null}
+               {showAdminMap ? <HouseMapView openMode="normal" showTitle={false} /> : null}
+               {showHistory ? <HistoryPanel showTitle={false} /> : null}
+diff --git a/src/components/taxis/ImportRides.tsx b/src/components/taxis/ImportRides.tsx
+new file mode 100644
+index 0000000..753a9ae
+--- /dev/null
++++ b/src/components/taxis/ImportRides.tsx
+@@ -0,0 +1,485 @@
++'use client';
++
++import { useState } from "react";
++import type { ChangeEvent } from "react";
++import { useRetreat } from "@/contexts/RetreatContext";
++import type { CreateTaxiRideBatch, Guest } from "@/services/database";
++import dateService from "@/services/dateService";
++import roomsService from "@/services/roomsService";
++import taxiRidesService from "@/services/taxiRidesService";
++
++type ImportRidesProps = {
++  onCloseActionClick: () => void;
++};
++
++type ParsedImportRow = {
++  id: number;
++  group: number;
++  approxTime: string;
++  name: string;
++  sourceTime: string;
++  roomLabel: string;
++};
++
++type MatchedImportRow = ParsedImportRow & {
++  matchedGuestId: number | null;
++  suggestionGuestIds: number[];
++};
++
++type ImportRideGroup = {
++  group: number;
++  approxTime: string;
++  arrivalDateTime: string;
++  rows: MatchedImportRow[];
++};
++
++type GuestMatchData = {
++  guest: Guest;
++  normalizedName: string;
++  nameParts: string[];
++  roomLabel: string;
++};
++
++const normalizeName = (name: string): string => {
++  return name.trim().toLocaleLowerCase().replace(/\s+/g, " ");
++};
++
++const getNameParts = (name: string): string[] => {
++  return normalizeName(name).split(" ").filter(Boolean);
++};
++
++const parseClockTime = (value: string): { label: string; minutes: number } | null => {
++  const match = value.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)(?:\s|$)/);
++
++  if (!match) {
++    return null;
++  }
++
++  const hours = Number(match[1]);
++  const minutes = Number(match[2]);
++
++  return {
++    label: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
++    minutes: hours * 60 + minutes,
++  };
++};
++
++const formatClockMinutes = (minutes: number): string => {
++  const normalized = ((minutes % 1440) + 1440) % 1440;
++  const hours = Math.floor(normalized / 60);
++  const minutePart = normalized % 60;
++
++  return `${String(hours).padStart(2, "0")}:${String(minutePart).padStart(2, "0")}`;
++};
++
++const normalizeImportedRoom = (value: string): string => {
++  const room = value.trim().replace(/\s+/g, " ");
++  const lowerRoom = room.toLocaleLowerCase();
++
++  if (lowerRoom.startsWith("cubo ")) {
++    return `Cube ${room.slice(5).trim()}`;
++  }
++
++  if (lowerRoom.startsWith("cono ")) {
++    return `Cone ${room.slice(5).trim()}`;
++  }
++
++  return room.replace(/\s+/g, "");
++};
++
++const shareNamePart = (leftParts: string[], rightParts: string[]): boolean => {
++  const rightSet = new Set(rightParts);
++  return leftParts.some((part) => rightSet.has(part));
++};
++
++export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
++  const strTitle = "Import taxi rides";
++  const strExistingWarning = "All existing taxi rides for this retreat will be deleted when the import is saved.";
++  const strInputHelp = "Paste tab-separated data with columns: group, approxTime, name, time, houseCode.";
++  const strNext = "Next";
++  const strBack = "Back";
++  const strCancel = "Cancel";
++  const strSave = "Save";
++  const strSaving = "Saving...";
++  const strNoData = "Paste taxi data before continuing.";
++  const strInvalidColumns = "Expected 5 tab-separated columns.";
++  const strInvalidGroup = "Invalid taxi group.";
++  const strInvalidApproxTime = "Invalid approxTime.";
++  const strInvalidSourceTime = "Invalid time.";
++  const strInconsistentGroupTime = "All rows in one taxi group must have the same approxTime.";
++  const strImportedName = "Name";
++  const strImportedRoom = "Room";
++  const strMatchedGuest = "Matched guest";
++  const strSuggestions = "Suggestions";
++  const strNoMatch = "No match";
++  const strNoSuggestions = "No suggestions";
++  const strTaxi = "Taxi";
++  const strGuests = "guests";
++  const strAlreadyAssigned = "This guest is already assigned to another imported taxi row.";
++  const strSaveError = "Failed to import taxi rides.";
++  const { retreat, snapshot, refresh } = useRetreat();
++  const [text, setText] = useState("");
++  const [groups, setGroups] = useState<ImportRideGroup[]>([]);
++  const [selectedGroupNumber, setSelectedGroupNumber] = useState<number | null>(null);
++  const [isPreview, setIsPreview] = useState(false);
++  const [isSaving, setIsSaving] = useState(false);
++  const [error, setError] = useState("");
++  const guests = snapshot?.guests ?? [];
++  const rooms = snapshot?.rooms ?? [];
++  const houses = snapshot?.houses ?? [];
++  const hasExistingRides = (snapshot?.taxiRides.length ?? 0) > 0;
++
++  const getGuestRoomLabel = (guest: Guest): string => {
++    if (!guest.room_id) {
++      return "-";
++    }
++
++    const room = rooms.find((item) => item.id === guest.room_id);
++    const house = room ? houses.find((item) => item.id === room.house_id) : undefined;
++
++    return room && house ? roomsService.getRoomDisplayName(room, house) : "-";
++  };
++
++  const guestMatchData: GuestMatchData[] = guests.map((guest) => ({
++    guest,
++    normalizedName: normalizeName(guest.name),
++    nameParts: getNameParts(guest.name),
++    roomLabel: getGuestRoomLabel(guest),
++  }));
++
++  const onTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
++    setText(event.target.value);
++    setError("");
++  };
++
++  const onNextClick = () => {
++    if (!retreat) {
++      return;
++    }
++
++    const sourceLines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
++
++    if (sourceLines.length === 0) {
++      setError(strNoData);
++      return;
++    }
++
++    const firstCells = sourceLines[0].split("\t").map((cell) => cell.trim().toLocaleLowerCase());
++    const lines = firstCells[0] === "group" && firstCells[2] === "name"
++      ? sourceLines.slice(1)
++      : sourceLines;
++    const parsedRows: ParsedImportRow[] = [];
++    const validationErrors: string[] = [];
++    const groupTimes = new Map<number, string>();
++
++    lines.forEach((line, index) => {
++      const cells = line.split("\t").map((cell) => cell.trim());
++      const rowNumber = index + 1;
++
++      if (cells.length < 5) {
++        validationErrors.push(`Row ${rowNumber}: ${strInvalidColumns}`);
++        return;
++      }
++
++      const group = Number(cells[0]);
++      const approxTime = parseClockTime(cells[1]);
++      const sourceTime = parseClockTime(cells[3]);
++
++      if (!Number.isInteger(group) || group <= 0) {
++        validationErrors.push(`Row ${rowNumber}: ${strInvalidGroup}`);
++        return;
++      }
++
++      if (!approxTime) {
++        validationErrors.push(`Row ${rowNumber} (${cells[2]}): ${strInvalidApproxTime}`);
++        return;
++      }
++
++      if (!sourceTime) {
++        validationErrors.push(`Row ${rowNumber} (${cells[2]}): ${strInvalidSourceTime}`);
++        return;
++      }
++
++      const difference = approxTime.minutes - sourceTime.minutes;
++
++      if (difference < 30 || difference > 90) {
++        const minimum = formatClockMinutes(sourceTime.minutes + 30);
++        const maximum = formatClockMinutes(sourceTime.minutes + 90);
++        validationErrors.push(
++          `Row ${rowNumber} (${cells[2]}): ${sourceTime.label} → ${approxTime.label}. Expected approxTime between ${minimum} and ${maximum}.`
++        );
++      }
++
++      const existingGroupTime = groupTimes.get(group);
++
++      if (existingGroupTime && existingGroupTime !== approxTime.label) {
++        validationErrors.push(`Taxi ${group}: ${strInconsistentGroupTime}`);
++      } else {
++        groupTimes.set(group, approxTime.label);
++      }
++
++      parsedRows.push({
++        id: index + 1,
++        group,
++        approxTime: approxTime.label,
++        name: cells[2],
++        sourceTime: sourceTime.label,
++        roomLabel: normalizeImportedRoom(cells[4]),
++      });
++    });
++
++    if (validationErrors.length > 0) {
++      setError(validationErrors.join("\n"));
++      return;
++    }
++
++    const usedGuestIds = new Set<number>();
++    const matchedRows: MatchedImportRow[] = parsedRows.map((row) => {
++      const normalizedName = normalizeName(row.name);
++      const nameParts = getNameParts(row.name);
++      const exactMatches = guestMatchData.filter((item) => item.normalizedName === normalizedName);
++      const partialMatches = guestMatchData.filter((item) => shareNamePart(nameParts, item.nameParts));
++      const exactGuest = exactMatches.length === 1 && !usedGuestIds.has(exactMatches[0].guest.id)
++        ? exactMatches[0].guest
++        : null;
++
++      if (exactGuest) {
++        usedGuestIds.add(exactGuest.id);
++      }
++
++      return {
++        ...row,
++        matchedGuestId: exactGuest?.id ?? null,
++        suggestionGuestIds: Array.from(new Set(partialMatches
++          .map((item) => item.guest.id)
++          .filter((guestId) => guestId !== exactGuest?.id))),
++      };
++    });
++    const groupNumbers = Array.from(new Set(matchedRows.map((row) => row.group))).sort((left, right) => left - right);
++    const nextGroups = groupNumbers.map((groupNumber) => {
++      const rows = matchedRows.filter((row) => row.group === groupNumber);
++      const approxTime = rows[0]?.approxTime ?? "00:00";
++      const localDate = new Date(`${retreat.start_date}T${approxTime}:00`);
++
++      return {
++        group: groupNumber,
++        approxTime,
++        arrivalDateTime: localDate.toISOString(),
++        rows,
++      };
++    });
++
++    setGroups(nextGroups);
++    setSelectedGroupNumber(nextGroups[0]?.group ?? null);
++    setError("");
++    setIsPreview(true);
++  };
++
++  const onBackClick = () => {
++    setIsPreview(false);
++    setError("");
++  };
++
++  const onSuggestionClick = (rowId: number, guestId: number) => {
++    const existingMatch = groups.flatMap((group) => group.rows.map((row) => ({ group: group.group, row })))
++      .find((item) => item.row.id !== rowId && item.row.matchedGuestId === guestId);
++
++    if (existingMatch) {
++      setError(`${strAlreadyAssigned} ${strTaxi} ${existingMatch.group}.`);
++      return;
++    }
++
++    setGroups((currentGroups) => currentGroups.map((group) => ({
++      ...group,
++      rows: group.rows.map((row) => {
++        if (row.id !== rowId) {
++          return row;
++        }
++
++        const nextSuggestions = row.suggestionGuestIds.filter((id) => id !== guestId);
++
++        if (row.matchedGuestId !== null && !nextSuggestions.includes(row.matchedGuestId)) {
++          nextSuggestions.push(row.matchedGuestId);
++        }
++
++        return {
++          ...row,
++          matchedGuestId: guestId,
++          suggestionGuestIds: nextSuggestions,
++        };
++      }),
++    })));
++    setError("");
++  };
++
++  const onSaveClick = async () => {
++    if (!retreat || isSaving) {
++      return;
++    }
++
++    const rides: CreateTaxiRideBatch[] = groups
++      .slice()
++      .sort((left, right) => left.group - right.group)
++      .map((group) => ({
++        arrival_datetime: group.arrivalDateTime,
++        driver_name: null,
++        guests: group.rows.map((row) => ({
++          guest_id: row.matchedGuestId,
++          unbooked_guest_name: row.matchedGuestId === null ? row.name : null,
++        })),
++      }));
++
++    setIsSaving(true);
++    setError("");
++
++    try {
++      await taxiRidesService.createRides(retreat.id, rides);
++      await refresh();
++      onCloseActionClick();
++    } catch {
++      setError(strSaveError);
++    } finally {
++      setIsSaving(false);
++    }
++  };
++
++  const selectedGroup = groups.find((group) => group.group === selectedGroupNumber) ?? groups[0] ?? null;
++  const groupCards = groups.map((group) => {
++    const onSelect = () => {
++      setSelectedGroupNumber(group.group);
++      setError("");
++    };
++
++    return {
++      group: group.group,
++      number: `${strTaxi} ${group.group}`,
++      time: group.approxTime,
++      date: retreat ? dateService.formatDate(retreat.start_date) : "",
++      guestCount: `${group.rows.length} ${strGuests}`,
++      isSelected: selectedGroup?.group === group.group,
++      onSelect,
++    };
++  });
++  const previewRows = (selectedGroup?.rows ?? []).map((row) => {
++    const matchedGuest = row.matchedGuestId === null
++      ? null
++      : guestMatchData.find((item) => item.guest.id === row.matchedGuestId) ?? null;
++    const suggestions = row.suggestionGuestIds.flatMap((guestId) => {
++      const guestData = guestMatchData.find((item) => item.guest.id === guestId);
++
++      if (!guestData) {
++        return [];
++      }
++
++      const onSelect = () => {
++        onSuggestionClick(row.id, guestId);
++      };
++
++      return [{
++        id: guestId,
++        name: guestData.guest.name,
++        roomLabel: guestData.roomLabel,
++        onSelect,
++      }];
++    });
++
++    return {
++      id: row.id,
++      name: row.name,
++      roomLabel: row.roomLabel,
++      matchedGuest,
++      suggestions,
++    };
++  });
++
++  return (
++    <div className="ozen-modal-backdrop">
++      <div role="dialog" aria-modal="true" aria-labelledby="import-rides-title" className="ozen-import-rides-modal">
++        <div className="ozen-form-modal-header">
++          <h3 id="import-rides-title">{strTitle}</h3>
++        </div>
++        {!isPreview ? (
++          <div className="ozen-import-rides-body">
++            {hasExistingRides ? <p className="ozen-import-warning">{strExistingWarning}</p> : null}
++            <label className="ozen-form-field ozen-import-text-field">
++              <span>{strInputHelp}</span>
++              <textarea value={text} onChange={onTextChange} rows={18} spellCheck={false} />
++            </label>
++            {error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
++          </div>
++        ) : (
++          <div className="ozen-import-rides-body ozen-import-preview-body">
++            <div className="ozen-taxi-grid ozen-import-taxi-grid">
++              {groupCards.map((group) => (
++                <button
++                  key={group.group}
++                  type="button"
++                  onClick={group.onSelect}
++                  className={group.isSelected ? "ozen-taxi-card ozen-taxi-card-selected ozen-import-taxi-card" : "ozen-taxi-card ozen-import-taxi-card"}
++                >
++                  <span className="ozen-taxi-number">{group.number}</span>
++                  <strong>{group.time}</strong>
++                  <span className="ozen-taxi-date">{group.date}</span>
++                  <span className="ozen-taxi-passenger-count">{group.guestCount}</span>
++                </button>
++              ))}
++            </div>
++            {selectedGroup ? (
++              <div className="ozen-import-table-wrap">
++                <table className="ozen-data-table ozen-import-table">
++                  <thead>
++                    <tr>
++                      <th>{strImportedName}</th>
++                      <th>{strImportedRoom}</th>
++                      <th>{strMatchedGuest}</th>
++                      <th>{strSuggestions}</th>
++                    </tr>
++                  </thead>
++                  <tbody>
++                    {previewRows.map((row) => (
++                      <tr key={row.id}>
++                        <td>{row.name}</td>
++                        <td>{row.roomLabel}</td>
++                        <td>
++                          {row.matchedGuest ? (
++                            <span className="ozen-import-guest-badge">
++                              <strong>{row.matchedGuest.guest.name}</strong>
++                              <small>{row.matchedGuest.roomLabel}</small>
++                            </span>
++                          ) : <span className="ozen-import-empty-match">{strNoMatch}</span>}
++                        </td>
++                        <td>
++                          <div className="ozen-import-suggestions">
++                            {row.suggestions.map((guest) => (
++                              <button key={guest.id} type="button" onClick={guest.onSelect} className="ozen-import-guest-badge ozen-import-guest-suggestion">
++                                <strong>{guest.name}</strong>
++                                <small>{guest.roomLabel}</small>
++                              </button>
++                            ))}
++                            {row.suggestions.length === 0 ? <span className="ozen-import-empty-match">{strNoSuggestions}</span> : null}
++                          </div>
++                        </td>
++                      </tr>
++                    ))}
++                  </tbody>
++                </table>
++              </div>
++            ) : null}
++            {error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
++          </div>
++        )}
++        <div className="ozen-form-footer">
++          <div className="ozen-form-footer-actions">
++            <button type="button" onClick={onCloseActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button>
++            {isPreview ? <button type="button" onClick={onBackClick} className="ozen-action-button ozen-action-button-secondary">{strBack}</button> : null}
++            {isPreview ? (
++              <button type="button" onClick={onSaveClick} disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{isSaving ? strSaving : strSave}</button>
++            ) : (
++              <button type="button" onClick={onNextClick} className="ozen-action-button ozen-action-button-primary">{strNext}</button>
++            )}
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/components/taxis/TaxiRidesPanel.tsx b/src/components/taxis/TaxiRidesPanel.tsx
+index cc7dc0f..3340f8b 100644
+--- a/src/components/taxis/TaxiRidesPanel.tsx
++++ b/src/components/taxis/TaxiRidesPanel.tsx
+@@ -5,10 +5,12 @@ import type { ChangeEvent, FormEvent } from "react";
+ import type { Guest, TaxiGuest, TaxiRide } from "@/services/database";
+ import dateService from "@/services/dateService";
+ import roomsService from "@/services/roomsService";
++import ImportRides from "@/components/taxis/ImportRides";
+ import { useRetreat } from "@/contexts/RetreatContext";
+ 
+ type TaxiRidesPanelProps = {
+   canManage: boolean;
++  canImport?: boolean;
+   showTitle?: boolean;
+ };
+ 
+@@ -19,12 +21,13 @@ const toLocalDateTimeInput = (value: string): string => {
+   return localDate.toISOString().slice(0, 16);
+ };
+ 
+-export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRidesPanelProps) {
++export default function TaxiRidesPanel({ canManage, canImport = false, showTitle = true }: TaxiRidesPanelProps) {
+   const strTitle = "Taxi rides";
+   const strLoading = "Loading...";
+   const strNoRides = "No taxi rides yet.";
+   const strUnknown = "-";
+   const strAddRide = "Add ride";
++  const strImportRides = "Import rides";
+   const strEditRide = "Edit";
+   const strArrival = "Arrival date and time";
+   const strDriverName = "Driver name";
+@@ -85,6 +88,7 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
+   const [guestSearch, setGuestSearch] = useState("");
+   const [extraPassengerName, setExtraPassengerName] = useState("");
+   const [isRideModalOpen, setIsRideModalOpen] = useState(false);
++  const [isImportOpen, setIsImportOpen] = useState(false);
+   const [error, setError] = useState("");
+ 
+   const onArrivalChange = (event: ChangeEvent<HTMLInputElement>) => {
+@@ -140,6 +144,15 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
+     setIsRideModalOpen(true);
+   };
+ 
++  const onImportRidesClick = () => {
++    setError("");
++    setIsImportOpen(true);
++  };
++
++  const onImportCloseActionClick = () => {
++    setIsImportOpen(false);
++  };
++
+   const onEditRideClick = (ride: TaxiRide) => {
+     setSelectedRideId(ride.id);
+     setRideBeingEdited(ride);
+@@ -352,6 +365,11 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
+       {isSnapshotLoading ? <p className="ozen-state-message">{strLoading}</p> : null}
+       {!isSnapshotLoading ? (
+         <>
++          {canImport ? (
++            <div className="ozen-taxi-import-toolbar">
++              <button type="button" onClick={onImportRidesClick} className="ozen-action-button ozen-action-button-secondary">{strImportRides}</button>
++            </div>
++          ) : null}
+           <div className="ozen-taxi-grid">
+             {rideRows.map((ride) => (
+               <article key={ride.id} className={ride.isSelected ? "ozen-taxi-card ozen-taxi-card-selected" : "ozen-taxi-card"}>
+@@ -440,6 +458,7 @@ export default function TaxiRidesPanel({ canManage, showTitle = true }: TaxiRide
+           ) : !hasNoRides ? <p className="ozen-empty-message">{strSelectRide}</p> : null}
+         </>
+       ) : null}
++      {isImportOpen && canImport ? <ImportRides onCloseActionClick={onImportCloseActionClick} /> : null}
+       {isRideModalOpen && canManage ? (
+         <div className="ozen-modal-backdrop">
+           <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="ozen-form-modal">
+diff --git a/src/server/mariaDatabase.ts b/src/server/mariaDatabase.ts
+index 3fef3d1..2613a62 100644
+--- a/src/server/mariaDatabase.ts
++++ b/src/server/mariaDatabase.ts
+@@ -11,6 +11,7 @@ import type {
+   CreateRoom,
+   CreateTaxiGuest,
+   CreateTaxiRide,
++  CreateTaxiRideBatch,
+   CreateUser,
+   Guest,
+   GuestStatus,
+@@ -656,6 +657,69 @@ const mariaDbServer = {
+       );
+     },
+ 
++    createRides: async (
++      retreatId: number,
++      rides: CreateTaxiRideBatch[]
++    ): Promise<TaxiRide[]> => {
++      const connection = await getMariaDbPool().getConnection();
++
++      try {
++        await connection.beginTransaction();
++        await connection.execute<RowDataPacket[]>(
++          "select id from `retreats` where id = ? for update",
++          [retreatId]
++        );
++        await connection.execute<ResultSetHeader>(
++          `delete tg from \`taxi_guests\` tg
++           inner join \`taxi_rides\` tr on tr.id = tg.ride_id
++           where tr.retreat_id = ?`,
++          [retreatId]
++        );
++        await connection.execute<ResultSetHeader>(
++          "delete from `taxi_rides` where retreat_id = ?",
++          [retreatId]
++        );
++
++        const createdRides: TaxiRide[] = [];
++
++        for (const ride of rides) {
++          const createdRide = await insertByIdWithConnection<TaxiRide>(
++            connection,
++            "taxi_rides",
++            {
++              retreat_id: retreatId,
++              arrival_datetime: ride.arrival_datetime,
++              driver_name: ride.driver_name,
++            },
++            taxiRideColumns
++          );
++
++          for (const guest of ride.guests) {
++            await insertByIdWithConnection<TaxiGuest>(
++              connection,
++              "taxi_guests",
++              {
++                ride_id: createdRide.id,
++                guest_id: guest.guest_id,
++                unbooked_guest_name: guest.unbooked_guest_name,
++              },
++              taxiGuestColumns
++            );
++          }
++
++          createdRides.push(createdRide);
++        }
++
++        await connection.commit();
++        return createdRides;
++      } catch (error) {
++        await connection.rollback();
++        throw error;
++      } finally {
++        connection.release();
++      }
++    },
++
+     create: async (taxiRide: CreateTaxiRide): Promise<TaxiRide> => {
+       return insertById<TaxiRide>("taxi_rides", taxiRide, taxiRideColumns);
+     },
+diff --git a/src/services/database.ts b/src/services/database.ts
+index 2944b6b..c37ee29 100644
+--- a/src/services/database.ts
++++ b/src/services/database.ts
+@@ -204,6 +204,17 @@ export type CreateTaxiGuest = {
+ 
+ export type UpdateTaxiGuest = Partial<CreateTaxiGuest>;
+ 
++export type CreateTaxiRideGuest = {
++  guest_id: number | null;
++  unbooked_guest_name: string | null;
++};
++
++export type CreateTaxiRideBatch = {
++  arrival_datetime: string;
++  driver_name: string | null;
++  guests: CreateTaxiRideGuest[];
++};
++
+ /*
+ |--------------------------------------------------------------------------
+ | Helpers
+@@ -1085,6 +1096,22 @@ const db = {
+       return data as TaxiRide[];
+     },
+ 
++    createRides: async (
++      retreatId: number,
++      rides: CreateTaxiRideBatch[]
++    ): Promise<TaxiRide[]> => {
++      const { data, error } = await supabase.rpc("replace_taxi_rides_for_retreat", {
++        p_retreat_id: retreatId,
++        p_rides: rides,
++      });
++
++      if (error) {
++        throwDatabaseError("Failed to replace taxi rides for retreat", error);
++      }
++
++      return data as TaxiRide[];
++    },
++
+     create: async (
+       taxiRide: CreateTaxiRide
+     ): Promise<TaxiRide> => {
+diff --git a/src/services/mariaDatabase.ts b/src/services/mariaDatabase.ts
+index 2fb6285..32175c9 100644
+--- a/src/services/mariaDatabase.ts
++++ b/src/services/mariaDatabase.ts
+@@ -9,6 +9,7 @@ import type {
+   CreateRoom,
+   CreateTaxiGuest,
+   CreateTaxiRide,
++  CreateTaxiRideBatch,
+   CreateUser,
+   DatabaseAdapter,
+   Guest,
+@@ -295,6 +296,10 @@ const mariaDb = {
+       return callMariaDb<TaxiRide[]>("taxiRides", "getByRetreatId", [retreatId]);
+     },
+ 
++    createRides: async (retreatId: number, rides: CreateTaxiRideBatch[]): Promise<TaxiRide[]> => {
++      return callMariaDb<TaxiRide[]>("taxiRides", "createRides", [retreatId, rides]);
++    },
++
+     create: async (taxiRide: CreateTaxiRide): Promise<TaxiRide> => {
+       return callMariaDb<TaxiRide>("taxiRides", "create", [taxiRide]);
+     },
+diff --git a/src/services/taxiRidesService.ts b/src/services/taxiRidesService.ts
+index 8c8547a..08e6dd1 100644
+--- a/src/services/taxiRidesService.ts
++++ b/src/services/taxiRidesService.ts
+@@ -1,5 +1,5 @@
+ import db from "./database";
+-import type { CreateTaxiGuest, CreateTaxiRide, TaxiGuest, TaxiRide } from "./database";
++import type { CreateTaxiGuest, CreateTaxiRide, CreateTaxiRideBatch, TaxiGuest, TaxiRide } from "./database";
+ 
+ const taxiRidesService = {
+   getByRetreatId: (retreatId: number): Promise<TaxiRide[]> => {
+@@ -14,6 +14,10 @@ const taxiRidesService = {
+     return db.taxiGuests.getByRideIds(rideIds);
+   },
+ 
++  createRides: (retreatId: number, rides: CreateTaxiRideBatch[]): Promise<TaxiRide[]> => {
++    return db.taxiRides.createRides(retreatId, rides);
++  },
++
+   create: (ride: CreateTaxiRide): Promise<TaxiRide> => {
+     return db.taxiRides.create(ride);
+   },
+diff --git a/supabase/migrations/202610090001_replace_taxi_rides_for_retreat.sql b/supabase/migrations/202610090001_replace_taxi_rides_for_retreat.sql
+new file mode 100644
+index 0000000..8c77581
+--- /dev/null
++++ b/supabase/migrations/202610090001_replace_taxi_rides_for_retreat.sql
+@@ -0,0 +1,72 @@
++-- Atomically replaces all taxi rides and passengers for one retreat.
++-- The service prepares every business value. This function only writes the
++-- supplied records and attaches generated taxi_rides.id values to passengers.
++
++create or replace function public.replace_taxi_rides_for_retreat(
++  p_retreat_id bigint,
++  p_rides jsonb
++)
++returns jsonb
++language plpgsql
++security invoker
++set search_path = public
++as $$
++declare
++  v_ride jsonb;
++  v_guest jsonb;
++  v_created_ride public.taxi_rides;
++  v_result jsonb := '[]'::jsonb;
++begin
++  perform 1
++  from public.retreats
++  where id = p_retreat_id
++  for update;
++
++  delete from public.taxi_guests
++  where ride_id in (
++    select id
++    from public.taxi_rides
++    where retreat_id = p_retreat_id
++  );
++
++  delete from public.taxi_rides
++  where retreat_id = p_retreat_id;
++
++  for v_ride in
++    select value
++    from jsonb_array_elements(coalesce(p_rides, '[]'::jsonb))
++  loop
++    insert into public.taxi_rides (
++      retreat_id,
++      arrival_datetime,
++      driver_name
++    )
++    values (
++      p_retreat_id,
++      (v_ride->>'arrival_datetime')::timestamptz,
++      v_ride->>'driver_name'
++    )
++    returning * into v_created_ride;
++
++    for v_guest in
++      select value
++      from jsonb_array_elements(coalesce(v_ride->'guests', '[]'::jsonb))
++    loop
++      insert into public.taxi_guests (
++        ride_id,
++        guest_id,
++        unbooked_guest_name
++      )
++      values (
++        v_created_ride.id,
++        (v_guest->>'guest_id')::bigint,
++        v_guest->>'unbooked_guest_name'
++      );
++    end loop;
++
++    v_result := v_result || jsonb_build_array(to_jsonb(v_created_ride));
++  end loop;
++
++  return v_result;
++end;
++$$;

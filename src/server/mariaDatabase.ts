@@ -11,6 +11,7 @@ import type {
   CreateRoom,
   CreateTaxiGuest,
   CreateTaxiRide,
+  CreateTaxiRideBatch,
   CreateUser,
   Guest,
   GuestStatus,
@@ -654,6 +655,69 @@ const mariaDbServer = {
         "select * from `taxi_rides` where retreat_id = ? order by arrival_datetime",
         [retreatId]
       );
+    },
+
+    createRides: async (
+      retreatId: number,
+      rides: CreateTaxiRideBatch[]
+    ): Promise<TaxiRide[]> => {
+      const connection = await getMariaDbPool().getConnection();
+
+      try {
+        await connection.beginTransaction();
+        await connection.execute<RowDataPacket[]>(
+          "select id from `retreats` where id = ? for update",
+          [retreatId]
+        );
+        await connection.execute<ResultSetHeader>(
+          `delete tg from \`taxi_guests\` tg
+           inner join \`taxi_rides\` tr on tr.id = tg.ride_id
+           where tr.retreat_id = ?`,
+          [retreatId]
+        );
+        await connection.execute<ResultSetHeader>(
+          "delete from `taxi_rides` where retreat_id = ?",
+          [retreatId]
+        );
+
+        const createdRides: TaxiRide[] = [];
+
+        for (const ride of rides) {
+          const createdRide = await insertByIdWithConnection<TaxiRide>(
+            connection,
+            "taxi_rides",
+            {
+              retreat_id: retreatId,
+              arrival_datetime: ride.arrival_datetime,
+              driver_name: ride.driver_name,
+            },
+            taxiRideColumns
+          );
+
+          for (const guest of ride.guests) {
+            await insertByIdWithConnection<TaxiGuest>(
+              connection,
+              "taxi_guests",
+              {
+                ride_id: createdRide.id,
+                guest_id: guest.guest_id,
+                unbooked_guest_name: guest.unbooked_guest_name,
+              },
+              taxiGuestColumns
+            );
+          }
+
+          createdRides.push(createdRide);
+        }
+
+        await connection.commit();
+        return createdRides;
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     },
 
     create: async (taxiRide: CreateTaxiRide): Promise<TaxiRide> => {

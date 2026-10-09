@@ -100,6 +100,7 @@ export default function HouseMapView({
     error: retreatError,
     createStatus: saveGuestStatus,
     updateGuest,
+    swapRooms,
   } = useRetreat();
 
   const houses = snapshot?.houses ?? [];
@@ -410,8 +411,7 @@ export default function HouseMapView({
         return;
       }
 
-      await updateGuest(actionGuest.id, { room_id: secondRoomId });
-      await updateGuest(targetGuest.id, { room_id: firstRoomId });
+      await swapRooms(actionGuest.id, targetGuest.id);
 
       finishSelection();
     } catch (error) {

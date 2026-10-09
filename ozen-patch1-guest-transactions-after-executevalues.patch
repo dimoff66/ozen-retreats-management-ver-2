@@ -1,0 +1,829 @@
+diff --git a/src/components/guests/GuestsList.tsx b/src/components/guests/GuestsList.tsx
+index 3a79a44..c07e717 100644
+--- a/src/components/guests/GuestsList.tsx
++++ b/src/components/guests/GuestsList.tsx
+@@ -52,6 +52,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
+     error: retreatError,
+     createGuest,
+     updateGuest,
++    swapRooms,
+     deleteGuest,
+     createStatus,
+   } = useRetreat();
+@@ -209,10 +210,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
+ 
+     setActionError("");
+ 
+-    await Promise.all([
+-      updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+-      updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+-    ]);
++    await swapRooms(mapGuest.id, targetGuest.id);
+ 
+     setIsMapOpen(false);
+     setMapGuest(null);
+diff --git a/src/components/houseMaps/HouseMapView.tsx b/src/components/houseMaps/HouseMapView.tsx
+index 1644ba1..ede09fb 100644
+--- a/src/components/houseMaps/HouseMapView.tsx
++++ b/src/components/houseMaps/HouseMapView.tsx
+@@ -100,6 +100,7 @@ export default function HouseMapView({
+     error: retreatError,
+     createStatus: saveGuestStatus,
+     updateGuest,
++    swapRooms,
+   } = useRetreat();
+ 
+   const houses = snapshot?.houses ?? [];
+@@ -410,8 +411,7 @@ export default function HouseMapView({
+         return;
+       }
+ 
+-      await updateGuest(actionGuest.id, { room_id: secondRoomId });
+-      await updateGuest(targetGuest.id, { room_id: firstRoomId });
++      await swapRooms(actionGuest.id, targetGuest.id);
+ 
+       finishSelection();
+     } catch (error) {
+diff --git a/src/components/retreats/ManagerArrivalPanel.tsx b/src/components/retreats/ManagerArrivalPanel.tsx
+index fb0c6e2..974c87e 100644
+--- a/src/components/retreats/ManagerArrivalPanel.tsx
++++ b/src/components/retreats/ManagerArrivalPanel.tsx
+@@ -61,6 +61,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+     error: retreatError,
+     createStatus,
+     updateGuest,
++    swapRooms,
+   } = useRetreat();
+   const guests = snapshot?.guests ?? [];
+   const rides = snapshot?.taxiRides ?? [];
+@@ -181,10 +182,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+       throw new Error(strStatusError);
+     }
+ 
+-    await Promise.all([
+-      updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
+-      updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
+-    ]);
++    await swapRooms(mapGuest.id, targetGuest.id);
+     setMapGuest(null);
+   };
+ 
+diff --git a/src/contexts/RetreatContext.tsx b/src/contexts/RetreatContext.tsx
+index 1375d16..a360861 100644
+--- a/src/contexts/RetreatContext.tsx
++++ b/src/contexts/RetreatContext.tsx
+@@ -49,6 +49,7 @@ type RetreatContextValue = {
+   changeRetreat: (retreatId: number) => void;
+   createGuest: (guest: Omit<CreateGuest, "retreat_id">) => Promise<void>;
+   updateGuest: (guestId: number, changes: UpdateGuest) => Promise<void>;
++  swapRooms: (firstGuestId: number, secondGuestId: number) => Promise<void>;
+   deleteGuest: (guestId: number) => Promise<void>;
+   createStatus: (
+     guestId: number,
+@@ -192,6 +193,10 @@ export function RetreatProvider({
+     await runMutation(() => guestsService.updateGuest(guestId, changes));
+   }, [runMutation]);
+ 
++  const swapRooms = useCallback(async (firstGuestId: number, secondGuestId: number) => {
++    await runMutation(() => guestsService.swapRooms(firstGuestId, secondGuestId));
++  }, [runMutation]);
++
+   const deleteGuest = useCallback(async (guestId: number) => {
+     await runMutation(() => guestsService.deleteGuest(guestId));
+   }, [runMutation]);
+@@ -312,6 +317,7 @@ export function RetreatProvider({
+     changeRetreat,
+     createGuest,
+     updateGuest,
++    swapRooms,
+     deleteGuest,
+     createStatus,
+     saveRooms,
+@@ -330,6 +336,7 @@ export function RetreatProvider({
+     changeRetreat,
+     createGuest,
+     updateGuest,
++    swapRooms,
+     deleteGuest,
+     createStatus,
+     saveRooms,
+diff --git a/src/server/mariaDatabase.ts b/src/server/mariaDatabase.ts
+index e7c852f..3fef3d1 100644
+--- a/src/server/mariaDatabase.ts
++++ b/src/server/mariaDatabase.ts
+@@ -1,8 +1,9 @@
+ import type { ExecuteValues } from "mysql2";
+-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
++import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+ import type {
+   CreateGuest,
+   CreateGuestStatus,
++  CreateGuestStatusForNewGuest,
+   CreateHouse,
+   CreateHouseMap,
+   CreateRetreat,
+@@ -19,6 +20,8 @@ import type {
+   RetreatRoom,
+   Role,
+   Room,
++  SwapGuestRoomsData,
++  SwapGuestRoomsResult,
+   TaxiGuest,
+   TaxiRide,
+   UpdateGuest,
+@@ -185,6 +188,78 @@ async function deleteById(table: string, id: number): Promise<void> {
+   );
+ }
+ 
++async function selectOneWithConnection<T>(
++  connection: PoolConnection,
++  sql: string,
++  values: ExecuteValues = []
++): Promise<T | null> {
++  const [rows] = await connection.execute<RowDataPacket[]>(sql, values);
++  return rows[0] ? normalizeRow<T>(rows[0]) : null;
++}
++
++async function insertByIdWithConnection<T>(
++  connection: PoolConnection,
++  table: string,
++  data: object,
++  allowedColumns: readonly string[]
++): Promise<T> {
++  const entries = getWriteEntries(data, allowedColumns);
++
++  if (entries.length === 0) {
++    throw new Error(`Cannot insert an empty record into ${table}`);
++  }
++
++  const columns = entries.map(([key]) => `\`${key}\``).join(", ");
++  const placeholders = entries.map(() => "?").join(", ");
++  const values = entries.map(([, value]) => value);
++  const [result] = await connection.execute<ResultSetHeader>(
++    `insert into \`${table}\` (${columns}) values (${placeholders})`,
++    values
++  );
++  const row = await selectOneWithConnection<T>(
++    connection,
++    `select * from \`${table}\` where id = ? limit 1`,
++    [result.insertId]
++  );
++
++  if (!row) {
++    throw new Error(`Failed to read inserted ${table} record`);
++  }
++
++  return row;
++}
++
++async function updateByIdWithConnection<T>(
++  connection: PoolConnection,
++  table: string,
++  id: number,
++  changes: object,
++  allowedColumns: readonly string[]
++): Promise<T> {
++  const entries = getWriteEntries(changes, allowedColumns);
++
++  if (entries.length > 0) {
++    const assignments = entries.map(([key]) => `\`${key}\` = ?`).join(", ");
++    const values = entries.map(([, value]) => value);
++    await connection.execute<ResultSetHeader>(
++      `update \`${table}\` set ${assignments} where id = ?`,
++      [...values, id]
++    );
++  }
++
++  const row = await selectOneWithConnection<T>(
++    connection,
++    `select * from \`${table}\` where id = ? limit 1`,
++    [id]
++  );
++
++  if (!row) {
++    throw new Error(`${table} record ${id} was not found`);
++  }
++
++  return row;
++}
++
+ const userColumns = ["name", "login", "password", "role", "retreat_id"] as const;
+ const houseColumns = ["name", "parent_id"] as const;
+ const roomColumns = ["room_number", "house_id", "is_available"] as const;
+@@ -430,12 +505,116 @@ const mariaDbServer = {
+       );
+     },
+ 
+-    create: async (guest: CreateGuest): Promise<Guest> => {
+-      return insertById<Guest>("guests", guest, guestColumns);
++    create: async (
++      guest: CreateGuest,
++      status?: CreateGuestStatusForNewGuest
++    ): Promise<Guest> => {
++      if (!status) {
++        return insertById<Guest>("guests", guest, guestColumns);
++      }
++
++      const connection = await getMariaDbPool().getConnection();
++
++      try {
++        await connection.beginTransaction();
++        const createdGuest = await insertByIdWithConnection<Guest>(
++          connection,
++          "guests",
++          guest,
++          guestColumns
++        );
++        await insertByIdWithConnection<GuestStatus>(
++          connection,
++          "guest_statuses",
++          { ...status, guest_id: createdGuest.id },
++          guestStatusColumns
++        );
++        await connection.commit();
++        return createdGuest;
++      } catch (error) {
++        await connection.rollback();
++        throw error;
++      } finally {
++        connection.release();
++      }
++    },
++
++    update: async (
++      id: number,
++      changes: UpdateGuest,
++      status?: CreateGuestStatus
++    ): Promise<Guest> => {
++      if (!status) {
++        return updateById<Guest>("guests", id, changes, guestColumns);
++      }
++
++      const connection = await getMariaDbPool().getConnection();
++
++      try {
++        await connection.beginTransaction();
++        const updatedGuest = await updateByIdWithConnection<Guest>(
++          connection,
++          "guests",
++          id,
++          changes,
++          guestColumns
++        );
++        await insertByIdWithConnection<GuestStatus>(
++          connection,
++          "guest_statuses",
++          status,
++          guestStatusColumns
++        );
++        await connection.commit();
++        return updatedGuest;
++      } catch (error) {
++        await connection.rollback();
++        throw error;
++      } finally {
++        connection.release();
++      }
+     },
+ 
+-    update: async (id: number, changes: UpdateGuest): Promise<Guest> => {
+-      return updateById<Guest>("guests", id, changes, guestColumns);
++    swapRooms: async (data: SwapGuestRoomsData): Promise<SwapGuestRoomsResult> => {
++      const connection = await getMariaDbPool().getConnection();
++
++      try {
++        await connection.beginTransaction();
++        const firstGuest = await updateByIdWithConnection<Guest>(
++          connection,
++          "guests",
++          data.firstGuestId,
++          data.firstGuestChanges,
++          guestColumns
++        );
++        const secondGuest = await updateByIdWithConnection<Guest>(
++          connection,
++          "guests",
++          data.secondGuestId,
++          data.secondGuestChanges,
++          guestColumns
++        );
++        await insertByIdWithConnection<GuestStatus>(
++          connection,
++          "guest_statuses",
++          data.firstStatus,
++          guestStatusColumns
++        );
++        await insertByIdWithConnection<GuestStatus>(
++          connection,
++          "guest_statuses",
++          data.secondStatus,
++          guestStatusColumns
++        );
++        await connection.commit();
++
++        return { firstGuest, secondGuest };
++      } catch (error) {
++        await connection.rollback();
++        throw error;
++      } finally {
++        connection.release();
++      }
+     },
+ 
+     delete: async (id: number): Promise<void> => {
+diff --git a/src/services/database.ts b/src/services/database.ts
+index 2da7869..2944b6b 100644
+--- a/src/services/database.ts
++++ b/src/services/database.ts
+@@ -172,6 +172,22 @@ export type CreateGuestStatus = {
+   updated_by: number;
+ };
+ 
++export type CreateGuestStatusForNewGuest = Omit<CreateGuestStatus, "guest_id">;
++
++export type SwapGuestRoomsData = {
++  firstGuestId: number;
++  firstGuestChanges: UpdateGuest;
++  firstStatus: CreateGuestStatus;
++  secondGuestId: number;
++  secondGuestChanges: UpdateGuest;
++  secondStatus: CreateGuestStatus;
++};
++
++export type SwapGuestRoomsResult = {
++  firstGuest: Guest;
++  secondGuest: Guest;
++};
++
+ export type CreateTaxiRide = {
+   retreat_id: number;
+   arrival_datetime: string;
+@@ -887,7 +903,23 @@ const db = {
+       return data as Guest[];
+     },
+ 
+-    create: async (guest: CreateGuest): Promise<Guest> => {
++    create: async (
++      guest: CreateGuest,
++      status?: CreateGuestStatusForNewGuest
++    ): Promise<Guest> => {
++      if (status) {
++        const { data, error } = await supabase.rpc("create_guest_with_status", {
++          p_guest: guest,
++          p_status: status,
++        });
++
++        if (error) {
++          throwDatabaseError("Failed to create guest with status", error);
++        }
++
++        return data as Guest;
++      }
++
+       const { data, error } = await supabase
+         .from("guests")
+         .insert(guest)
+@@ -903,8 +935,23 @@ const db = {
+ 
+     update: async (
+       id: number,
+-      changes: UpdateGuest
++      changes: UpdateGuest,
++      status?: CreateGuestStatus
+     ): Promise<Guest> => {
++      if (status) {
++        const { data, error } = await supabase.rpc("update_guest_with_status", {
++          p_id: id,
++          p_changes: changes,
++          p_status: status,
++        });
++
++        if (error) {
++          throwDatabaseError("Failed to update guest with status", error);
++        }
++
++        return data as Guest;
++      }
++
+       const { data, error } = await supabase
+         .from("guests")
+         .update(changes)
+@@ -919,6 +966,23 @@ const db = {
+       return data as Guest;
+     },
+ 
++    swapRooms: async (data: SwapGuestRoomsData): Promise<SwapGuestRoomsResult> => {
++      const { data: result, error } = await supabase.rpc("swap_guest_rooms", {
++        p_first_guest_id: data.firstGuestId,
++        p_first_guest_changes: data.firstGuestChanges,
++        p_first_status: data.firstStatus,
++        p_second_guest_id: data.secondGuestId,
++        p_second_guest_changes: data.secondGuestChanges,
++        p_second_status: data.secondStatus,
++      });
++
++      if (error) {
++        throwDatabaseError("Failed to swap guest rooms", error);
++      }
++
++      return result as SwapGuestRoomsResult;
++    },
++
+     delete: async (id: number): Promise<void> => {
+       const { error } = await supabase
+         .from("guests")
+diff --git a/src/services/guestsService.ts b/src/services/guestsService.ts
+index 797fdec..de5d423 100644
+--- a/src/services/guestsService.ts
++++ b/src/services/guestsService.ts
+@@ -1,9 +1,15 @@
+ import db from "./database";
+ import { getAvailableGuestActions } from "./guestActionsService";
+ import type { GuestAction } from "./guestActionsService";
+-import guestStatusesService from "./guestStatusesService";
+ import roomsService from "./roomsService";
+-import type { CreateGuest, Guest, UpdateGuest } from "./database";
++import type {
++  CreateGuest,
++  CreateGuestStatus,
++  CreateGuestStatusForNewGuest,
++  Guest,
++  SwapGuestRoomsResult,
++  UpdateGuest,
++} from "./database";
+ import type { GuestStatusValue } from "./guestStatusesService";
+ 
+ export type GuestMenuAction = {
+@@ -56,17 +62,11 @@ const guestsService = {
+ 
+   createGuest: async (guest: CreateGuest): Promise<Guest> => {
+     const data = normalizeGuest(guest);
+-    const createdGuest = await db.guests.create(data);
+-
+-    if (createdGuest.room_id) {
+-      await createBookedStatus(
+-        createdGuest.retreat_id,
+-        createdGuest.id,
+-        createdGuest.room_id
+-      );
+-    }
++    const status = data.room_id
++      ? await prepareBookedStatus(data.retreat_id, data.room_id)
++      : undefined;
+ 
+-    return createdGuest;
++    return db.guests.create(data, status);
+   },
+ 
+   updateGuest: async (id: number, changes: UpdateGuest): Promise<Guest> => {
+@@ -84,19 +84,64 @@ const guestsService = {
+       diet_notes: changes.diet_notes ?? currentGuest.diet_notes,
+       room_id: changes.room_id ?? currentGuest.room_id,
+     });
+-
+     const roomChanged = currentGuest.room_id !== data.room_id;
+-    const updatedGuest = await db.guests.update(id, data);
+-
+-    if (roomChanged && updatedGuest.room_id) {
+-      await createBookedStatus(
+-        updatedGuest.retreat_id,
+-        updatedGuest.id,
+-        updatedGuest.room_id
+-      );
++    const status = roomChanged && data.room_id
++      ? {
++          ...(await prepareBookedStatus(data.retreat_id, data.room_id)),
++          guest_id: id,
++        }
++      : undefined;
++
++    return db.guests.update(id, data, status);
++  },
++
++  swapRooms: async (firstGuestId: number, secondGuestId: number): Promise<SwapGuestRoomsResult> => {
++    if (firstGuestId === secondGuestId) {
++      throw new Error("Choose another guest for the room swap.");
++    }
++
++    const [firstGuest, secondGuest] = await Promise.all([
++      db.guests.getById(firstGuestId),
++      db.guests.getById(secondGuestId),
++    ]);
++
++    if (!firstGuest || !secondGuest) {
++      throw new Error("One of the guests no longer exists. Reload the list.");
++    }
++
++    if (firstGuest.retreat_id !== secondGuest.retreat_id) {
++      throw new Error("Guests from different retreats cannot swap rooms.");
+     }
+ 
+-    return updatedGuest;
++    if (!firstGuest.room_id || !secondGuest.room_id) {
++      throw new Error("Both guests must have rooms before swapping.");
++    }
++
++    if (firstGuest.room_id === secondGuest.room_id) {
++      throw new Error("Guests already have the same room.");
++    }
++
++    const [firstStatusData, secondStatusData] = await Promise.all([
++      prepareBookedStatus(firstGuest.retreat_id, secondGuest.room_id),
++      prepareBookedStatus(secondGuest.retreat_id, firstGuest.room_id),
++    ]);
++    const firstStatus: CreateGuestStatus = {
++      ...firstStatusData,
++      guest_id: firstGuest.id,
++    };
++    const secondStatus: CreateGuestStatus = {
++      ...secondStatusData,
++      guest_id: secondGuest.id,
++    };
++
++    return db.guests.swapRooms({
++      firstGuestId: firstGuest.id,
++      firstGuestChanges: { room_id: secondGuest.room_id },
++      firstStatus,
++      secondGuestId: secondGuest.id,
++      secondGuestChanges: { room_id: firstGuest.room_id },
++      secondStatus,
++    });
+   },
+ 
+   deleteGuest: async (id: number): Promise<void> => {
+@@ -104,11 +149,10 @@ const guestsService = {
+   },
+ };
+ 
+-async function createBookedStatus(
++async function prepareBookedStatus(
+   retreatId: number,
+-  guestId: number,
+   roomId: number
+-): Promise<void> {
++): Promise<CreateGuestStatusForNewGuest> {
+   const room = await db.rooms.getById(roomId);
+ 
+   if (!room) {
+@@ -127,15 +171,12 @@ async function createBookedStatus(
+     throw new Error("Development admin user was not found.");
+   }
+ 
+-  const roomDisplayName = roomsService.getRoomDisplayName(room, house);
+-
+-  await guestStatusesService.createStatus(
+-    retreatId,
+-    guestId,
+-    "booked",
+-    roomDisplayName,
+-    admin.id
+-  );
++  return {
++    retreat_id: retreatId,
++    status: "booked",
++    room: roomsService.getRoomDisplayName(room, house),
++    updated_by: admin.id,
++  };
+ }
+ 
+ function normalizeGuest(guest: CreateGuest): CreateGuest {
+@@ -155,4 +196,4 @@ function normalizeGuest(guest: CreateGuest): CreateGuest {
+   };
+ }
+ 
+-export default guestsService;
+\ No newline at end of file
++export default guestsService;
+diff --git a/src/services/mariaDatabase.ts b/src/services/mariaDatabase.ts
+index ed6241b..2fb6285 100644
+--- a/src/services/mariaDatabase.ts
++++ b/src/services/mariaDatabase.ts
+@@ -1,6 +1,7 @@
+ import type {
+   CreateGuest,
+   CreateGuestStatus,
++  CreateGuestStatusForNewGuest,
+   CreateHouse,
+   CreateHouseMap,
+   CreateRetreat,
+@@ -18,6 +19,8 @@ import type {
+   RetreatRoom,
+   Role,
+   Room,
++  SwapGuestRoomsData,
++  SwapGuestRoomsResult,
+   TaxiGuest,
+   TaxiRide,
+   UpdateGuest,
+@@ -245,12 +248,23 @@ const mariaDb = {
+       return callMariaDb<Guest[]>("guests", "getByRoomId", [roomId]);
+     },
+ 
+-    create: async (guest: CreateGuest): Promise<Guest> => {
+-      return callMariaDb<Guest>("guests", "create", [guest]);
++    create: async (
++      guest: CreateGuest,
++      status?: CreateGuestStatusForNewGuest
++    ): Promise<Guest> => {
++      return callMariaDb<Guest>("guests", "create", [guest, status]);
+     },
+ 
+-    update: async (id: number, changes: UpdateGuest): Promise<Guest> => {
+-      return callMariaDb<Guest>("guests", "update", [id, changes]);
++    update: async (
++      id: number,
++      changes: UpdateGuest,
++      status?: CreateGuestStatus
++    ): Promise<Guest> => {
++      return callMariaDb<Guest>("guests", "update", [id, changes, status]);
++    },
++
++    swapRooms: async (data: SwapGuestRoomsData): Promise<SwapGuestRoomsResult> => {
++      return callMariaDb<SwapGuestRoomsResult>("guests", "swapRooms", [data]);
+     },
+ 
+     delete: async (id: number): Promise<void> => {
+diff --git a/supabase/migrations/202610070002_guest_write_transactions.sql b/supabase/migrations/202610070002_guest_write_transactions.sql
+new file mode 100644
+index 0000000..9148a1e
+--- /dev/null
++++ b/supabase/migrations/202610070002_guest_write_transactions.sql
+@@ -0,0 +1,178 @@
++-- Atomic guest write helpers used by the Supabase database adapter.
++-- These functions intentionally contain no business validation or calculations.
++-- Services prepare all values before calling the adapter. The only generated value
++-- added here is guest_id for the status created together with a new guest.
++
++create or replace function public.create_guest_with_status(
++  p_guest jsonb,
++  p_status jsonb
++)
++returns jsonb
++language plpgsql
++security invoker
++set search_path = public
++as $$
++declare
++  v_guest public.guests;
++begin
++  insert into public.guests (
++    retreat_id,
++    name,
++    is_organizer,
++    arrival_date,
++    diet_notes,
++    room_id
++  )
++  values (
++    (p_guest->>'retreat_id')::bigint,
++    p_guest->>'name',
++    (p_guest->>'is_organizer')::boolean,
++    (p_guest->>'arrival_date')::date,
++    p_guest->>'diet_notes',
++    (p_guest->>'room_id')::bigint
++  )
++  returning * into v_guest;
++
++  insert into public.guest_statuses (
++    retreat_id,
++    guest_id,
++    status,
++    room,
++    updated_by
++  )
++  values (
++    (p_status->>'retreat_id')::bigint,
++    v_guest.id,
++    p_status->>'status',
++    p_status->>'room',
++    (p_status->>'updated_by')::bigint
++  );
++
++  return to_jsonb(v_guest);
++end;
++$$;
++
++create or replace function public.update_guest_with_status(
++  p_id bigint,
++  p_changes jsonb,
++  p_status jsonb
++)
++returns jsonb
++language plpgsql
++security invoker
++set search_path = public
++as $$
++declare
++  v_guest public.guests;
++begin
++  update public.guests
++  set
++    retreat_id = case
++      when p_changes ? 'retreat_id' then (p_changes->>'retreat_id')::bigint
++      else retreat_id
++    end,
++    name = case
++      when p_changes ? 'name' then p_changes->>'name'
++      else name
++    end,
++    is_organizer = case
++      when p_changes ? 'is_organizer' then (p_changes->>'is_organizer')::boolean
++      else is_organizer
++    end,
++    arrival_date = case
++      when p_changes ? 'arrival_date' then (p_changes->>'arrival_date')::date
++      else arrival_date
++    end,
++    diet_notes = case
++      when p_changes ? 'diet_notes' then p_changes->>'diet_notes'
++      else diet_notes
++    end,
++    room_id = case
++      when p_changes ? 'room_id' then (p_changes->>'room_id')::bigint
++      else room_id
++    end
++  where id = p_id
++  returning * into v_guest;
++
++  insert into public.guest_statuses (
++    retreat_id,
++    guest_id,
++    status,
++    room,
++    updated_by
++  )
++  values (
++    (p_status->>'retreat_id')::bigint,
++    (p_status->>'guest_id')::bigint,
++    p_status->>'status',
++    p_status->>'room',
++    (p_status->>'updated_by')::bigint
++  );
++
++  return to_jsonb(v_guest);
++end;
++$$;
++
++create or replace function public.swap_guest_rooms(
++  p_first_guest_id bigint,
++  p_first_guest_changes jsonb,
++  p_first_status jsonb,
++  p_second_guest_id bigint,
++  p_second_guest_changes jsonb,
++  p_second_status jsonb
++)
++returns jsonb
++language plpgsql
++security invoker
++set search_path = public
++as $$
++declare
++  v_first_guest public.guests;
++  v_second_guest public.guests;
++begin
++  update public.guests
++  set room_id = (p_first_guest_changes->>'room_id')::bigint
++  where id = p_first_guest_id
++  returning * into v_first_guest;
++
++  update public.guests
++  set room_id = (p_second_guest_changes->>'room_id')::bigint
++  where id = p_second_guest_id
++  returning * into v_second_guest;
++
++  insert into public.guest_statuses (
++    retreat_id,
++    guest_id,
++    status,
++    room,
++    updated_by
++  )
++  values (
++    (p_first_status->>'retreat_id')::bigint,
++    (p_first_status->>'guest_id')::bigint,
++    p_first_status->>'status',
++    p_first_status->>'room',
++    (p_first_status->>'updated_by')::bigint
++  );
++
++  insert into public.guest_statuses (
++    retreat_id,
++    guest_id,
++    status,
++    room,
++    updated_by
++  )
++  values (
++    (p_second_status->>'retreat_id')::bigint,
++    (p_second_status->>'guest_id')::bigint,
++    p_second_status->>'status',
++    p_second_status->>'room',
++    (p_second_status->>'updated_by')::bigint
++  );
++
++  return jsonb_build_object(
++    'firstGuest', to_jsonb(v_first_guest),
++    'secondGuest', to_jsonb(v_second_guest)
++  );
++end;
++$$;

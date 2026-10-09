@@ -52,6 +52,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
     error: retreatError,
     createGuest,
     updateGuest,
+    swapRooms,
     deleteGuest,
     createStatus,
   } = useRetreat();
@@ -209,10 +210,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
 
     setActionError("");
 
-    await Promise.all([
-      updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
-      updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
-    ]);
+    await swapRooms(mapGuest.id, targetGuest.id);
 
     setIsMapOpen(false);
     setMapGuest(null);

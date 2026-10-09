@@ -61,6 +61,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
     error: retreatError,
     createStatus,
     updateGuest,
+    swapRooms,
   } = useRetreat();
   const guests = snapshot?.guests ?? [];
   const rides = snapshot?.taxiRides ?? [];
@@ -181,10 +182,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
       throw new Error(strStatusError);
     }
 
-    await Promise.all([
-      updateGuest(mapGuest.id, { room_id: targetGuest.room_id }),
-      updateGuest(targetGuest.id, { room_id: mapGuest.room_id }),
-    ]);
+    await swapRooms(mapGuest.id, targetGuest.id);
     setMapGuest(null);
   };
 

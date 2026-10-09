@@ -1,8 +1,9 @@
 import type { ExecuteValues } from "mysql2";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type {
   CreateGuest,
   CreateGuestStatus,
+  CreateGuestStatusForNewGuest,
   CreateHouse,
   CreateHouseMap,
   CreateRetreat,
@@ -19,6 +20,8 @@ import type {
   RetreatRoom,
   Role,
   Room,
+  SwapGuestRoomsData,
+  SwapGuestRoomsResult,
   TaxiGuest,
   TaxiRide,
   UpdateGuest,
@@ -183,6 +186,78 @@ async function deleteById(table: string, id: number): Promise<void> {
     `delete from \`${table}\` where id = ?`,
     [id]
   );
+}
+
+async function selectOneWithConnection<T>(
+  connection: PoolConnection,
+  sql: string,
+  values: ExecuteValues = []
+): Promise<T | null> {
+  const [rows] = await connection.execute<RowDataPacket[]>(sql, values);
+  return rows[0] ? normalizeRow<T>(rows[0]) : null;
+}
+
+async function insertByIdWithConnection<T>(
+  connection: PoolConnection,
+  table: string,
+  data: object,
+  allowedColumns: readonly string[]
+): Promise<T> {
+  const entries = getWriteEntries(data, allowedColumns);
+
+  if (entries.length === 0) {
+    throw new Error(`Cannot insert an empty record into ${table}`);
+  }
+
+  const columns = entries.map(([key]) => `\`${key}\``).join(", ");
+  const placeholders = entries.map(() => "?").join(", ");
+  const values = entries.map(([, value]) => value);
+  const [result] = await connection.execute<ResultSetHeader>(
+    `insert into \`${table}\` (${columns}) values (${placeholders})`,
+    values
+  );
+  const row = await selectOneWithConnection<T>(
+    connection,
+    `select * from \`${table}\` where id = ? limit 1`,
+    [result.insertId]
+  );
+
+  if (!row) {
+    throw new Error(`Failed to read inserted ${table} record`);
+  }
+
+  return row;
+}
+
+async function updateByIdWithConnection<T>(
+  connection: PoolConnection,
+  table: string,
+  id: number,
+  changes: object,
+  allowedColumns: readonly string[]
+): Promise<T> {
+  const entries = getWriteEntries(changes, allowedColumns);
+
+  if (entries.length > 0) {
+    const assignments = entries.map(([key]) => `\`${key}\` = ?`).join(", ");
+    const values = entries.map(([, value]) => value);
+    await connection.execute<ResultSetHeader>(
+      `update \`${table}\` set ${assignments} where id = ?`,
+      [...values, id]
+    );
+  }
+
+  const row = await selectOneWithConnection<T>(
+    connection,
+    `select * from \`${table}\` where id = ? limit 1`,
+    [id]
+  );
+
+  if (!row) {
+    throw new Error(`${table} record ${id} was not found`);
+  }
+
+  return row;
 }
 
 const userColumns = ["name", "login", "password", "role", "retreat_id"] as const;
@@ -430,12 +505,116 @@ const mariaDbServer = {
       );
     },
 
-    create: async (guest: CreateGuest): Promise<Guest> => {
-      return insertById<Guest>("guests", guest, guestColumns);
+    create: async (
+      guest: CreateGuest,
+      status?: CreateGuestStatusForNewGuest
+    ): Promise<Guest> => {
+      if (!status) {
+        return insertById<Guest>("guests", guest, guestColumns);
+      }
+
+      const connection = await getMariaDbPool().getConnection();
+
+      try {
+        await connection.beginTransaction();
+        const createdGuest = await insertByIdWithConnection<Guest>(
+          connection,
+          "guests",
+          guest,
+          guestColumns
+        );
+        await insertByIdWithConnection<GuestStatus>(
+          connection,
+          "guest_statuses",
+          { ...status, guest_id: createdGuest.id },
+          guestStatusColumns
+        );
+        await connection.commit();
+        return createdGuest;
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     },
 
-    update: async (id: number, changes: UpdateGuest): Promise<Guest> => {
-      return updateById<Guest>("guests", id, changes, guestColumns);
+    update: async (
+      id: number,
+      changes: UpdateGuest,
+      status?: CreateGuestStatus
+    ): Promise<Guest> => {
+      if (!status) {
+        return updateById<Guest>("guests", id, changes, guestColumns);
+      }
+
+      const connection = await getMariaDbPool().getConnection();
+
+      try {
+        await connection.beginTransaction();
+        const updatedGuest = await updateByIdWithConnection<Guest>(
+          connection,
+          "guests",
+          id,
+          changes,
+          guestColumns
+        );
+        await insertByIdWithConnection<GuestStatus>(
+          connection,
+          "guest_statuses",
+          status,
+          guestStatusColumns
+        );
+        await connection.commit();
+        return updatedGuest;
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    },
+
+    swapRooms: async (data: SwapGuestRoomsData): Promise<SwapGuestRoomsResult> => {
+      const connection = await getMariaDbPool().getConnection();
+
+      try {
+        await connection.beginTransaction();
+        const firstGuest = await updateByIdWithConnection<Guest>(
+          connection,
+          "guests",
+          data.firstGuestId,
+          data.firstGuestChanges,
+          guestColumns
+        );
+        const secondGuest = await updateByIdWithConnection<Guest>(
+          connection,
+          "guests",
+          data.secondGuestId,
+          data.secondGuestChanges,
+          guestColumns
+        );
+        await insertByIdWithConnection<GuestStatus>(
+          connection,
+          "guest_statuses",
+          data.firstStatus,
+          guestStatusColumns
+        );
+        await insertByIdWithConnection<GuestStatus>(
+          connection,
+          "guest_statuses",
+          data.secondStatus,
+          guestStatusColumns
+        );
+        await connection.commit();
+
+        return { firstGuest, secondGuest };
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     },
 
     delete: async (id: number): Promise<void> => {

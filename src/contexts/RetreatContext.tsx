@@ -49,6 +49,7 @@ type RetreatContextValue = {
   changeRetreat: (retreatId: number) => void;
   createGuest: (guest: Omit<CreateGuest, "retreat_id">) => Promise<void>;
   updateGuest: (guestId: number, changes: UpdateGuest) => Promise<void>;
+  swapRooms: (firstGuestId: number, secondGuestId: number) => Promise<void>;
   deleteGuest: (guestId: number) => Promise<void>;
   createStatus: (
     guestId: number,
@@ -192,6 +193,10 @@ export function RetreatProvider({
     await runMutation(() => guestsService.updateGuest(guestId, changes));
   }, [runMutation]);
 
+  const swapRooms = useCallback(async (firstGuestId: number, secondGuestId: number) => {
+    await runMutation(() => guestsService.swapRooms(firstGuestId, secondGuestId));
+  }, [runMutation]);
+
   const deleteGuest = useCallback(async (guestId: number) => {
     await runMutation(() => guestsService.deleteGuest(guestId));
   }, [runMutation]);
@@ -312,6 +317,7 @@ export function RetreatProvider({
     changeRetreat,
     createGuest,
     updateGuest,
+    swapRooms,
     deleteGuest,
     createStatus,
     saveRooms,
@@ -330,6 +336,7 @@ export function RetreatProvider({
     changeRetreat,
     createGuest,
     updateGuest,
+    swapRooms,
     deleteGuest,
     createStatus,
     saveRooms,

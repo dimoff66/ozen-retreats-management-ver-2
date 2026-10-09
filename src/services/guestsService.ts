@@ -1,9 +1,15 @@
 import db from "./database";
 import { getAvailableGuestActions } from "./guestActionsService";
 import type { GuestAction } from "./guestActionsService";
-import guestStatusesService from "./guestStatusesService";
 import roomsService from "./roomsService";
-import type { CreateGuest, Guest, UpdateGuest } from "./database";
+import type {
+  CreateGuest,
+  CreateGuestStatus,
+  CreateGuestStatusForNewGuest,
+  Guest,
+  SwapGuestRoomsResult,
+  UpdateGuest,
+} from "./database";
 import type { GuestStatusValue } from "./guestStatusesService";
 
 export type GuestMenuAction = {
@@ -56,17 +62,11 @@ const guestsService = {
 
   createGuest: async (guest: CreateGuest): Promise<Guest> => {
     const data = normalizeGuest(guest);
-    const createdGuest = await db.guests.create(data);
+    const status = data.room_id
+      ? await prepareBookedStatus(data.retreat_id, data.room_id)
+      : undefined;
 
-    if (createdGuest.room_id) {
-      await createBookedStatus(
-        createdGuest.retreat_id,
-        createdGuest.id,
-        createdGuest.room_id
-      );
-    }
-
-    return createdGuest;
+    return db.guests.create(data, status);
   },
 
   updateGuest: async (id: number, changes: UpdateGuest): Promise<Guest> => {
@@ -84,19 +84,64 @@ const guestsService = {
       diet_notes: changes.diet_notes ?? currentGuest.diet_notes,
       room_id: changes.room_id ?? currentGuest.room_id,
     });
-
     const roomChanged = currentGuest.room_id !== data.room_id;
-    const updatedGuest = await db.guests.update(id, data);
+    const status = roomChanged && data.room_id
+      ? {
+          ...(await prepareBookedStatus(data.retreat_id, data.room_id)),
+          guest_id: id,
+        }
+      : undefined;
 
-    if (roomChanged && updatedGuest.room_id) {
-      await createBookedStatus(
-        updatedGuest.retreat_id,
-        updatedGuest.id,
-        updatedGuest.room_id
-      );
+    return db.guests.update(id, data, status);
+  },
+
+  swapRooms: async (firstGuestId: number, secondGuestId: number): Promise<SwapGuestRoomsResult> => {
+    if (firstGuestId === secondGuestId) {
+      throw new Error("Choose another guest for the room swap.");
     }
 
-    return updatedGuest;
+    const [firstGuest, secondGuest] = await Promise.all([
+      db.guests.getById(firstGuestId),
+      db.guests.getById(secondGuestId),
+    ]);
+
+    if (!firstGuest || !secondGuest) {
+      throw new Error("One of the guests no longer exists. Reload the list.");
+    }
+
+    if (firstGuest.retreat_id !== secondGuest.retreat_id) {
+      throw new Error("Guests from different retreats cannot swap rooms.");
+    }
+
+    if (!firstGuest.room_id || !secondGuest.room_id) {
+      throw new Error("Both guests must have rooms before swapping.");
+    }
+
+    if (firstGuest.room_id === secondGuest.room_id) {
+      throw new Error("Guests already have the same room.");
+    }
+
+    const [firstStatusData, secondStatusData] = await Promise.all([
+      prepareBookedStatus(firstGuest.retreat_id, secondGuest.room_id),
+      prepareBookedStatus(secondGuest.retreat_id, firstGuest.room_id),
+    ]);
+    const firstStatus: CreateGuestStatus = {
+      ...firstStatusData,
+      guest_id: firstGuest.id,
+    };
+    const secondStatus: CreateGuestStatus = {
+      ...secondStatusData,
+      guest_id: secondGuest.id,
+    };
+
+    return db.guests.swapRooms({
+      firstGuestId: firstGuest.id,
+      firstGuestChanges: { room_id: secondGuest.room_id },
+      firstStatus,
+      secondGuestId: secondGuest.id,
+      secondGuestChanges: { room_id: firstGuest.room_id },
+      secondStatus,
+    });
   },
 
   deleteGuest: async (id: number): Promise<void> => {
@@ -104,11 +149,10 @@ const guestsService = {
   },
 };
 
-async function createBookedStatus(
+async function prepareBookedStatus(
   retreatId: number,
-  guestId: number,
   roomId: number
-): Promise<void> {
+): Promise<CreateGuestStatusForNewGuest> {
   const room = await db.rooms.getById(roomId);
 
   if (!room) {
@@ -127,15 +171,12 @@ async function createBookedStatus(
     throw new Error("Development admin user was not found.");
   }
 
-  const roomDisplayName = roomsService.getRoomDisplayName(room, house);
-
-  await guestStatusesService.createStatus(
-    retreatId,
-    guestId,
-    "booked",
-    roomDisplayName,
-    admin.id
-  );
+  return {
+    retreat_id: retreatId,
+    status: "booked",
+    room: roomsService.getRoomDisplayName(room, house),
+    updated_by: admin.id,
+  };
 }
 
 function normalizeGuest(guest: CreateGuest): CreateGuest {

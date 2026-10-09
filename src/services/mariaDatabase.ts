@@ -1,6 +1,7 @@
 import type {
   CreateGuest,
   CreateGuestStatus,
+  CreateGuestStatusForNewGuest,
   CreateHouse,
   CreateHouseMap,
   CreateRetreat,
@@ -18,6 +19,8 @@ import type {
   RetreatRoom,
   Role,
   Room,
+  SwapGuestRoomsData,
+  SwapGuestRoomsResult,
   TaxiGuest,
   TaxiRide,
   UpdateGuest,
@@ -245,12 +248,23 @@ const mariaDb = {
       return callMariaDb<Guest[]>("guests", "getByRoomId", [roomId]);
     },
 
-    create: async (guest: CreateGuest): Promise<Guest> => {
-      return callMariaDb<Guest>("guests", "create", [guest]);
+    create: async (
+      guest: CreateGuest,
+      status?: CreateGuestStatusForNewGuest
+    ): Promise<Guest> => {
+      return callMariaDb<Guest>("guests", "create", [guest, status]);
     },
 
-    update: async (id: number, changes: UpdateGuest): Promise<Guest> => {
-      return callMariaDb<Guest>("guests", "update", [id, changes]);
+    update: async (
+      id: number,
+      changes: UpdateGuest,
+      status?: CreateGuestStatus
+    ): Promise<Guest> => {
+      return callMariaDb<Guest>("guests", "update", [id, changes, status]);
+    },
+
+    swapRooms: async (data: SwapGuestRoomsData): Promise<SwapGuestRoomsResult> => {
+      return callMariaDb<SwapGuestRoomsResult>("guests", "swapRooms", [data]);
     },
 
     delete: async (id: number): Promise<void> => {

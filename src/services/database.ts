@@ -172,6 +172,22 @@ export type CreateGuestStatus = {
   updated_by: number;
 };
 
+export type CreateGuestStatusForNewGuest = Omit<CreateGuestStatus, "guest_id">;
+
+export type SwapGuestRoomsData = {
+  firstGuestId: number;
+  firstGuestChanges: UpdateGuest;
+  firstStatus: CreateGuestStatus;
+  secondGuestId: number;
+  secondGuestChanges: UpdateGuest;
+  secondStatus: CreateGuestStatus;
+};
+
+export type SwapGuestRoomsResult = {
+  firstGuest: Guest;
+  secondGuest: Guest;
+};
+
 export type CreateTaxiRide = {
   retreat_id: number;
   arrival_datetime: string;
@@ -887,7 +903,23 @@ const db = {
       return data as Guest[];
     },
 
-    create: async (guest: CreateGuest): Promise<Guest> => {
+    create: async (
+      guest: CreateGuest,
+      status?: CreateGuestStatusForNewGuest
+    ): Promise<Guest> => {
+      if (status) {
+        const { data, error } = await supabase.rpc("create_guest_with_status", {
+          p_guest: guest,
+          p_status: status,
+        });
+
+        if (error) {
+          throwDatabaseError("Failed to create guest with status", error);
+        }
+
+        return data as Guest;
+      }
+
       const { data, error } = await supabase
         .from("guests")
         .insert(guest)
@@ -903,8 +935,23 @@ const db = {
 
     update: async (
       id: number,
-      changes: UpdateGuest
+      changes: UpdateGuest,
+      status?: CreateGuestStatus
     ): Promise<Guest> => {
+      if (status) {
+        const { data, error } = await supabase.rpc("update_guest_with_status", {
+          p_id: id,
+          p_changes: changes,
+          p_status: status,
+        });
+
+        if (error) {
+          throwDatabaseError("Failed to update guest with status", error);
+        }
+
+        return data as Guest;
+      }
+
       const { data, error } = await supabase
         .from("guests")
         .update(changes)
@@ -917,6 +964,23 @@ const db = {
       }
 
       return data as Guest;
+    },
+
+    swapRooms: async (data: SwapGuestRoomsData): Promise<SwapGuestRoomsResult> => {
+      const { data: result, error } = await supabase.rpc("swap_guest_rooms", {
+        p_first_guest_id: data.firstGuestId,
+        p_first_guest_changes: data.firstGuestChanges,
+        p_first_status: data.firstStatus,
+        p_second_guest_id: data.secondGuestId,
+        p_second_guest_changes: data.secondGuestChanges,
+        p_second_status: data.secondStatus,
+      });
+
+      if (error) {
+        throwDatabaseError("Failed to swap guest rooms", error);
+      }
+
+      return result as SwapGuestRoomsResult;
     },
 
     delete: async (id: number): Promise<void> => {

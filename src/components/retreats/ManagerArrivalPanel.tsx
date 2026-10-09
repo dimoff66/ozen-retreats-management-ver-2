@@ -195,10 +195,18 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
     const passengerCount = rideGuestAssignments.length;
     const isSelected = selectedRideIds.has(ride.id);
 
+    const arrivalDate = new Date(ride.arrival_datetime);
+    const arrivalTime = arrivalDate.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+
     return {
       id: ride.id,
       number: `${strTaxi} ${index + 1}`,
-      arrival: dateService.formatDateTime(ride.arrival_datetime),
+      arrivalTime,
+      arrivalDate: dateService.formatDate(ride.arrival_datetime),
       driver: ride.driver_name || strDriver,
       passengerCount: `${passengerCount} ${strPassengers}`,
       isSelected,
@@ -348,7 +356,8 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
                 : "ozen-meeting-taxi-card"}>
                 <input type="checkbox" checked={ride.isSelected} onChange={ride.onChange} className="ozen-meeting-taxi-checkbox" />
                 <span className="ozen-meeting-taxi-number">{ride.number}</span>
-                <strong>{ride.arrival}</strong>
+                <strong>{ride.arrivalTime}</strong>
+                <span className="ozen-taxi-date">{ride.arrivalDate}</span>
                 <span>{ride.driver}</span>
                 <small>{ride.passengerCount}</small>
               </label>

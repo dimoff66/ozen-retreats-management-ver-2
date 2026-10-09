@@ -545,10 +545,10 @@ export default function HouseMapView({
       const isRoomInteractive = selectionMode === "room"
         ? isRoomSelectable
         : selectionMode === null && canAddGuest;
-      const statusBarClassName = activeGuests.length > 0
-        ? "bg-green-600"
-        : canAddGuest
-          ? "bg-blue-600"
+      const statusBarClassName = canAddGuest
+        ? "bg-blue-600"
+        : isFull
+          ? "bg-green-600"
           : "bg-gray-400";
 
       const style: CSSProperties = {
@@ -582,10 +582,10 @@ export default function HouseMapView({
 
       const roomClassName = [
         "aspect-square w-12 max-w-[12vw] rounded-xl border-[3px] p-1 shadow-lg",
-        activeGuests.length > 0
-          ? "border-green-700 bg-green-100 text-green-950"
-          : canAddGuest
-            ? "border-blue-700 bg-blue-100 text-blue-950"
+        canAddGuest
+          ? "border-blue-700 bg-blue-100 text-blue-950"
+          : isFull
+            ? "border-green-700 bg-green-100 text-green-950"
             : "border-gray-400 bg-gray-100 text-gray-500",
         isRoomInteractive ? "cursor-pointer" : "cursor-default",
       ].join(" ");

@@ -1,0 +1,68 @@
+diff --git a/src/components/houseMaps/HouseMapView.tsx b/src/components/houseMaps/HouseMapView.tsx
+index ede09fb..cf07ffa 100644
+--- a/src/components/houseMaps/HouseMapView.tsx
++++ b/src/components/houseMaps/HouseMapView.tsx
+@@ -545,10 +545,10 @@ export default function HouseMapView({
+       const isRoomInteractive = selectionMode === "room"
+         ? isRoomSelectable
+         : selectionMode === null && canAddGuest;
+-      const statusBarClassName = activeGuests.length > 0
+-        ? "bg-green-600"
+-        : canAddGuest
+-          ? "bg-blue-600"
++      const statusBarClassName = canAddGuest
++        ? "bg-blue-600"
++        : isFull
++          ? "bg-green-600"
+           : "bg-gray-400";
+ 
+       const style: CSSProperties = {
+@@ -582,10 +582,10 @@ export default function HouseMapView({
+ 
+       const roomClassName = [
+         "aspect-square w-12 max-w-[12vw] rounded-xl border-[3px] p-1 shadow-lg",
+-        activeGuests.length > 0
+-          ? "border-green-700 bg-green-100 text-green-950"
+-          : canAddGuest
+-            ? "border-blue-700 bg-blue-100 text-blue-950"
++        canAddGuest
++          ? "border-blue-700 bg-blue-100 text-blue-950"
++          : isFull
++            ? "border-green-700 bg-green-100 text-green-950"
+             : "border-gray-400 bg-gray-100 text-gray-500",
+         isRoomInteractive ? "cursor-pointer" : "cursor-default",
+       ].join(" ");
+diff --git a/src/components/retreats/ManagerArrivalPanel.tsx b/src/components/retreats/ManagerArrivalPanel.tsx
+index 974c87e..3794ec2 100644
+--- a/src/components/retreats/ManagerArrivalPanel.tsx
++++ b/src/components/retreats/ManagerArrivalPanel.tsx
+@@ -195,10 +195,18 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+     const passengerCount = rideGuestAssignments.length;
+     const isSelected = selectedRideIds.has(ride.id);
+ 
++    const arrivalDate = new Date(ride.arrival_datetime);
++    const arrivalTime = arrivalDate.toLocaleTimeString("en-GB", {
++      hour: "2-digit",
++      minute: "2-digit",
++      hourCycle: "h23",
++    });
++
+     return {
+       id: ride.id,
+       number: `${strTaxi} ${index + 1}`,
+-      arrival: dateService.formatDateTime(ride.arrival_datetime),
++      arrivalTime,
++      arrivalDate: dateService.formatDate(ride.arrival_datetime),
+       driver: ride.driver_name || strDriver,
+       passengerCount: `${passengerCount} ${strPassengers}`,
+       isSelected,
+@@ -348,7 +356,8 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+                 : "ozen-meeting-taxi-card"}>
+                 <input type="checkbox" checked={ride.isSelected} onChange={ride.onChange} className="ozen-meeting-taxi-checkbox" />
+                 <span className="ozen-meeting-taxi-number">{ride.number}</span>
+-                <strong>{ride.arrival}</strong>
++                <strong>{ride.arrivalTime}</strong>
++                <span className="ozen-taxi-date">{ride.arrivalDate}</span>
+                 <span>{ride.driver}</span>
+                 <small>{ride.passengerCount}</small>
+               </label>

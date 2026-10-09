@@ -157,7 +157,7 @@ export default function RetreatRoomsForm({
 
         return {
           id: room.id,
-          roomNumber: room.room_number,
+          roomName: roomsService.getRoomDisplayName(room, house),
           isAvailable,
           maxGuests,
           isGloballyAvailable,
@@ -316,12 +316,12 @@ export default function RetreatRoomsForm({
                           checked={room.isAvailable}
                           disabled={!room.isGloballyAvailable}
                           onChange={room.onAvailableChange}
-                          aria-label={`${strAvailable}: ${room.roomNumber}`}
+                          aria-label={`${strAvailable}: ${room.roomName}`}
                           className="ozen-room-checkbox"
                         />
                       </label>
                       <div className="ozen-room-setting-copy">
-                        <span className="ozen-room-setting-name">{room.roomNumber}</span>
+                        <span className="ozen-room-setting-name">{room.roomName}</span>
                         {!room.isGloballyAvailable ? <span className="ozen-room-unavailable-note">{strGloballyUnavailable}</span> : null}
                       </div>
                       <label className="ozen-room-capacity">
@@ -332,7 +332,7 @@ export default function RetreatRoomsForm({
                           value={room.maxGuests}
                           disabled={!room.isGloballyAvailable}
                           onChange={room.onMaxGuestsChange}
-                          aria-label={`${strMaxGuests}: ${room.roomNumber}`}
+                          aria-label={`${strMaxGuests}: ${room.roomName}`}
                           title={strMaxGuests}
                           className="ozen-room-number-input"
                         />

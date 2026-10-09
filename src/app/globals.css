@@ -1352,7 +1352,7 @@ input:focus-visible {
     display: block;
     padding: 9px 10px 7px;
     color: #87928b;
-    font-size: 12px;
+    font-size: calc(12px + var(--ui-font-offset));
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .06em;
@@ -2310,11 +2310,6 @@ input:focus-visible {
 }
 
 @media (max-width: 1180px) {
-  .ozen-taxi-grid,
-  .ozen-meeting-taxi-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .ozen-taxi-detail-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2338,11 +2333,6 @@ input:focus-visible {
 
   .ozen-guest-list-search {
     width: 100%;
-  }
-
-  .ozen-taxi-grid,
-  .ozen-meeting-taxi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .ozen-map-editor-backdrop {
@@ -2375,14 +2365,6 @@ input:focus-visible {
 }
 
 @media (max-width: 600px) {
-  .ozen-taxi-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ozen-meeting-taxi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .ozen-form-grid-two {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2556,7 +2538,7 @@ input:focus-visible {
 
   .ozen-retreat-heading-copy > p:last-child {
     margin-top: 2px;
-    font-size: 10px;
+    font-size: calc(10px + var(--ui-font-offset));
   }
 
   .ozen-retreat-more-button {
@@ -2579,7 +2561,7 @@ input:focus-visible {
     padding-right: 4px;
     padding-left: 4px;
     overflow-wrap: anywhere;
-    font-size: 10px;
+    font-size: calc(10px + var(--ui-font-offset));
   }
 
   .ozen-guests-list .ozen-data-table th:nth-child(1) { width: 30%; }

@@ -2629,6 +2629,7 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: hidden;
 }
 
 .ozen-import-warning {
@@ -2693,7 +2694,10 @@ input:focus-visible {
 
 .ozen-import-table-wrap {
   width: 100%;
-  overflow: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid #e5eae6;
   border-radius: 8px;
 }
@@ -2701,6 +2705,13 @@ input:focus-visible {
 .ozen-import-table {
   width: 100%;
   table-layout: fixed;
+}
+
+.ozen-import-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
 }
 
 .ozen-import-table th:nth-child(1),

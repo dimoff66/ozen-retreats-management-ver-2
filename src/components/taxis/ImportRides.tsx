@@ -256,26 +256,40 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
       return;
     }
 
-    const usedGuestIds = new Set<number>();
-    const matchedRows: MatchedImportRow[] = parsedRows.map((row) => {
-      const normalizedName = normalizeName(row.name);
-      const nameParts = getNameParts(row.name);
-      const exactMatches = guestMatchData.filter((item) => item.normalizedName === normalizedName);
-      const partialMatches = guestMatchData.filter((item) => shareNamePart(nameParts, item.nameParts));
-      const exactGuest = exactMatches.length === 1 && !usedGuestIds.has(exactMatches[0].guest.id)
-        ? exactMatches[0].guest
-        : null;
+    const exactGuestByRowId = new Map<number, number>();
+    const exactMatchedGuestIds = new Set<number>();
 
-      if (exactGuest) {
-        usedGuestIds.add(exactGuest.id);
+    parsedRows.forEach((row) => {
+      const normalizedName = normalizeName(row.name);
+      const exactMatches = guestMatchData.filter((item) => item.normalizedName === normalizedName);
+
+      if (exactMatches.length !== 1) {
+        return;
       }
+
+      const guestId = exactMatches[0].guest.id;
+
+      if (exactMatchedGuestIds.has(guestId)) {
+        return;
+      }
+
+      exactGuestByRowId.set(row.id, guestId);
+      exactMatchedGuestIds.add(guestId);
+    });
+
+    const matchedRows: MatchedImportRow[] = parsedRows.map((row) => {
+      const nameParts = getNameParts(row.name);
+      const exactGuestId = exactGuestByRowId.get(row.id) ?? null;
+      const partialMatches = exactGuestId === null
+        ? guestMatchData.filter((item) => (
+          !exactMatchedGuestIds.has(item.guest.id) && shareNamePart(nameParts, item.nameParts)
+        ))
+        : [];
 
       return {
         ...row,
-        matchedGuestId: exactGuest?.id ?? null,
-        suggestionGuestIds: Array.from(new Set(partialMatches
-          .map((item) => item.guest.id)
-          .filter((guestId) => guestId !== exactGuest?.id))),
+        matchedGuestId: exactGuestId,
+        suggestionGuestIds: Array.from(new Set(partialMatches.map((item) => item.guest.id))),
       };
     });
     const groupNumbers = Array.from(new Set(matchedRows.map((row) => row.group))).sort((left, right) => left - right);

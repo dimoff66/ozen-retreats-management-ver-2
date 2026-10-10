@@ -1,0 +1,1080 @@
+diff --git a/README.md b/README.md
+index 430a8c3..8b5112c 100644
+--- a/README.md
++++ b/README.md
+@@ -42,6 +42,7 @@
+ ```bash
+ npm run lint
+ npm run build
++npm run test:services
+ ```
+ 
+ ## Документация
+@@ -53,6 +54,7 @@ npm run build
+ - [Интерфейс и адаптивный дизайн](docs/ui.md)
+ - [MariaDB adapter](docs/mariadb.md)
+ - [Атомарные записи гостей](docs/transactions.md)
++- [Тесты сервисов](test-kit/README.md)
+ 
+ ## Инструкции для AI-агентов
+ 
+diff --git a/package.json b/package.json
+index f6ac602..b70c656 100644
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,10 @@
+     "dev": "next dev",
+     "build": "next build",
+     "start": "next start",
+-    "lint": "eslint"
++    "lint": "eslint",
++    "test": "vitest run",
++    "test:services": "vitest run tests/services",
++    "test:watch": "vitest"
+   },
+   "dependencies": {
+     "@supabase/ssr": "^0.12.7",
+@@ -24,6 +27,7 @@
+     "eslint": "^8.57.1",
+     "eslint-config-next": "^14.2.35",
+     "tailwindcss": "^4",
+-    "typescript": "^5"
++    "typescript": "^5",
++    "vitest": "^5.0.3"
+   }
+ }
+diff --git a/test-kit/README.md b/test-kit/README.md
+index 015c941..1a8e5a9 100644
+--- a/test-kit/README.md
++++ b/test-kit/README.md
+@@ -51,3 +51,55 @@ if (result !== true) {
+   console.error(result);
+ }
+ ```
++
++## Автоматический запуск через Vitest
++
++Существующие функции `Promise<true | string>` используются как основной test-kit.
++Vitest-файлы в `tests/services/` не дублируют их проверки, а создают безопасный
++временный контекст, вызывают функции test-kit и преобразуют результат в обычный
++`expect(...).toBe(true)`.
++
++Перед запуском должны быть доступны те же переменные Supabase, что и приложению:
++
++```text
++NEXT_PUBLIC_SUPABASE_URL
++NEXT_PUBLIC_SUPABASE_ANON_KEY
++```
++
++Можно использовать существующий `.env.local` проекта.
++
++Установка и запуск:
++
++```bash
++npm install
++npm run test:services
++```
++
++Для режима наблюдения:
++
++```bash
++npm run test:watch
++```
++
++## Работа с реальной базой
++
++Integration tests используют текущую настроенную базу, но не изменяют рабочие
++Houses и Rooms. Для каждого service suite создаётся временный неактивный retreat
++с префиксом `__TEST__`.
++
++Из существующей базы только читаются комнаты:
++
++```text
++Cubes A1
++Cubes A2
++Cubes B1
++Cones 1
++```
++
++Для временного retreat создаются собственные `retreat_rooms`, guests, statuses и
++Taxi records. После каждого теста очищаются изменяемые данные, а после suite
++удаляется сам test-retreat.
++
++Если тестовый процесс будет аварийно остановлен до cleanup, в базе может остаться
++retreat с префиксом `__TEST__`. Рабочие retreats при этом тестами не выбираются и
++не изменяются.
+diff --git a/test-kit/retreat-services/guestStatusesService.ts b/test-kit/retreat-services/guestStatusesService.ts
+index f21799f..1588e7c 100644
+--- a/test-kit/retreat-services/guestStatusesService.ts
++++ b/test-kit/retreat-services/guestStatusesService.ts
+@@ -32,3 +32,23 @@ export async function testCreateGuestStatus(
+     assertTest(latestForGuest?.room === input.room, "Latest guest status room does not match.");
+   });
+ }
++
++export async function testGuestStatusSequence(
++  retreatId: number,
++  guestId: number,
++  room: string | null,
++  updatedBy: number,
++  statuses: GuestStatusValue[]
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    for (const status of statuses) {
++      await guestStatusesService.createStatus(retreatId, guestId, status, room, updatedBy);
++    }
++
++    const latest = await guestStatusesService.getLatestForRetreat(retreatId);
++    const expected = statuses.at(-1);
++
++    assertTest(Boolean(expected), "Status sequence is empty.");
++    assertTest(latest.get(guestId)?.status === expected, "Latest status does not match the last created status.");
++  });
++}
+diff --git a/test-kit/retreat-services/guestsService.ts b/test-kit/retreat-services/guestsService.ts
+index 32c3e59..1fa398e 100644
+--- a/test-kit/retreat-services/guestsService.ts
++++ b/test-kit/retreat-services/guestsService.ts
+@@ -12,14 +12,23 @@ export type GuestWriteTestInput = {
+ export async function testCreateGuest(input: GuestWriteTestInput): Promise<ServiceTestResult> {
+   return runServiceTest(async () => {
+     const created = await guestsService.createGuest(input.guest);
+-    const loaded = await guestsService.getGuestById(created.id);
++    const [loaded, retreatGuests] = await Promise.all([
++      guestsService.getGuestById(created.id),
++      guestsService.getGuestsByRetreatId(input.guest.retreat_id),
++    ]);
+ 
+     assertTest(loaded !== null, "Created guest cannot be loaded.");
++    assertTest(retreatGuests.some((guest) => guest.id === created.id), "Created guest is missing from retreat guests.");
+     assertTest(loaded.name === input.guest.name.trim(), "Created guest name does not match.");
+     assertTest(loaded.room_id === (input.guest.room_id ?? null), "Created guest room does not match.");
+ 
+     if (input.guest.room_id) {
+-      const latest = await guestStatusesService.getLatestForRetreat(input.guest.retreat_id);
++      const [latest, roomGuests] = await Promise.all([
++        guestStatusesService.getLatestForRetreat(input.guest.retreat_id),
++        guestsService.getGuestsByRoomId(input.guest.room_id),
++      ]);
++
++      assertTest(roomGuests.some((guest) => guest.id === created.id), "Created guest is missing from assigned room.");
+       const status = latest.get(created.id);
+ 
+       assertTest(status?.status === "booked", "Creating a guest with a room did not create booked status.");
+@@ -123,3 +132,44 @@ export async function testDeleteGuest(guestId: number): Promise<ServiceTestResul
+     assertTest(loaded === null, "Deleted guest still exists.");
+   });
+ }
++
++export async function testCreateGuestWithoutBookedStatus(
++  guest: CreateGuest
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const created = await guestsService.createGuest({ ...guest, room_id: null });
++    const statuses = await guestStatusesService.getGuestStatusesByRetreatId(guest.retreat_id);
++
++    assertTest(
++      !statuses.some((status) => status.guest_id === created.id),
++      "Creating a guest without a room created an unexpected status."
++    );
++  });
++}
++
++export async function testUpdateGuestWithoutStatus(
++  guestId: number,
++  retreatId: number,
++  changes: UpdateGuest
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const beforeStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
++    const beforeCount = beforeStatuses.filter((status) => status.guest_id === guestId).length;
++
++    await guestsService.updateGuest(guestId, changes);
++
++    const afterStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
++    const afterCount = afterStatuses.filter((status) => status.guest_id === guestId).length;
++
++    assertTest(afterCount === beforeCount, "Updating non-room guest data created an unexpected status.");
++  });
++}
++
++export async function testRejectEmptyGuestName(retreatId: number): Promise<ServiceTestResult> {
++  try {
++    await guestsService.createGuest({ retreat_id: retreatId, name: "   " });
++    return "Guest with an empty name was created instead of being rejected.";
++  } catch {
++    return true;
++  }
++}
+diff --git a/test-kit/retreat-services/retreatRoomsService.ts b/test-kit/retreat-services/retreatRoomsService.ts
+index 7ca5eeb..bba9acd 100644
+--- a/test-kit/retreat-services/retreatRoomsService.ts
++++ b/test-kit/retreat-services/retreatRoomsService.ts
+@@ -1,4 +1,7 @@
++import guestStatusesService from "@/services/guestStatusesService";
++import guestsService from "@/services/guestsService";
+ import retreatRoomsService from "@/services/retreatRoomsService";
++import roomsService from "@/services/roomsService";
+ import type { RetreatRoomSetting } from "@/services/retreatRoomsService";
+ import { assertTest, runServiceTest } from "./types";
+ import type { ServiceTestResult } from "./types";
+@@ -44,3 +47,33 @@ export async function testRejectOccupiedRoomDisable(
+     return true;
+   }
+ }
++
++
++export async function testRoomSelectableState(
++  retreatId: number,
++  roomId: number,
++  guestId: number | null,
++  expectedSelectable: boolean
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const [rooms, retreatRooms, guests, statuses] = await Promise.all([
++      roomsService.getRooms(),
++      retreatRoomsService.getRetreatRooms(retreatId),
++      guestsService.getGuestsByRetreatId(retreatId),
++      guestStatusesService.getLatestForRetreat(retreatId),
++    ]);
++    const selectableRooms = retreatRoomsService.getSelectableRooms(
++      rooms,
++      retreatRooms,
++      guests,
++      statuses,
++      guestId
++    );
++    const isSelectable = selectableRooms.some((room) => room.id === roomId);
++
++    assertTest(
++      isSelectable === expectedSelectable,
++      `Room ${roomId} selectable state does not match expected value.`
++    );
++  });
++}
+diff --git a/test-kit/retreat-services/taxiRidesService.ts b/test-kit/retreat-services/taxiRidesService.ts
+index 9f47ccc..6899010 100644
+--- a/test-kit/retreat-services/taxiRidesService.ts
++++ b/test-kit/retreat-services/taxiRidesService.ts
+@@ -1,5 +1,5 @@
+ import taxiRidesService from "@/services/taxiRidesService";
+-import type { CreateTaxiGuest, CreateTaxiRide, UpdateTaxiRide } from "@/services/database";
++import type { CreateTaxiGuest, CreateTaxiRide, CreateTaxiRideBatch, UpdateTaxiRide } from "@/services/database";
+ import { assertTest, runServiceTest } from "./types";
+ import type { ServiceTestResult } from "./types";
+ 
+@@ -79,3 +79,52 @@ export async function testDeleteTaxiRide(
+     assertTest(!rides.some((item) => item.id === rideId), "Deleted taxi ride still exists.");
+   });
+ }
++
++
++export async function testCreateTaxiRidesBatch(
++  retreatId: number,
++  rides: CreateTaxiRideBatch[]
++): Promise<ServiceTestResult> {
++  return runServiceTest(async () => {
++    const oldRide = await taxiRidesService.create({
++      retreat_id: retreatId,
++      arrival_datetime: "2099-01-10T07:00:00",
++      driver_name: "Old test driver",
++    });
++
++    const created = await taxiRidesService.createRides(retreatId, rides);
++    const loaded = await taxiRidesService.getByRetreatId(retreatId);
++    const allTaxiGuests = await taxiRidesService.getGuestsByRideIds(loaded.map((ride) => ride.id));
++
++    assertTest(!loaded.some((ride) => ride.id === oldRide.id), "Old taxi ride was not removed by batch replace.");
++    assertTest(created.length === rides.length, "Batch create returned the wrong number of taxi rides.");
++    assertTest(loaded.length === rides.length, "Retreat contains the wrong number of taxi rides after batch replace.");
++    assertTest(
++      allTaxiGuests.length === rides.reduce((sum, ride) => sum + ride.guests.length, 0),
++      "getGuestsByRideIds returned the wrong passenger count after batch replace."
++    );
++
++    for (const rideInput of rides) {
++      const ride = loaded.find((item) => item.arrival_datetime === rideInput.arrival_datetime);
++
++      assertTest(Boolean(ride), `Taxi ride ${rideInput.arrival_datetime} was not created.`);
++
++      if (!ride) {
++        continue;
++      }
++
++      const guests = await taxiRidesService.getGuestsByRideId(ride.id);
++
++      assertTest(guests.length === rideInput.guests.length, "Taxi ride passenger count does not match batch input.");
++
++      rideInput.guests.forEach((guestInput) => {
++        const matchingGuest = guests.find((guest) => (
++          guest.guest_id === guestInput.guest_id
++          && guest.unbooked_guest_name === guestInput.unbooked_guest_name
++        ));
++
++        assertTest(Boolean(matchingGuest), "Taxi ride passenger data does not match batch input.");
++      });
++    }
++  });
++}
+diff --git a/tests/helpers/serviceTest.ts b/tests/helpers/serviceTest.ts
+new file mode 100644
+index 0000000..8b800e2
+--- /dev/null
++++ b/tests/helpers/serviceTest.ts
+@@ -0,0 +1,10 @@
++import { expect } from "vitest";
++import type { ServiceTestResult } from "../../test-kit/retreat-services/types";
++
++export function expectServiceTest(result: ServiceTestResult): void {
++  if (result !== true) {
++    throw new Error(result);
++  }
++
++  expect(result).toBe(true);
++}
+diff --git a/tests/helpers/testContext.ts b/tests/helpers/testContext.ts
+new file mode 100644
+index 0000000..5f743c9
+--- /dev/null
++++ b/tests/helpers/testContext.ts
+@@ -0,0 +1,163 @@
++import guestStatusesService from "@/services/guestStatusesService";
++import guestsService from "@/services/guestsService";
++import housesService from "@/services/housesService";
++import retreatRoomsService from "@/services/retreatRoomsService";
++import retreatsService from "@/services/retreatsService";
++import roomsService from "@/services/roomsService";
++import taxiRidesService from "@/services/taxiRidesService";
++import usersService from "@/services/usersService";
++import type { Retreat, Room } from "@/services/database";
++
++export type ServiceTestContext = {
++  runId: string;
++  retreat: Retreat;
++  adminUserId: number;
++  rooms: {
++    cubeA1: Room;
++    cubeA2: Room;
++    cubeB1: Room;
++    cone1: Room;
++  };
++  roomLabels: {
++    cubeA1: string;
++    cubeA2: string;
++    cubeB1: string;
++    cone1: string;
++  };
++};
++
++export async function createServiceTestContext(): Promise<ServiceTestContext> {
++  const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
++  const [houses, rooms, admin] = await Promise.all([
++    housesService.getHouses(),
++    roomsService.getRooms(),
++    usersService.getUserByLogin("admin"),
++  ]);
++
++  if (!admin) {
++    throw new Error("Test setup: admin user was not found.");
++  }
++
++  const cubes = houses.find((house) => house.name.toLowerCase() === "cubes");
++  const cones = houses.find((house) => house.name.toLowerCase() === "cones");
++
++  if (!cubes || !cones) {
++    throw new Error("Test setup: houses Cubes and Cones must exist.");
++  }
++
++  const cubeA1 = findRoom(rooms, cubes.id, "A1", "Cubes A1");
++  const cubeA2 = findRoom(rooms, cubes.id, "A2", "Cubes A2");
++  const cubeB1 = findRoom(rooms, cubes.id, "B1", "Cubes B1");
++  const cone1 = findRoom(rooms, cones.id, "1", "Cones 1");
++  const retreat = await retreatsService.createRetreat({
++    title: `__TEST__ Services ${runId}`,
++    start_date: "2099-01-10",
++    end_date: "2099-01-20",
++    is_active: false,
++  });
++
++  await configureTestRetreatRooms(retreat.id, { cubeA1, cubeA2, cubeB1, cone1 });
++
++  return {
++    runId,
++    retreat,
++    adminUserId: admin.id,
++    rooms: { cubeA1, cubeA2, cubeB1, cone1 },
++    roomLabels: {
++      cubeA1: roomsService.getRoomDisplayName(cubeA1, cubes),
++      cubeA2: roomsService.getRoomDisplayName(cubeA2, cubes),
++      cubeB1: roomsService.getRoomDisplayName(cubeB1, cubes),
++      cone1: roomsService.getRoomDisplayName(cone1, cones),
++    },
++  };
++}
++
++export async function cleanupMutableRetreatData(retreatId: number): Promise<void> {
++  const rides = await taxiRidesService.getByRetreatId(retreatId);
++
++  for (const ride of rides) {
++    const taxiGuests = await taxiRidesService.getGuestsByRideId(ride.id);
++
++    for (const taxiGuest of taxiGuests) {
++      await taxiRidesService.deleteGuest(taxiGuest.id);
++    }
++
++    await taxiRidesService.delete(ride.id);
++  }
++
++  const guests = await guestsService.getGuestsByRetreatId(retreatId);
++
++  for (const guest of guests) {
++    await guestsService.deleteGuest(guest.id);
++  }
++}
++
++export async function restoreTestRetreatRooms(context: ServiceTestContext): Promise<void> {
++  await configureTestRetreatRooms(context.retreat.id, context.rooms);
++}
++
++export async function cleanupServiceTestContext(context: ServiceTestContext): Promise<void> {
++  await cleanupMutableRetreatData(context.retreat.id);
++  const retreatRooms = await retreatRoomsService.getRetreatRooms(context.retreat.id);
++
++  await retreatRoomsService.saveRetreatRooms(
++    context.retreat.id,
++    retreatRooms.map((item) => ({
++      roomId: item.room_id,
++      isAvailable: false,
++      maxGuests: item.max_guests,
++    }))
++  );
++
++  await retreatsService.deleteRetreat(context.retreat.id);
++}
++
++export async function createTestGuest(
++  context: ServiceTestContext,
++  suffix: string,
++  roomId: number | null = null
++) {
++  return guestsService.createGuest({
++    retreat_id: context.retreat.id,
++    name: `__TEST__ ${context.runId} ${suffix}`,
++    room_id: roomId,
++  });
++}
++
++export async function getStatusCount(retreatId: number, guestId: number): Promise<number> {
++  const statuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
++  return statuses.filter((status) => status.guest_id === guestId).length;
++}
++
++function findRoom(
++  rooms: Room[],
++  houseId: number,
++  roomNumber: string,
++  label: string
++): Room {
++  const room = rooms.find((item) => (
++    item.house_id === houseId && item.room_number === roomNumber
++  ));
++
++  if (!room) {
++    throw new Error(`Test setup: room ${label} was not found.`);
++  }
++
++  if (!room.is_available) {
++    throw new Error(`Test setup: room ${label} must be globally available.`);
++  }
++
++  return room;
++}
++
++async function configureTestRetreatRooms(
++  retreatId: number,
++  rooms: ServiceTestContext["rooms"]
++): Promise<void> {
++  await retreatRoomsService.saveRetreatRooms(retreatId, [
++    { roomId: rooms.cubeA1.id, isAvailable: true, maxGuests: 2 },
++    { roomId: rooms.cubeA2.id, isAvailable: true, maxGuests: 1 },
++    { roomId: rooms.cubeB1.id, isAvailable: true, maxGuests: 1 },
++    { roomId: rooms.cone1.id, isAvailable: true, maxGuests: 1 },
++  ]);
++}
+diff --git a/tests/services/guestStatusesService.test.ts b/tests/services/guestStatusesService.test.ts
+new file mode 100644
+index 0000000..8c0f530
+--- /dev/null
++++ b/tests/services/guestStatusesService.test.ts
+@@ -0,0 +1,57 @@
++import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
++import {
++  testCreateGuestStatus,
++  testGuestStatusSequence,
++} from "../../test-kit/retreat-services/guestStatusesService";
++import { expectServiceTest } from "../helpers/serviceTest";
++import {
++  cleanupMutableRetreatData,
++  cleanupServiceTestContext,
++  createServiceTestContext,
++  createTestGuest,
++} from "../helpers/testContext";
++import type { ServiceTestContext } from "../helpers/testContext";
++
++let context: ServiceTestContext;
++
++beforeAll(async () => {
++  context = await createServiceTestContext();
++});
++
++afterEach(async () => {
++  await cleanupMutableRetreatData(context.retreat.id);
++});
++
++afterAll(async () => {
++  await cleanupServiceTestContext(context);
++});
++
++describe("guestStatusesService", () => {
++  // Проверяем создание отдельной записи статуса и немедленное получение её как latest для конкретного гостя.
++  it("creates a status and returns it as latest", async () => {
++    const guest = await createTestGuest(context, "status create", context.rooms.cubeA1.id);
++    const result = await testCreateGuestStatus({
++      retreatId: context.retreat.id,
++      guestId: guest.id,
++      status: "arrived",
++      room: context.roomLabels.cubeA1,
++      updatedBy: context.adminUserId,
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем последовательность booked → arrived → checked_in: latest должен указывать на последний созданный статус.
++  it("returns the last status in a status sequence", async () => {
++    const guest = await createTestGuest(context, "status sequence");
++    const result = await testGuestStatusSequence(
++      context.retreat.id,
++      guest.id,
++      context.roomLabels.cubeA1,
++      context.adminUserId,
++      ["booked", "arrived", "checked_in"]
++    );
++
++    expectServiceTest(result);
++  });
++});
+diff --git a/tests/services/guestsService.test.ts b/tests/services/guestsService.test.ts
+new file mode 100644
+index 0000000..a47b528
+--- /dev/null
++++ b/tests/services/guestsService.test.ts
+@@ -0,0 +1,117 @@
++import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
++import guestsService from "@/services/guestsService";
++import {
++  testCreateGuest,
++  testCreateGuestWithoutBookedStatus,
++  testDeleteGuest,
++  testRejectEmptyGuestName,
++  testSwapGuestRooms,
++  testUpdateGuest,
++  testUpdateGuestWithoutStatus,
++} from "../../test-kit/retreat-services/guestsService";
++import { expectServiceTest } from "../helpers/serviceTest";
++import {
++  cleanupMutableRetreatData,
++  cleanupServiceTestContext,
++  createServiceTestContext,
++  createTestGuest,
++} from "../helpers/testContext";
++import type { ServiceTestContext } from "../helpers/testContext";
++
++let context: ServiceTestContext;
++
++beforeAll(async () => {
++  context = await createServiceTestContext();
++});
++
++afterEach(async () => {
++  await cleanupMutableRetreatData(context.retreat.id);
++});
++
++afterAll(async () => {
++  await cleanupServiceTestContext(context);
++});
++
++describe("guestsService", () => {
++  // Проверяем, что гость без комнаты создаётся без автоматической записи booked в истории статусов.
++  it("creates a guest without a booked status when room is not assigned", async () => {
++    const result = await testCreateGuestWithoutBookedStatus({
++      retreat_id: context.retreat.id,
++      name: `__TEST__ ${context.runId} no room`,
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем атомарное создание гостя с комнатой и автоматической записью booked с правильным названием комнаты.
++  it("creates a guest with room and booked status", async () => {
++    const result = await testCreateGuest({
++      guest: {
++        retreat_id: context.retreat.id,
++        name: `  __TEST__ ${context.runId} booked  `,
++        room_id: context.rooms.cubeA1.id,
++      },
++      expectedRoomLabel: context.roomLabels.cubeA1,
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем, что изменение обычных полей гостя не создаёт лишнюю запись booked.
++  it("updates non-room guest fields without creating a status", async () => {
++    const guest = await createTestGuest(context, "normal update", context.rooms.cubeA1.id);
++    const result = await testUpdateGuestWithoutStatus(
++      guest.id,
++      context.retreat.id,
++      { diet_notes: "Vegan test note" }
++    );
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем смену комнаты: guest.room_id должен измениться, а новая запись booked должна содержать новую комнату.
++  it("changes room and creates a new booked status", async () => {
++    const guest = await createTestGuest(context, "room change", context.rooms.cubeA1.id);
++    const result = await testUpdateGuest({
++      guestId: guest.id,
++      retreatId: context.retreat.id,
++      changes: { room_id: context.rooms.cubeA2.id },
++      expectedRoomLabel: context.roomLabels.cubeA2,
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем атомарный обмен комнатами двух гостей и создание booked для обоих участников обмена.
++  it("swaps rooms and records booked statuses for both guests", async () => {
++    const firstGuest = await createTestGuest(context, "swap A", context.rooms.cubeA2.id);
++    const secondGuest = await createTestGuest(context, "swap B", context.rooms.cubeB1.id);
++    const result = await testSwapGuestRooms({
++      firstGuestId: firstGuest.id,
++      secondGuestId: secondGuest.id,
++      retreatId: context.retreat.id,
++      expectedFirstRoomLabel: context.roomLabels.cubeB1,
++      expectedSecondRoomLabel: context.roomLabels.cubeA2,
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем бизнес-валидацию имени: строка из пробелов не должна приводить к созданию гостя.
++  it("rejects an empty guest name", async () => {
++    const result = await testRejectEmptyGuestName(context.retreat.id);
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем удаление гостя через сервис и отсутствие записи при повторном чтении.
++  it("deletes a guest", async () => {
++    const guest = await guestsService.createGuest({
++      retreat_id: context.retreat.id,
++      name: `__TEST__ ${context.runId} delete`,
++    });
++    const result = await testDeleteGuest(guest.id);
++
++    expectServiceTest(result);
++  });
++});
+diff --git a/tests/services/retreatRoomsService.test.ts b/tests/services/retreatRoomsService.test.ts
+new file mode 100644
+index 0000000..d11e023
+--- /dev/null
++++ b/tests/services/retreatRoomsService.test.ts
+@@ -0,0 +1,105 @@
++import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
++import guestStatusesService from "@/services/guestStatusesService";
++import {
++  testRejectOccupiedRoomDisable,
++  testRoomSelectableState,
++  testSaveRetreatRooms,
++} from "../../test-kit/retreat-services/retreatRoomsService";
++import { expectServiceTest } from "../helpers/serviceTest";
++import {
++  cleanupMutableRetreatData,
++  cleanupServiceTestContext,
++  createServiceTestContext,
++  createTestGuest,
++  restoreTestRetreatRooms,
++} from "../helpers/testContext";
++import type { ServiceTestContext } from "../helpers/testContext";
++
++let context: ServiceTestContext;
++
++beforeAll(async () => {
++  context = await createServiceTestContext();
++});
++
++afterEach(async () => {
++  await cleanupMutableRetreatData(context.retreat.id);
++  await restoreTestRetreatRooms(context);
++});
++
++afterAll(async () => {
++  await cleanupServiceTestContext(context);
++});
++
++describe("retreatRoomsService", () => {
++  // Проверяем сохранение доступности комнат и max_guests только для временного test-retreat.
++  it("saves retreat room availability and capacity", async () => {
++    const result = await testSaveRetreatRooms(context.retreat.id, [
++      { roomId: context.rooms.cubeA1.id, isAvailable: true, maxGuests: 2 },
++      { roomId: context.rooms.cubeA2.id, isAvailable: true, maxGuests: 3 },
++      { roomId: context.rooms.cone1.id, isAvailable: false, maxGuests: 1 },
++    ]);
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем защиту занятой комнаты: сервис не должен разрешать убрать её из доступных комнат retreat.
++  it("rejects disabling an occupied room", async () => {
++    await createTestGuest(context, "occupied room", context.rooms.cubeA2.id);
++    const result = await testRejectOccupiedRoomDisable(
++      context.retreat.id,
++      context.rooms.cubeA2.id,
++      1
++    );
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем capacity=2: пустая комната и комната 1/2 доступны, а при 2/2 больше не предлагаются для заселения.
++  it("uses retreat room capacity when selecting rooms", async () => {
++    expectServiceTest(await testRoomSelectableState(
++      context.retreat.id,
++      context.rooms.cubeA1.id,
++      null,
++      true
++    ));
++
++    await createTestGuest(context, "capacity first", context.rooms.cubeA1.id);
++    expectServiceTest(await testRoomSelectableState(
++      context.retreat.id,
++      context.rooms.cubeA1.id,
++      null,
++      true
++    ));
++
++    await createTestGuest(context, "capacity second", context.rooms.cubeA1.id);
++    expectServiceTest(await testRoomSelectableState(
++      context.retreat.id,
++      context.rooms.cubeA1.id,
++      null,
++      false
++    ));
++  });
++
++  // Проверяем, что гость со статусом not_coming не занимает место и снова делает комнату 1/2 доступной.
++  it("does not count not_coming guests as room occupants", async () => {
++    await createTestGuest(context, "active occupant", context.rooms.cubeA1.id);
++    const notComingGuest = await createTestGuest(context, "not coming occupant", context.rooms.cubeA1.id);
++
++    await guestStatusesService.createStatus(
++      context.retreat.id,
++      notComingGuest.id,
++      "not_coming",
++      context.roomLabels.cubeA1,
++      context.adminUserId
++    );
++
++    const result = await testRoomSelectableState(
++      context.retreat.id,
++      context.rooms.cubeA1.id,
++      null,
++      true
++    );
++
++    expectServiceTest(result);
++  });
++});
+diff --git a/tests/services/retreatsService.test.ts b/tests/services/retreatsService.test.ts
+new file mode 100644
+index 0000000..a152957
+--- /dev/null
++++ b/tests/services/retreatsService.test.ts
+@@ -0,0 +1,75 @@
++import { afterEach, describe, it } from "vitest";
++import retreatsService from "@/services/retreatsService";
++import {
++  testCreateRetreat,
++  testDeleteRetreat,
++  testUpdateRetreat,
++} from "../../test-kit/retreat-services/retreatsService";
++import { expectServiceTest } from "../helpers/serviceTest";
++
++const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
++const createdRetreatIds = new Set<number>();
++
++async function createDisposableRetreat(suffix: string) {
++  const retreat = await retreatsService.createRetreat({
++    title: `__TEST__ ${runId} ${suffix}`,
++    start_date: "2099-02-01",
++    end_date: "2099-02-05",
++    is_active: false,
++  });
++
++  createdRetreatIds.add(retreat.id);
++  return retreat;
++}
++
++afterEach(async () => {
++  for (const retreatId of [...createdRetreatIds]) {
++    const retreat = await retreatsService.getRetreatById(retreatId);
++
++    if (retreat) {
++      await retreatsService.deleteRetreat(retreatId);
++    }
++
++    createdRetreatIds.delete(retreatId);
++  }
++});
++
++describe("retreatsService", () => {
++  // Проверяем полный цикл создания retreat через сервис и последующее чтение созданной записи.
++  it("creates a retreat and reads it back", async () => {
++    const title = `__TEST__ ${runId} create`;
++    const result = await testCreateRetreat({
++      title,
++      start_date: "2099-02-01",
++      end_date: "2099-02-05",
++      is_active: false,
++    });
++    const created = (await retreatsService.getRetreats()).find((retreat) => retreat.title === title);
++
++    if (created) {
++      createdRetreatIds.add(created.id);
++    }
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем изменение основных полей retreat и чтение уже обновлённых данных через сервис.
++  it("updates a retreat", async () => {
++    const retreat = await createDisposableRetreat("update");
++    const result = await testUpdateRetreat(retreat.id, {
++      title: `__TEST__ ${runId} updated`,
++      end_date: "2099-02-06",
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем удаление retreat через публичный метод сервиса и отсутствие записи после удаления.
++  it("deletes a retreat", async () => {
++    const retreat = await createDisposableRetreat("delete");
++    const result = await testDeleteRetreat(retreat.id);
++
++    createdRetreatIds.delete(retreat.id);
++    expectServiceTest(result);
++  });
++});
+diff --git a/tests/services/taxiRidesService.test.ts b/tests/services/taxiRidesService.test.ts
+new file mode 100644
+index 0000000..fc2bae0
+--- /dev/null
++++ b/tests/services/taxiRidesService.test.ts
+@@ -0,0 +1,158 @@
++import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
++import taxiRidesService from "@/services/taxiRidesService";
++import {
++  testAddTaxiGuest,
++  testCreateTaxiRide,
++  testCreateTaxiRidesBatch,
++  testDeleteTaxiGuest,
++  testDeleteTaxiRide,
++  testMoveTaxiGuest,
++  testUpdateTaxiRide,
++} from "../../test-kit/retreat-services/taxiRidesService";
++import { expectServiceTest } from "../helpers/serviceTest";
++import {
++  cleanupMutableRetreatData,
++  cleanupServiceTestContext,
++  createServiceTestContext,
++  createTestGuest,
++} from "../helpers/testContext";
++import type { ServiceTestContext } from "../helpers/testContext";
++
++let context: ServiceTestContext;
++
++beforeAll(async () => {
++  context = await createServiceTestContext();
++});
++
++afterEach(async () => {
++  await cleanupMutableRetreatData(context.retreat.id);
++});
++
++afterAll(async () => {
++  await cleanupServiceTestContext(context);
++});
++
++describe("taxiRidesService", () => {
++  // Проверяем обычное создание Taxi ride и получение созданной поездки среди поездок test-retreat.
++  it("creates a taxi ride", async () => {
++    const result = await testCreateTaxiRide({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T10:00:00",
++      driver_name: "Test Driver",
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем изменение времени и водителя существующей поездки через сервис.
++  it("updates a taxi ride", async () => {
++    const ride = await taxiRidesService.create({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T10:00:00",
++      driver_name: null,
++    });
++    const result = await testUpdateTaxiRide(
++      ride.id,
++      { arrival_datetime: "2099-01-10T10:30:00", driver_name: "Updated Driver" },
++      context.retreat.id
++    );
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем добавление в Taxi существующего зарегистрированного гостя через guest_id.
++  it("adds a registered guest to a taxi ride", async () => {
++    const guest = await createTestGuest(context, "taxi registered");
++    const ride = await taxiRidesService.create({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T11:00:00",
++      driver_name: null,
++    });
++    const result = await testAddTaxiGuest({ ride_id: ride.id, guest_id: guest.id });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем добавление пассажира, которого нет среди guests, через unbooked_guest_name.
++  it("adds an unbooked passenger to a taxi ride", async () => {
++    const ride = await taxiRidesService.create({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T11:30:00",
++      driver_name: null,
++    });
++    const result = await testAddTaxiGuest({
++      ride_id: ride.id,
++      guest_id: null,
++      unbooked_guest_name: "__TEST__ External Passenger",
++    });
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем перенос пассажира из одной поездки в другую без создания новой записи пассажира.
++  it("moves a taxi passenger between rides", async () => {
++    const firstRide = await taxiRidesService.create({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T12:00:00",
++    });
++    const secondRide = await taxiRidesService.create({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T12:30:00",
++    });
++    const taxiGuest = await taxiRidesService.addGuest({
++      ride_id: firstRide.id,
++      unbooked_guest_name: "__TEST__ Moving Passenger",
++    });
++    const result = await testMoveTaxiGuest(taxiGuest.id, secondRide.id);
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем удаление отдельного пассажира из поездки.
++  it("deletes a taxi passenger", async () => {
++    const ride = await taxiRidesService.create({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T13:00:00",
++    });
++    const taxiGuest = await taxiRidesService.addGuest({
++      ride_id: ride.id,
++      unbooked_guest_name: "__TEST__ Delete Passenger",
++    });
++    const result = await testDeleteTaxiGuest(taxiGuest.id, ride.id);
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем удаление самой поездки через сервис.
++  it("deletes a taxi ride", async () => {
++    const ride = await taxiRidesService.create({
++      retreat_id: context.retreat.id,
++      arrival_datetime: "2099-01-10T13:30:00",
++    });
++    const result = await testDeleteTaxiRide(ride.id, context.retreat.id);
++
++    expectServiceTest(result);
++  });
++
++  // Проверяем массовый import/save: старые поездки заменяются целиком, новые rides и пассажиры создаются одним сервисным вызовом.
++  it("replaces all retreat taxi rides with a batch", async () => {
++    const registeredGuest = await createTestGuest(context, "taxi batch registered");
++    const result = await testCreateTaxiRidesBatch(context.retreat.id, [
++      {
++        arrival_datetime: "2099-01-10T14:00:00",
++        driver_name: "Batch Driver 1",
++        guests: [
++          { guest_id: registeredGuest.id, unbooked_guest_name: null },
++          { guest_id: null, unbooked_guest_name: "__TEST__ Batch External" },
++        ],
++      },
++      {
++        arrival_datetime: "2099-01-10T15:00:00",
++        driver_name: null,
++        guests: [],
++      },
++    ]);
++
++    expectServiceTest(result);
++  });
++});
+diff --git a/vitest.config.ts b/vitest.config.ts
+new file mode 100644
+index 0000000..e6114b1
+--- /dev/null
++++ b/vitest.config.ts
+@@ -0,0 +1,29 @@
++import { fileURLToPath } from "node:url";
++import { defineConfig } from "vitest/config";
++
++loadTestEnv();
++
++export default defineConfig({
++  resolve: {
++    alias: {
++      "@": fileURLToPath(new URL("./src", import.meta.url)),
++    },
++  },
++  test: {
++    environment: "node",
++    include: ["tests/services/**/*.test.ts"],
++    fileParallelism: false,
++    testTimeout: 30000,
++    hookTimeout: 60000,
++  },
++});
++
++function loadTestEnv(): void {
++  [".env", ".env.local", ".env.test", ".env.test.local"].forEach((file) => {
++    try {
++      process.loadEnvFile(file);
++    } catch {
++      // Файл окружения необязателен: значения могут быть переданы из shell/CI.
++    }
++  });
++}

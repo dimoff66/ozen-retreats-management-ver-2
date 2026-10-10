@@ -1,4 +1,7 @@
+import guestStatusesService from "@/services/guestStatusesService";
+import guestsService from "@/services/guestsService";
 import retreatRoomsService from "@/services/retreatRoomsService";
+import roomsService from "@/services/roomsService";
 import type { RetreatRoomSetting } from "@/services/retreatRoomsService";
 import { assertTest, runServiceTest } from "./types";
 import type { ServiceTestResult } from "./types";
@@ -43,4 +46,34 @@ export async function testRejectOccupiedRoomDisable(
   } catch {
     return true;
   }
+}
+
+
+export async function testRoomSelectableState(
+  retreatId: number,
+  roomId: number,
+  guestId: number | null,
+  expectedSelectable: boolean
+): Promise<ServiceTestResult> {
+  return runServiceTest(async () => {
+    const [rooms, retreatRooms, guests, statuses] = await Promise.all([
+      roomsService.getRooms(),
+      retreatRoomsService.getRetreatRooms(retreatId),
+      guestsService.getGuestsByRetreatId(retreatId),
+      guestStatusesService.getLatestForRetreat(retreatId),
+    ]);
+    const selectableRooms = retreatRoomsService.getSelectableRooms(
+      rooms,
+      retreatRooms,
+      guests,
+      statuses,
+      guestId
+    );
+    const isSelectable = selectableRooms.some((room) => room.id === roomId);
+
+    assertTest(
+      isSelectable === expectedSelectable,
+      `Room ${roomId} selectable state does not match expected value.`
+    );
+  });
 }

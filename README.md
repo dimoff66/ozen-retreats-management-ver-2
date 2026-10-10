@@ -42,6 +42,7 @@
 ```bash
 npm run lint
 npm run build
+npm run test:services
 ```
 
 ## Документация
@@ -53,6 +54,7 @@ npm run build
 - [Интерфейс и адаптивный дизайн](docs/ui.md)
 - [MariaDB adapter](docs/mariadb.md)
 - [Атомарные записи гостей](docs/transactions.md)
+- [Тесты сервисов](test-kit/README.md)
 
 ## Инструкции для AI-агентов
 

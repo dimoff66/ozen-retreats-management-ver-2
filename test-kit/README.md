@@ -51,3 +51,55 @@ if (result !== true) {
   console.error(result);
 }
 ```
+
+## Автоматический запуск через Vitest
+
+Существующие функции `Promise<true | string>` используются как основной test-kit.
+Vitest-файлы в `tests/services/` не дублируют их проверки, а создают безопасный
+временный контекст, вызывают функции test-kit и преобразуют результат в обычный
+`expect(...).toBe(true)`.
+
+Перед запуском должны быть доступны те же переменные Supabase, что и приложению:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+Можно использовать существующий `.env.local` проекта.
+
+Установка и запуск:
+
+```bash
+npm install
+npm run test:services
+```
+
+Для режима наблюдения:
+
+```bash
+npm run test:watch
+```
+
+## Работа с реальной базой
+
+Integration tests используют текущую настроенную базу, но не изменяют рабочие
+Houses и Rooms. Для каждого service suite создаётся временный неактивный retreat
+с префиксом `__TEST__`.
+
+Из существующей базы только читаются комнаты:
+
+```text
+Cubes A1
+Cubes A2
+Cubes B1
+Cones 1
+```
+
+Для временного retreat создаются собственные `retreat_rooms`, guests, statuses и
+Taxi records. После каждого теста очищаются изменяемые данные, а после suite
+удаляется сам test-retreat.
+
+Если тестовый процесс будет аварийно остановлен до cleanup, в базе может остаться
+retreat с префиксом `__TEST__`. Рабочие retreats при этом тестами не выбираются и
+не изменяются.

@@ -32,3 +32,23 @@ export async function testCreateGuestStatus(
     assertTest(latestForGuest?.room === input.room, "Latest guest status room does not match.");
   });
 }
+
+export async function testGuestStatusSequence(
+  retreatId: number,
+  guestId: number,
+  room: string | null,
+  updatedBy: number,
+  statuses: GuestStatusValue[]
+): Promise<ServiceTestResult> {
+  return runServiceTest(async () => {
+    for (const status of statuses) {
+      await guestStatusesService.createStatus(retreatId, guestId, status, room, updatedBy);
+    }
+
+    const latest = await guestStatusesService.getLatestForRetreat(retreatId);
+    const expected = statuses.at(-1);
+
+    assertTest(Boolean(expected), "Status sequence is empty.");
+    assertTest(latest.get(guestId)?.status === expected, "Latest status does not match the last created status.");
+  });
+}

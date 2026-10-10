@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from "react";
-import type { ChangeEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent, ClipboardEvent, DragEvent } from "react";
 import { useRetreat } from "@/contexts/RetreatContext";
 import type { CreateTaxiRideBatch, Guest } from "@/services/database";
 import dateService from "@/services/dateService";
@@ -38,6 +38,10 @@ type GuestMatchData = {
   normalizedName: string;
   nameParts: string[];
   roomLabel: string;
+};
+
+type CapabilitiesResponse = {
+  imageImportAvailable: boolean;
 };
 
 const normalizeName = (name: string): string => {
@@ -96,6 +100,16 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   const strTitle = "Import taxi rides";
   const strExistingWarning = "All existing taxi rides for this retreat will be deleted when the import is saved.";
   const strInputHelp = "Paste tab-separated data with columns: group, approxTime, name, time, houseCode.";
+  const strImageSection = "Or extract the table from an image.";
+  const strImageHint = "Paste an image with Ctrl+V, drag it here, or choose a file.";
+  const strChooseImage = "Choose image";
+  const strRemoveImage = "Remove image";
+  const strExtractText = "Extract text";
+  const strExtractingText = "Extracting...";
+  const strImageNotConfigured = "Image import is unavailable because REPLICATE_API_TOKEN is not configured.";
+  const strImageEmpty = "Select an image before extracting text.";
+  const strImageExtractError = "Failed to extract text from the image.";
+  const strSelectedImage = "Selected image";
   const strNext = "Next";
   const strBack = "Back";
   const strCancel = "Cancel";
@@ -123,10 +137,66 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [isImageImportAvailable, setIsImageImportAvailable] = useState(false);
+  const [isCheckingCapabilities, setIsCheckingCapabilities] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState("");
+  const [isExtractingText, setIsExtractingText] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const guests = snapshot?.guests ?? [];
   const rooms = snapshot?.rooms ?? [];
   const houses = snapshot?.houses ?? [];
   const hasExistingRides = (snapshot?.taxiRides.length ?? 0) > 0;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCapabilities = async () => {
+      try {
+        const response = await fetch("/api/taxi-import/capabilities", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load capabilities");
+        }
+
+        const data = await response.json() as CapabilitiesResponse;
+
+        if (isMounted) {
+          setIsImageImportAvailable(Boolean(data.imageImportAvailable));
+        }
+      } catch {
+        if (isMounted) {
+          setIsImageImportAvailable(false);
+        }
+      } finally {
+        if (isMounted) {
+          setIsCheckingCapabilities(false);
+        }
+      }
+    };
+
+    void loadCapabilities();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedImage) {
+      setSelectedImageUrl("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedImage);
+    setSelectedImageUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [selectedImage]);
 
   const getGuestRoomLabel = (guest: Guest): string => {
     if (!guest.room_id) {
@@ -149,6 +219,101 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   const onTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setText(event.target.value);
     setError("");
+  };
+
+  const setImageFile = (file: File | null) => {
+    setSelectedImage(file);
+    setError("");
+  };
+
+  const onFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setImageFile(file);
+  };
+
+  const onChooseImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onRemoveImageClick = () => {
+    setSelectedImage(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const onImagePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith("image/"));
+
+    if (!imageItem) {
+      return;
+    }
+
+    const file = imageItem.getAsFile();
+
+    if (!file) {
+      return;
+    }
+
+    event.preventDefault();
+    setImageFile(file);
+  };
+
+  const onImageDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0] ?? null;
+
+    if (!file || !file.type.startsWith("image/")) {
+      return;
+    }
+
+    setImageFile(file);
+  };
+
+  const onImageDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const onExtractTextClick = async () => {
+    if (isExtractingText) {
+      return;
+    }
+
+    if (!isImageImportAvailable) {
+      setError(strImageNotConfigured);
+      return;
+    }
+
+    if (!selectedImage) {
+      setError(strImageEmpty);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", selectedImage);
+
+    setIsExtractingText(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/taxi-import/extract", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json() as { text?: string; error?: string };
+
+      if (!response.ok || !data.text) {
+        setError(data.error || strImageExtractError);
+        return;
+      }
+
+      setText(data.text);
+    } catch {
+      setError(strImageExtractError);
+    } finally {
+      setIsExtractingText(false);
+    }
   };
 
   const onNextClick = () => {
@@ -183,7 +348,8 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
         return;
       }
 
-      const group = Number(cells[0]);
+      const groupMatch = cells[0].match(/^\s*(\d+)/);
+      const group = groupMatch ? Number(groupMatch[1]) : Number.NaN;
 
       if (!Number.isInteger(group) || group <= 0) {
         validationErrors.push(`Row ${rowNumber}: ${strInvalidGroup}`);
@@ -438,6 +604,34 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
         {!isPreview ? (
           <div className="ozen-import-rides-body">
             {hasExistingRides ? <p className="ozen-import-warning">{strExistingWarning}</p> : null}
+            {!isCheckingCapabilities && isImageImportAvailable ? (
+              <div className="ozen-import-image-section">
+                <span className="ozen-import-image-title">{strImageSection}</span>
+                <div
+                  tabIndex={0}
+                  onPaste={onImagePaste}
+                  onDrop={onImageDrop}
+                  onDragOver={onImageDragOver}
+                  className="ozen-import-image-dropzone"
+                >
+                  <span>{strImageHint}</span>
+                  <div className="ozen-import-image-actions">
+                    <button type="button" onClick={onChooseImageClick} className="ozen-action-button ozen-action-button-secondary">{strChooseImage}</button>
+                    <button type="button" onClick={onExtractTextClick} disabled={!selectedImage || isExtractingText} className="ozen-action-button ozen-action-button-primary">{isExtractingText ? strExtractingText : strExtractText}</button>
+                    {selectedImage ? <button type="button" onClick={onRemoveImageClick} className="ozen-action-button ozen-action-button-secondary">{strRemoveImage}</button> : null}
+                  </div>
+                  <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/jpg" onChange={onFileInputChange} className="ozen-import-image-input" />
+                  {selectedImage ? <span className="ozen-import-image-name">{selectedImage.name}</span> : null}
+                </div>
+                {selectedImageUrl ? (
+                  <div className="ozen-import-image-preview-wrap">
+                    <span className="ozen-import-image-preview-label">{strSelectedImage}</span>
+                    <img src={selectedImageUrl} alt={strSelectedImage} className="ozen-import-image-preview" />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {!isCheckingCapabilities && !isImageImportAvailable ? <p className="ozen-import-image-disabled-note">{strImageNotConfigured}</p> : null}
             <label className="ozen-form-field ozen-import-text-field">
               <span>{strInputHelp}</span>
               <textarea value={text} onChange={onTextChange} rows={18} spellCheck={false} />

@@ -1,0 +1,31 @@
+diff --git a/src/components/taxis/ImportRides.tsx b/src/components/taxis/ImportRides.tsx
+index 507ac1f..c127a9c 100644
+--- a/src/components/taxis/ImportRides.tsx
++++ b/src/components/taxis/ImportRides.tsx
+@@ -321,15 +321,14 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+       return;
+     }
+ 
+-    const sourceLines = text.split(/?
+-/).filter((line) => line.trim().length > 0);
++    const sourceLines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+ 
+     if (sourceLines.length === 0) {
+       setError(strNoData);
+       return;
+     }
+ 
+-    const firstCells = sourceLines[0].split("	").map((cell) => cell.trim().toLocaleLowerCase());
++    const firstCells = sourceLines[0].split("\t").map((cell) => cell.trim().toLocaleLowerCase());
+     const lines = firstCells[0] === "group" && firstCells[2] === "name"
+       ? sourceLines.slice(1)
+       : sourceLines;
+@@ -341,7 +340,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+     const seenGroups = new Set<number>();
+ 
+     lines.forEach((line, index) => {
+-      const cells = line.split("	").map((cell) => cell.trim());
++      const cells = line.split("\t").map((cell) => cell.trim());
+       const rowNumber = index + 1;
+ 
+       if (cells.length < 5) {

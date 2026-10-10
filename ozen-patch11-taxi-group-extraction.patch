@@ -1,0 +1,64 @@
+diff --git a/src/app/api/taxi-import/extract/route.ts b/src/app/api/taxi-import/extract/route.ts
+index 6f35673..9d48571 100644
+--- a/src/app/api/taxi-import/extract/route.ts
++++ b/src/app/api/taxi-import/extract/route.ts
+@@ -12,11 +12,26 @@ const MARKER_SCHEMA = JSON.stringify({
+       items: {
+         type: "object",
+         properties: {
+-          group: { type: "string" },
+-          approxTime: { type: "string" },
+-          name: { type: "string" },
+-          time: { type: "string" },
+-          houseCode: { type: "string" },
++          group: {
++            type: "integer",
++            description: "Taxi, car or group number only. Extract only the integer, without notes or times.",
++          },
++          approxTime: {
++            type: "string",
++            description: "Approximate or estimated taxi arrival time, for example 10:00.",
++          },
++          name: {
++            type: "string",
++            description: "Passenger or guest name exactly as written.",
++          },
++          time: {
++            type: "string",
++            description: "Passenger departure, pickup or source time exactly as written.",
++          },
++          houseCode: {
++            type: "string",
++            description: "Room, house, hotel or accommodation value exactly as written.",
++          },
+         },
+         required: ["group", "approxTime", "name", "time", "houseCode"],
+       },
+@@ -122,7 +137,12 @@ async function createPrediction(
+           block_correction_prompt: [
+             "Extract the passenger table exactly as shown in the image.",
+             "Return one row per passenger.",
+-            "Keep names, times and room codes exactly as written.",
++            "Keep names, times and room or accommodation values exactly as written.",
++            "Column headers may use different wording. Identify columns by meaning, not exact header names.",
++            "group is only the taxi, car or group integer; if a cell says '1 (aprox 10:00)', group is 1.",
++            "approxTime is the estimated or approximate taxi arrival time.",
++            "time is the passenger departure, pickup or source time.",
++            "houseCode is the room, house, hotel or accommodation value.",
+             "Map the table to the fields group, approxTime, name, time and houseCode.",
+           ].join(" "),
+         },
+diff --git a/src/components/taxis/ImportRides.tsx b/src/components/taxis/ImportRides.tsx
+index c127a9c..b4f26cf 100644
+--- a/src/components/taxis/ImportRides.tsx
++++ b/src/components/taxis/ImportRides.tsx
+@@ -348,7 +348,8 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+         return;
+       }
+ 
+-      const group = Number(cells[0]);
++      const groupMatch = cells[0].match(/^\s*(\d+)/);
++      const group = groupMatch ? Number(groupMatch[1]) : Number.NaN;
+ 
+       if (!Number.isInteger(group) || group <= 0) {
+         validationErrors.push(`Row ${rowNumber}: ${strInvalidGroup}`);

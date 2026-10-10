@@ -2632,6 +2632,70 @@ input:focus-visible {
   overflow: hidden;
 }
 
+
+.ozen-import-image-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ozen-import-image-title {
+  color: #526156;
+  font-size: calc(12px + var(--ui-font-offset));
+  font-weight: 600;
+}
+
+.ozen-import-image-dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px dashed #cbd7cc;
+  border-radius: 10px;
+  background: #fafcf9;
+  color: #68756c;
+  font-size: calc(12px + var(--ui-font-offset));
+  line-height: 1.45;
+}
+
+.ozen-import-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ozen-import-image-input {
+  display: none;
+}
+
+.ozen-import-image-name,
+.ozen-import-image-disabled-note {
+  color: #8b968e;
+  font-size: calc(11px + var(--ui-font-offset));
+}
+
+.ozen-import-image-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ozen-import-image-preview-label {
+  color: #526156;
+  font-size: calc(12px + var(--ui-font-offset));
+  font-weight: 600;
+}
+
+.ozen-import-image-preview {
+  max-width: min(420px, 100%);
+  max-height: 320px;
+  border: 1px solid #dde5de;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #fff;
+}
+
 .ozen-import-warning {
   margin: 0 0 14px;
   padding: 10px 12px;

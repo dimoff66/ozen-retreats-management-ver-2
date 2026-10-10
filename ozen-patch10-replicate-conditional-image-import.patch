@@ -1,0 +1,654 @@
+diff --git a/src/app/api/taxi-import/capabilities/route.ts b/src/app/api/taxi-import/capabilities/route.ts
+new file mode 100644
+index 0000000..1e6dbc3
+--- /dev/null
++++ b/src/app/api/taxi-import/capabilities/route.ts
+@@ -0,0 +1,10 @@
++import { NextResponse } from "next/server";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++export async function GET() {
++  return NextResponse.json({
++    imageImportAvailable: Boolean(process.env.REPLICATE_API_TOKEN),
++  });
++}
+diff --git a/src/app/api/taxi-import/extract/route.ts b/src/app/api/taxi-import/extract/route.ts
+new file mode 100644
+index 0000000..6f35673
+--- /dev/null
++++ b/src/app/api/taxi-import/extract/route.ts
+@@ -0,0 +1,285 @@
++import { NextResponse } from "next/server";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024;
++const MARKER_SCHEMA = JSON.stringify({
++  type: "object",
++  properties: {
++    rows: {
++      type: "array",
++      items: {
++        type: "object",
++        properties: {
++          group: { type: "string" },
++          approxTime: { type: "string" },
++          name: { type: "string" },
++          time: { type: "string" },
++          houseCode: { type: "string" },
++        },
++        required: ["group", "approxTime", "name", "time", "houseCode"],
++      },
++    },
++  },
++  required: ["rows"],
++});
++
++type ReplicateFileResponse = {
++  id: string;
++  urls?: {
++    get?: string;
++  };
++};
++
++type ReplicatePredictionResponse = {
++  id: string;
++  status: string;
++  error?: string | null;
++  output?: {
++    extraction_schema_json?: string | null;
++  } | null;
++  urls?: {
++    get?: string;
++  };
++};
++
++type MarkerExtractionRows = {
++  rows?: Array<Record<string, unknown>>;
++};
++
++function getErrorMessage(error: unknown): string {
++  if (error instanceof Error) {
++    return error.message;
++  }
++
++  return "Unknown extraction error";
++}
++
++function ensureToken(): string {
++  const token = process.env.REPLICATE_API_TOKEN;
++
++  if (!token) {
++    throw new Error("Image import is not configured.");
++  }
++
++  return token;
++}
++
++async function replicateFetch(
++  token: string,
++  url: string,
++  init?: RequestInit
++): Promise<Response> {
++  const headers = new Headers(init?.headers);
++  headers.set("Authorization", `Bearer ${token}`);
++
++  return fetch(url, {
++    ...init,
++    headers,
++    cache: "no-store",
++  });
++}
++
++async function uploadFile(token: string, file: File): Promise<ReplicateFileResponse> {
++  const formData = new FormData();
++  formData.append("content", file, file.name || "taxi-import-image.png");
++
++  const response = await replicateFetch(token, "https://api.replicate.com/v1/files", {
++    method: "POST",
++    body: formData,
++  });
++
++  if (!response.ok) {
++    const errorText = await response.text();
++    throw new Error(`Replicate file upload failed: ${errorText}`);
++  }
++
++  return response.json() as Promise<ReplicateFileResponse>;
++}
++
++async function createPrediction(
++  token: string,
++  fileUrl: string
++): Promise<ReplicatePredictionResponse> {
++  const response = await replicateFetch(
++    token,
++    "https://api.replicate.com/v1/models/datalab-to/marker/predictions",
++    {
++      method: "POST",
++      headers: {
++        "Content-Type": "application/json",
++        Prefer: "wait=60",
++      },
++      body: JSON.stringify({
++        input: {
++          file: fileUrl,
++          mode: "accurate",
++          force_ocr: true,
++          use_llm: true,
++          disable_image_extraction: true,
++          page_schema: MARKER_SCHEMA,
++          block_correction_prompt: [
++            "Extract the passenger table exactly as shown in the image.",
++            "Return one row per passenger.",
++            "Keep names, times and room codes exactly as written.",
++            "Map the table to the fields group, approxTime, name, time and houseCode.",
++          ].join(" "),
++        },
++      }),
++    }
++  );
++
++  if (!response.ok) {
++    const errorText = await response.text();
++    throw new Error(`Replicate prediction failed: ${errorText}`);
++  }
++
++  return response.json() as Promise<ReplicatePredictionResponse>;
++}
++
++async function getPrediction(token: string, url: string): Promise<ReplicatePredictionResponse> {
++  const response = await replicateFetch(token, url);
++
++  if (!response.ok) {
++    const errorText = await response.text();
++    throw new Error(`Replicate prediction polling failed: ${errorText}`);
++  }
++
++  return response.json() as Promise<ReplicatePredictionResponse>;
++}
++
++async function waitForPrediction(
++  token: string,
++  prediction: ReplicatePredictionResponse
++): Promise<ReplicatePredictionResponse> {
++  let currentPrediction = prediction;
++
++  for (let index = 0; index < 15; index += 1) {
++    if (currentPrediction.status === "succeeded") {
++      return currentPrediction;
++    }
++
++    if (currentPrediction.status === "failed" || currentPrediction.status === "canceled") {
++      throw new Error(currentPrediction.error || "Replicate prediction failed.");
++    }
++
++    if (!currentPrediction.urls?.get) {
++      throw new Error("Replicate prediction polling URL is missing.");
++    }
++
++    await new Promise((resolve) => {
++      setTimeout(resolve, 2000);
++    });
++
++    currentPrediction = await getPrediction(token, currentPrediction.urls.get);
++  }
++
++  throw new Error("Replicate prediction timed out.");
++}
++
++async function deleteUploadedFile(token: string, fileId: string): Promise<void> {
++  await replicateFetch(token, `https://api.replicate.com/v1/files/${fileId}`, {
++    method: "DELETE",
++  });
++}
++
++function getStringCell(value: unknown): string {
++  if (typeof value === "string") {
++    return value.trim();
++  }
++
++  if (typeof value === "number") {
++    return String(value);
++  }
++
++  return "";
++}
++
++function convertExtractionToTsv(extractionSchemaJson: string | null | undefined): string {
++  if (!extractionSchemaJson) {
++    throw new Error("Replicate did not return extracted rows.");
++  }
++
++  const parsed = JSON.parse(extractionSchemaJson) as MarkerExtractionRows;
++  const rows = Array.isArray(parsed.rows) ? parsed.rows : [];
++
++  if (rows.length === 0) {
++    throw new Error("No taxi rows were found in the image.");
++  }
++
++  const header = ["group", "approxTime", "name", "time", "houseCode"].join("\t");
++  const body = rows.map((row) => (
++    [
++      getStringCell(row.group),
++      getStringCell(row.approxTime),
++      getStringCell(row.name),
++      getStringCell(row.time),
++      getStringCell(row.houseCode),
++    ].join("\t")
++  ));
++
++  return [header, ...body].join("\n");
++}
++
++export async function POST(request: Request) {
++  let uploadedFileId: string | null = null;
++
++  try {
++    const token = ensureToken();
++    const formData = await request.formData();
++    const image = formData.get("image");
++
++    if (!(image instanceof File)) {
++      return NextResponse.json({ error: "Image file is required." }, { status: 400 });
++    }
++
++    if (!image.type.startsWith("image/")) {
++      return NextResponse.json({ error: "Only image files are supported." }, { status: 400 });
++    }
++
++    if (image.size === 0) {
++      return NextResponse.json({ error: "The image file is empty." }, { status: 400 });
++    }
++
++    if (image.size > MAX_IMAGE_SIZE_BYTES) {
++      return NextResponse.json(
++        { error: "The image is too large. Maximum size is 4 MB." },
++        { status: 400 }
++      );
++    }
++
++    const uploadedFile = await uploadFile(token, image);
++    uploadedFileId = uploadedFile.id;
++    const fileUrl = uploadedFile.urls?.get;
++
++    if (!fileUrl) {
++      throw new Error("Replicate file URL is missing.");
++    }
++
++    const createdPrediction = await createPrediction(token, fileUrl);
++    const completedPrediction = await waitForPrediction(token, createdPrediction);
++    const text = convertExtractionToTsv(
++      completedPrediction.output?.extraction_schema_json
++    );
++
++    return NextResponse.json({ text });
++  } catch (error) {
++    return NextResponse.json(
++      { error: getErrorMessage(error) },
++      { status: 500 }
++    );
++  } finally {
++    if (uploadedFileId) {
++      const token = process.env.REPLICATE_API_TOKEN;
++
++      if (token) {
++        try {
++          await deleteUploadedFile(token, uploadedFileId);
++        } catch {
++          // Ignore cleanup errors.
++        }
++      }
++    }
++  }
++}
+diff --git a/src/app/globals.css b/src/app/globals.css
+index e6ce956..b97d008 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -2632,6 +2632,70 @@ input:focus-visible {
+   overflow: hidden;
+ }
+ 
++
++.ozen-import-image-section {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++  margin-bottom: 16px;
++}
++
++.ozen-import-image-title {
++  color: #526156;
++  font-size: calc(12px + var(--ui-font-offset));
++  font-weight: 600;
++}
++
++.ozen-import-image-dropzone {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++  padding: 14px;
++  border: 1px dashed #cbd7cc;
++  border-radius: 10px;
++  background: #fafcf9;
++  color: #68756c;
++  font-size: calc(12px + var(--ui-font-offset));
++  line-height: 1.45;
++}
++
++.ozen-import-image-actions {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++}
++
++.ozen-import-image-input {
++  display: none;
++}
++
++.ozen-import-image-name,
++.ozen-import-image-disabled-note {
++  color: #8b968e;
++  font-size: calc(11px + var(--ui-font-offset));
++}
++
++.ozen-import-image-preview-wrap {
++  display: flex;
++  flex-direction: column;
++  gap: 8px;
++}
++
++.ozen-import-image-preview-label {
++  color: #526156;
++  font-size: calc(12px + var(--ui-font-offset));
++  font-weight: 600;
++}
++
++.ozen-import-image-preview {
++  max-width: min(420px, 100%);
++  max-height: 320px;
++  border: 1px solid #dde5de;
++  border-radius: 10px;
++  object-fit: contain;
++  background: #fff;
++}
++
+ .ozen-import-warning {
+   margin: 0 0 14px;
+   padding: 10px 12px;
+diff --git a/src/components/taxis/ImportRides.tsx b/src/components/taxis/ImportRides.tsx
+index f71a2d6..507ac1f 100644
+--- a/src/components/taxis/ImportRides.tsx
++++ b/src/components/taxis/ImportRides.tsx
+@@ -1,7 +1,7 @@
+ 'use client';
+ 
+-import { useState } from "react";
+-import type { ChangeEvent } from "react";
++import { useEffect, useRef, useState } from "react";
++import type { ChangeEvent, ClipboardEvent, DragEvent } from "react";
+ import { useRetreat } from "@/contexts/RetreatContext";
+ import type { CreateTaxiRideBatch, Guest } from "@/services/database";
+ import dateService from "@/services/dateService";
+@@ -40,6 +40,10 @@ type GuestMatchData = {
+   roomLabel: string;
+ };
+ 
++type CapabilitiesResponse = {
++  imageImportAvailable: boolean;
++};
++
+ const normalizeName = (name: string): string => {
+   return name.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+ };
+@@ -96,6 +100,16 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+   const strTitle = "Import taxi rides";
+   const strExistingWarning = "All existing taxi rides for this retreat will be deleted when the import is saved.";
+   const strInputHelp = "Paste tab-separated data with columns: group, approxTime, name, time, houseCode.";
++  const strImageSection = "Or extract the table from an image.";
++  const strImageHint = "Paste an image with Ctrl+V, drag it here, or choose a file.";
++  const strChooseImage = "Choose image";
++  const strRemoveImage = "Remove image";
++  const strExtractText = "Extract text";
++  const strExtractingText = "Extracting...";
++  const strImageNotConfigured = "Image import is unavailable because REPLICATE_API_TOKEN is not configured.";
++  const strImageEmpty = "Select an image before extracting text.";
++  const strImageExtractError = "Failed to extract text from the image.";
++  const strSelectedImage = "Selected image";
+   const strNext = "Next";
+   const strBack = "Back";
+   const strCancel = "Cancel";
+@@ -123,11 +137,67 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+   const [isPreview, setIsPreview] = useState(false);
+   const [isSaving, setIsSaving] = useState(false);
+   const [error, setError] = useState("");
++  const [isImageImportAvailable, setIsImageImportAvailable] = useState(false);
++  const [isCheckingCapabilities, setIsCheckingCapabilities] = useState(true);
++  const [selectedImage, setSelectedImage] = useState<File | null>(null);
++  const [selectedImageUrl, setSelectedImageUrl] = useState("");
++  const [isExtractingText, setIsExtractingText] = useState(false);
++  const fileInputRef = useRef<HTMLInputElement | null>(null);
+   const guests = snapshot?.guests ?? [];
+   const rooms = snapshot?.rooms ?? [];
+   const houses = snapshot?.houses ?? [];
+   const hasExistingRides = (snapshot?.taxiRides.length ?? 0) > 0;
+ 
++  useEffect(() => {
++    let isMounted = true;
++
++    const loadCapabilities = async () => {
++      try {
++        const response = await fetch("/api/taxi-import/capabilities", {
++          cache: "no-store",
++        });
++
++        if (!response.ok) {
++          throw new Error("Failed to load capabilities");
++        }
++
++        const data = await response.json() as CapabilitiesResponse;
++
++        if (isMounted) {
++          setIsImageImportAvailable(Boolean(data.imageImportAvailable));
++        }
++      } catch {
++        if (isMounted) {
++          setIsImageImportAvailable(false);
++        }
++      } finally {
++        if (isMounted) {
++          setIsCheckingCapabilities(false);
++        }
++      }
++    };
++
++    void loadCapabilities();
++
++    return () => {
++      isMounted = false;
++    };
++  }, []);
++
++  useEffect(() => {
++    if (!selectedImage) {
++      setSelectedImageUrl("");
++      return;
++    }
++
++    const objectUrl = URL.createObjectURL(selectedImage);
++    setSelectedImageUrl(objectUrl);
++
++    return () => {
++      URL.revokeObjectURL(objectUrl);
++    };
++  }, [selectedImage]);
++
+   const getGuestRoomLabel = (guest: Guest): string => {
+     if (!guest.room_id) {
+       return "-";
+@@ -151,19 +221,115 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+     setError("");
+   };
+ 
++  const setImageFile = (file: File | null) => {
++    setSelectedImage(file);
++    setError("");
++  };
++
++  const onFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
++    const file = event.target.files?.[0] ?? null;
++    setImageFile(file);
++  };
++
++  const onChooseImageClick = () => {
++    fileInputRef.current?.click();
++  };
++
++  const onRemoveImageClick = () => {
++    setSelectedImage(null);
++
++    if (fileInputRef.current) {
++      fileInputRef.current.value = "";
++    }
++  };
++
++  const onImagePaste = (event: ClipboardEvent<HTMLDivElement>) => {
++    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith("image/"));
++
++    if (!imageItem) {
++      return;
++    }
++
++    const file = imageItem.getAsFile();
++
++    if (!file) {
++      return;
++    }
++
++    event.preventDefault();
++    setImageFile(file);
++  };
++
++  const onImageDrop = (event: DragEvent<HTMLDivElement>) => {
++    event.preventDefault();
++    const file = event.dataTransfer.files?.[0] ?? null;
++
++    if (!file || !file.type.startsWith("image/")) {
++      return;
++    }
++
++    setImageFile(file);
++  };
++
++  const onImageDragOver = (event: DragEvent<HTMLDivElement>) => {
++    event.preventDefault();
++  };
++
++  const onExtractTextClick = async () => {
++    if (isExtractingText) {
++      return;
++    }
++
++    if (!isImageImportAvailable) {
++      setError(strImageNotConfigured);
++      return;
++    }
++
++    if (!selectedImage) {
++      setError(strImageEmpty);
++      return;
++    }
++
++    const formData = new FormData();
++    formData.append("image", selectedImage);
++
++    setIsExtractingText(true);
++    setError("");
++
++    try {
++      const response = await fetch("/api/taxi-import/extract", {
++        method: "POST",
++        body: formData,
++      });
++      const data = await response.json() as { text?: string; error?: string };
++
++      if (!response.ok || !data.text) {
++        setError(data.error || strImageExtractError);
++        return;
++      }
++
++      setText(data.text);
++    } catch {
++      setError(strImageExtractError);
++    } finally {
++      setIsExtractingText(false);
++    }
++  };
++
+   const onNextClick = () => {
+     if (!retreat) {
+       return;
+     }
+ 
+-    const sourceLines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
++    const sourceLines = text.split(/?
++/).filter((line) => line.trim().length > 0);
+ 
+     if (sourceLines.length === 0) {
+       setError(strNoData);
+       return;
+     }
+ 
+-    const firstCells = sourceLines[0].split("\t").map((cell) => cell.trim().toLocaleLowerCase());
++    const firstCells = sourceLines[0].split("	").map((cell) => cell.trim().toLocaleLowerCase());
+     const lines = firstCells[0] === "group" && firstCells[2] === "name"
+       ? sourceLines.slice(1)
+       : sourceLines;
+@@ -175,7 +341,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+     const seenGroups = new Set<number>();
+ 
+     lines.forEach((line, index) => {
+-      const cells = line.split("\t").map((cell) => cell.trim());
++      const cells = line.split("	").map((cell) => cell.trim());
+       const rowNumber = index + 1;
+ 
+       if (cells.length < 5) {
+@@ -438,6 +604,34 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+         {!isPreview ? (
+           <div className="ozen-import-rides-body">
+             {hasExistingRides ? <p className="ozen-import-warning">{strExistingWarning}</p> : null}
++            {!isCheckingCapabilities && isImageImportAvailable ? (
++              <div className="ozen-import-image-section">
++                <span className="ozen-import-image-title">{strImageSection}</span>
++                <div
++                  tabIndex={0}
++                  onPaste={onImagePaste}
++                  onDrop={onImageDrop}
++                  onDragOver={onImageDragOver}
++                  className="ozen-import-image-dropzone"
++                >
++                  <span>{strImageHint}</span>
++                  <div className="ozen-import-image-actions">
++                    <button type="button" onClick={onChooseImageClick} className="ozen-action-button ozen-action-button-secondary">{strChooseImage}</button>
++                    <button type="button" onClick={onExtractTextClick} disabled={!selectedImage || isExtractingText} className="ozen-action-button ozen-action-button-primary">{isExtractingText ? strExtractingText : strExtractText}</button>
++                    {selectedImage ? <button type="button" onClick={onRemoveImageClick} className="ozen-action-button ozen-action-button-secondary">{strRemoveImage}</button> : null}
++                  </div>
++                  <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/jpg" onChange={onFileInputChange} className="ozen-import-image-input" />
++                  {selectedImage ? <span className="ozen-import-image-name">{selectedImage.name}</span> : null}
++                </div>
++                {selectedImageUrl ? (
++                  <div className="ozen-import-image-preview-wrap">
++                    <span className="ozen-import-image-preview-label">{strSelectedImage}</span>
++                    <img src={selectedImageUrl} alt={strSelectedImage} className="ozen-import-image-preview" />
++                  </div>
++                ) : null}
++              </div>
++            ) : null}
++            {!isCheckingCapabilities && !isImageImportAvailable ? <p className="ozen-import-image-disabled-note">{strImageNotConfigured}</p> : null}
+             <label className="ozen-form-field ozen-import-text-field">
+               <span>{strInputHelp}</span>
+               <textarea value={text} onChange={onTextChange} rows={18} spellCheck={false} />

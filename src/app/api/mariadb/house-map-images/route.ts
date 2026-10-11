@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/server/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,16 @@ export async function POST(request: Request) {
         { error: "MariaDB API is disabled" },
         { status: 503 }
       );
+    }
+
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
     }
 
     const formData = await request.formData();

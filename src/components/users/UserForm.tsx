@@ -45,7 +45,7 @@ export default function UserForm({
 
   const [name, setName] = useState(user?.name ?? "");
   const [login, setLogin] = useState(user?.login ?? "");
-  const [password, setPassword] = useState(user?.password ?? "");
+  const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [role, setRole] = useState(user?.role ?? roles[0]?.role_name ?? "");
   const [retreatId, setRetreatId] = useState(user?.retreat_id?.toString() ?? "");
@@ -113,7 +113,7 @@ export default function UserForm({
           <label htmlFor="user-login" className="ozen-form-field"><span>{strLogin}</span><input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" /></label>
           <div className="ozen-form-field">
             <label htmlFor="user-password">{strPassword}</label>
-            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" />
+            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" minLength={8} maxLength={256} />
             <label className="ozen-checkbox-field ozen-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
             {user ? <p className="ozen-field-note">{strPasswordOptional}</p> : null}
           </div>

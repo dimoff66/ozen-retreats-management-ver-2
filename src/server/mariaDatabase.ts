@@ -39,6 +39,18 @@ import type {
 import { getMariaDbPool } from "./mariaDbPool";
 
 type WritableRecord = Record<string, unknown>;
+type StoredUserRow = User & { password: string };
+
+function toPublicUser(user: StoredUserRow): User {
+  return {
+    id: user.id,
+    name: user.name,
+    login: user.login,
+    role: user.role,
+    retreat_id: user.retreat_id,
+    created_at: user.created_at,
+  };
+}
 
 const booleanColumns = new Set([
   "is_active",
@@ -301,26 +313,31 @@ const mariaDbServer = {
 
   users: {
     getAll: async (): Promise<User[]> => {
-      return selectMany<User>("select * from `users` order by name");
+      const users = await selectMany<StoredUserRow>("select * from `users` order by name");
+      return users.map(toPublicUser);
     },
 
     getById: async (id: number): Promise<User | null> => {
-      return selectOne<User>("select * from `users` where id = ? limit 1", [id]);
+      const user = await selectOne<StoredUserRow>("select * from `users` where id = ? limit 1", [id]);
+      return user ? toPublicUser(user) : null;
     },
 
     getByLogin: async (login: string): Promise<User | null> => {
-      return selectOne<User>(
+      const user = await selectOne<StoredUserRow>(
         "select * from `users` where login = ? limit 1",
         [login]
       );
+      return user ? toPublicUser(user) : null;
     },
 
     create: async (user: CreateUser): Promise<User> => {
-      return insertById<User>("users", user, userColumns);
+      const storedUser = await insertById<StoredUserRow>("users", user, userColumns);
+      return toPublicUser(storedUser);
     },
 
     update: async (id: number, changes: UpdateUser): Promise<User> => {
-      return updateById<User>("users", id, changes, userColumns);
+      const storedUser = await updateById<StoredUserRow>("users", id, changes, userColumns);
+      return toPublicUser(storedUser);
     },
 
     delete: async (id: number): Promise<void> => {

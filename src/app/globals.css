@@ -299,6 +299,31 @@ input:focus-visible {
   cursor: pointer;
 }
 
+.ozen-user-selector-static {
+  cursor: default;
+}
+
+.ozen-user-logout-button {
+  margin-left: 4px;
+  padding: 5px 8px;
+  border: 1px solid #dce4dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #657269;
+  font-size: calc(11px + var(--ui-font-offset));
+  cursor: pointer;
+}
+
+.ozen-user-logout-button:hover {
+  border-color: #bccbc0;
+  background: #f6f9f6;
+}
+
+.ozen-user-logout-button:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
 .ozen-mobile-user-menu {
   display: none;
   position: relative;
@@ -310,6 +335,67 @@ input:focus-visible {
 
 .ozen-font-settings-modal .ozen-form-body {
   padding: 18px 22px 20px;
+}
+
+
+.ozen-login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f5f8f5;
+}
+
+.ozen-login-card {
+  width: min(420px, 100%);
+  padding: 34px;
+  border: 1px solid #dfe6e0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 56px rgba(35, 52, 40, .12);
+}
+
+.ozen-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #3f5e49;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+}
+
+.ozen-login-brand-mark {
+  color: #6d9d79;
+}
+
+.ozen-login-heading {
+  margin: 28px 0 22px;
+}
+
+.ozen-login-heading h1 {
+  margin: 0;
+  color: #33463a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.ozen-login-heading p {
+  margin: 8px 0 0;
+  color: #7d8980;
+  font-size: calc(13px + var(--ui-font-offset));
+}
+
+.ozen-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ozen-login-submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
 }
 
 .ozen-user-avatar,
@@ -1370,6 +1456,23 @@ input:focus-visible {
     display: block;
     padding: 10px;
     color: #87928b;
+  }
+
+  .ozen-mobile-user-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 9px 10px 7px;
+  }
+
+  .ozen-mobile-user-identity strong {
+    color: #405247;
+    font-size: calc(13px + var(--ui-font-offset));
+  }
+
+  .ozen-mobile-user-identity small {
+    color: #87928b;
+    font-size: calc(11px + var(--ui-font-offset));
   }
 
   .ozen-mobile-user-option {
@@ -2669,6 +2772,35 @@ input:focus-visible {
   overflow: hidden;
 }
 
+
+.ozen-import-input-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border: 1px solid #e0e7e1;
+  border-radius: 9px;
+  background: #f7f9f7;
+}
+
+.ozen-import-input-tab {
+  min-width: 92px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #78827a;
+  font: inherit;
+  font-size: calc(12px + var(--ui-font-offset));
+  cursor: pointer;
+}
+
+.ozen-import-input-tab-active {
+  background: #fff;
+  color: #435448;
+  box-shadow: 0 1px 3px rgba(35, 52, 40, .12);
+  font-weight: 700;
+}
 
 .ozen-import-image-section {
   display: flex;

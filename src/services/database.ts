@@ -11,7 +11,6 @@ export type User = {
   id: number;
   name: string;
   login: string;
-  password: string;
   role: string;
   retreat_id: number | null;
   created_at: string;
@@ -221,6 +220,8 @@ export type CreateTaxiRideBatch = {
 |--------------------------------------------------------------------------
 */
 
+const USER_PUBLIC_COLUMNS = "id,name,login,role,retreat_id,created_at";
+
 function throwDatabaseError(
   operation: string,
   error: PostgrestError | null
@@ -282,7 +283,7 @@ const db = {
     getAll: async (): Promise<User[]> => {
       const { data, error } = await supabase
         .from("users")
-        .select("*")
+        .select(USER_PUBLIC_COLUMNS)
         .order("name");
 
       if (error) {
@@ -295,7 +296,7 @@ const db = {
     getById: async (id: number): Promise<User | null> => {
       const { data, error } = await supabase
         .from("users")
-        .select("*")
+        .select(USER_PUBLIC_COLUMNS)
         .eq("id", id)
         .maybeSingle();
 
@@ -309,7 +310,7 @@ const db = {
     getByLogin: async (login: string): Promise<User | null> => {
       const { data, error } = await supabase
         .from("users")
-        .select("*")
+        .select(USER_PUBLIC_COLUMNS)
         .eq("login", login)
         .maybeSingle();
 
@@ -324,7 +325,7 @@ const db = {
       const { data, error } = await supabase
         .from("users")
         .insert(user)
-        .select()
+        .select(USER_PUBLIC_COLUMNS)
         .single();
 
       if (error) {
@@ -342,7 +343,7 @@ const db = {
         .from("users")
         .update(changes)
         .eq("id", id)
-        .select()
+        .select(USER_PUBLIC_COLUMNS)
         .single();
 
       if (error) {

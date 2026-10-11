@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import mariaDbServer from "@/server/mariaDatabase";
+import { getAuthenticatedUser } from "@/server/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,9 @@ type MariaDbRequest = {
 };
 
 type AsyncOperation = (...args: never[]) => Promise<unknown>;
+
+const adminWriteEntities = new Set(["houses", "rooms", "houseMaps", "retreats", "retreatRooms"]);
+const adminWriteActions = new Set(["create", "update", "delete"]);
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -43,6 +47,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
     const body = await request.json() as unknown;
 
     if (!isMariaDbRequest(body)) {
@@ -50,6 +60,14 @@ export async function POST(request: Request) {
         { error: "Invalid MariaDB request" },
         { status: 400 }
       );
+    }
+
+    const requiresAdmin = body.entity === "users" ||
+      (body.entity === "taxiRides" && body.action === "createRides") ||
+      (adminWriteEntities.has(body.entity) && adminWriteActions.has(body.action));
+
+    if (requiresAdmin && user.role !== "admin") {
+      return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
     }
 
     const entities = mariaDbServer as unknown as Record<string, Record<string, unknown>>;

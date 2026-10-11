@@ -47,7 +47,7 @@ export default function UsersList() {
       ]);
 
       setLocalUsers(usersData);
-      setUsers(usersData);
+      setUsers(usersData.map((user) => ({ id: user.id, name: user.name })));
       setRoles(rolesData);
       setRetreats(retreatsData);
     } catch (error) {
@@ -165,7 +165,7 @@ export default function UsersList() {
         }
 
         setLocalUsers(usersData);
-        setUsers(usersData);
+        setUsers(usersData.map((user) => ({ id: user.id, name: user.name })));
         setRoles(rolesData);
         setRetreats(retreatsData);
       } catch (error) {

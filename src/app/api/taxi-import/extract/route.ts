@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/server/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -246,6 +247,16 @@ export async function POST(request: Request) {
   let uploadedFileId: string | null = null;
 
   try {
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
+    }
+
     const token = ensureToken();
     const formData = await request.formData();
     const image = formData.get("image");

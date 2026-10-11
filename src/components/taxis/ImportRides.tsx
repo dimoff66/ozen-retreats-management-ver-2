@@ -44,6 +44,8 @@ type CapabilitiesResponse = {
   imageImportAvailable: boolean;
 };
 
+type ImportInputTab = "image" | "text";
+
 const normalizeName = (name: string): string => {
   return name.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 };
@@ -100,7 +102,9 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   const strTitle = "Import taxi rides";
   const strExistingWarning = "All existing taxi rides for this retreat will be deleted when the import is saved.";
   const strInputHelp = "Paste tab-separated data with columns: group, approxTime, name, time, houseCode.";
-  const strImageSection = "Or extract the table from an image.";
+  const strImageTab = "Image";
+  const strTextTab = "Text";
+  const strImageSection = "Extract the table from an image.";
   const strImageHint = "Paste an image with Ctrl+V, drag it here, or choose a file.";
   const strChooseImage = "Choose image";
   const strRemoveImage = "Remove image";
@@ -110,6 +114,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   const strImageEmpty = "Select an image before extracting text.";
   const strImageExtractError = "Failed to extract text from the image.";
   const strSelectedImage = "Selected image";
+  const strSkipImage = "Skip image";
   const strNext = "Next";
   const strBack = "Back";
   const strCancel = "Cancel";
@@ -137,6 +142,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   const [isPreview, setIsPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [inputTab, setInputTab] = useState<ImportInputTab>("image");
   const [isImageImportAvailable, setIsImageImportAvailable] = useState(false);
   const [isCheckingCapabilities, setIsCheckingCapabilities] = useState(true);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -164,11 +170,17 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
         const data = await response.json() as CapabilitiesResponse;
 
         if (isMounted) {
-          setIsImageImportAvailable(Boolean(data.imageImportAvailable));
+          const imageImportAvailable = Boolean(data.imageImportAvailable);
+          setIsImageImportAvailable(imageImportAvailable);
+
+          if (!imageImportAvailable) {
+            setInputTab("text");
+          }
         }
       } catch {
         if (isMounted) {
           setIsImageImportAvailable(false);
+          setInputTab("text");
         }
       } finally {
         if (isMounted) {
@@ -275,6 +287,21 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
     event.preventDefault();
   };
 
+  const onImageTabClick = () => {
+    setInputTab("image");
+    setError("");
+  };
+
+  const onTextTabClick = () => {
+    setInputTab("text");
+    setError("");
+  };
+
+  const onSkipImageClick = () => {
+    setInputTab("text");
+    setError("");
+  };
+
   const onExtractTextClick = async () => {
     if (isExtractingText) {
       return;
@@ -309,6 +336,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
       }
 
       setText(data.text);
+      setInputTab("text");
     } catch {
       setError(strImageExtractError);
     } finally {
@@ -605,6 +633,12 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
           <div className="ozen-import-rides-body">
             {hasExistingRides ? <p className="ozen-import-warning">{strExistingWarning}</p> : null}
             {!isCheckingCapabilities && isImageImportAvailable ? (
+              <div className="ozen-import-input-tabs" role="tablist">
+                <button type="button" role="tab" aria-selected={inputTab === "image"} onClick={onImageTabClick} className={inputTab === "image" ? "ozen-import-input-tab ozen-import-input-tab-active" : "ozen-import-input-tab"}>{strImageTab}</button>
+                <button type="button" role="tab" aria-selected={inputTab === "text"} onClick={onTextTabClick} className={inputTab === "text" ? "ozen-import-input-tab ozen-import-input-tab-active" : "ozen-import-input-tab"}>{strTextTab}</button>
+              </div>
+            ) : null}
+            {!isCheckingCapabilities && isImageImportAvailable && inputTab === "image" ? (
               <div className="ozen-import-image-section">
                 <span className="ozen-import-image-title">{strImageSection}</span>
                 <div
@@ -619,6 +653,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
                     <button type="button" onClick={onChooseImageClick} className="ozen-action-button ozen-action-button-secondary">{strChooseImage}</button>
                     <button type="button" onClick={onExtractTextClick} disabled={!selectedImage || isExtractingText} className="ozen-action-button ozen-action-button-primary">{isExtractingText ? strExtractingText : strExtractText}</button>
                     {selectedImage ? <button type="button" onClick={onRemoveImageClick} className="ozen-action-button ozen-action-button-secondary">{strRemoveImage}</button> : null}
+                    <button type="button" onClick={onSkipImageClick} className="ozen-action-button ozen-action-button-secondary">{strSkipImage}</button>
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/jpg" onChange={onFileInputChange} className="ozen-import-image-input" />
                   {selectedImage ? <span className="ozen-import-image-name">{selectedImage.name}</span> : null}
@@ -629,14 +664,17 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
                     <img src={selectedImageUrl} alt={strSelectedImage} className="ozen-import-image-preview" />
                   </div>
                 ) : null}
+                {error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
               </div>
             ) : null}
+            {!isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") ? (
+              <label className="ozen-form-field ozen-import-text-field">
+                <span>{strInputHelp}</span>
+                <textarea value={text} onChange={onTextChange} rows={18} spellCheck={false} />
+              </label>
+            ) : null}
             {!isCheckingCapabilities && !isImageImportAvailable ? <p className="ozen-import-image-disabled-note">{strImageNotConfigured}</p> : null}
-            <label className="ozen-form-field ozen-import-text-field">
-              <span>{strInputHelp}</span>
-              <textarea value={text} onChange={onTextChange} rows={18} spellCheck={false} />
-            </label>
-            {error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
+            {!isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") && error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
           </div>
         ) : (
           <div className="ozen-import-rides-body ozen-import-preview-body">
@@ -705,9 +743,9 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
             {isPreview ? <button type="button" onClick={onBackClick} className="ozen-action-button ozen-action-button-secondary">{strBack}</button> : null}
             {isPreview ? (
               <button type="button" onClick={onSaveClick} disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{isSaving ? strSaving : strSave}</button>
-            ) : (
+            ) : !isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") ? (
               <button type="button" onClick={onNextClick} className="ozen-action-button ozen-action-button-primary">{strNext}</button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

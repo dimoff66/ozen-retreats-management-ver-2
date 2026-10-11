@@ -804,6 +804,14 @@ input:focus-visible {
   gap: 20px;
 }
 
+.ozen-card-group-main-title {
+  margin: 0 0 12px;
+  color: #405046;
+  font-size: calc(14px + var(--ui-font-offset));
+  font-weight: 700;
+  text-align: center;
+}
+
 .ozen-card-group-title {
   margin: 0 0 9px;
   color: #8f9992;
@@ -1947,10 +1955,39 @@ input:focus-visible {
   cursor: pointer;
 }
 
+.ozen-meeting-taxi-group-0 {
+  border-color: #d4e4d6;
+  background: #f1f7f2;
+}
+
+.ozen-meeting-taxi-group-1 {
+  border-color: #e7ddc7;
+  background: #f8f4e9;
+}
+
+.ozen-meeting-taxi-group-2 {
+  border-color: #cee1e8;
+  background: #eef6f8;
+}
+
+.ozen-meeting-taxi-group-3 {
+  border-color: #e5d2de;
+  background: #f8f0f5;
+}
+
+.ozen-meeting-taxi-group-4 {
+  border-color: #d9d5e8;
+  background: #f2f0f8;
+}
+
+.ozen-meeting-taxi-group-5 {
+  border-color: #e7d8ca;
+  background: #f8f2ec;
+}
+
 .ozen-meeting-taxi-card-selected {
-  border-color: #9fbaa5;
-  background: #f3f8f4;
-  box-shadow: 0 0 0 2px rgba(91, 133, 99, .08);
+  border-color: #70937a;
+  box-shadow: 0 0 0 2px rgba(91, 133, 99, .18), inset 0 0 0 1px rgba(91, 133, 99, .12);
 }
 
 .ozen-meeting-taxi-checkbox {

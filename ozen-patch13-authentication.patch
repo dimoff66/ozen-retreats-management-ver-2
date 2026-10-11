@@ -1,0 +1,1861 @@
+diff --git a/docs/authentication.md b/docs/authentication.md
+new file mode 100644
+index 0000000..705e22d
+--- /dev/null
++++ b/docs/authentication.md
+@@ -0,0 +1,55 @@
++# Authentication
++
++The application uses username/password authentication with a stateless seven-day
++session stored in an `HttpOnly` cookie.
++
++## Password storage
++
++No additional database column is required. The existing `users.password` column
++stores versioned `scrypt` hashes for new or changed passwords. Legacy plaintext
++passwords are accepted only during a successful login and are immediately replaced
++with a `scrypt` hash.
++
++The browser-facing `User` DTO never contains the password or password hash.
++
++## Required environment variables
++
++For every deployment:
++
++```env
++AUTH_SESSION_SECRET=<at-least-32-random-characters>
++```
++
++Generate a secret locally with:
++
++```bash
++node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
++```
++
++For Supabase deployments, authentication and user administration also require the
++server-only service role key:
++
++```env
++SUPABASE_SERVICE_ROLE_KEY=<server-only-service-role-key>
++```
++
++Never prefix either variable with `NEXT_PUBLIC_`.
++
++MariaDB deployments continue to use the existing `MARIADB_*` server variables.
++When `MARIADB_API_ENABLED=true`, authentication reads users from MariaDB.
++
++## Supabase migration
++
++Apply `supabase/migrations/202610100001_protect_user_password.sql`. It removes
++browser-role access to the password column and user mutations while preserving
++read access to the public user fields used by the application.
++
++## Login behavior
++
++The login screen never downloads or displays the database login list. After a
++successful login, that login is stored in the current browser's local storage and
++may appear later as a local input suggestion. Failed logins do not add anything to
++that list.
++
++Changing a user's password invalidates older session tokens because the session is
++bound to a fingerprint of the current stored password hash.
+diff --git a/docs/domain/database.md b/docs/domain/database.md
+index 36d95bb..5490084 100644
+--- a/docs/domain/database.md
++++ b/docs/domain/database.md
+@@ -20,6 +20,8 @@ created_at timestamptz
+ Администратор управляет пользователями через раздел Admin → Users. При создании
+ задаются имя, логин, пароль и роль; для organizer можно назначить ретрит.
+ При редактировании пустое поле пароля означает, что текущий пароль не меняется.
++`password` хранит версионированный `scrypt`-хэш; пароль в открытом виде после
++успешной аутентификации не сохраняется и не возвращается клиенту.
+ 
+ ## `roles`
+ 
+diff --git a/src/app/api/auth/login/route.ts b/src/app/api/auth/login/route.ts
+new file mode 100644
+index 0000000..254714d
+--- /dev/null
++++ b/src/app/api/auth/login/route.ts
+@@ -0,0 +1,55 @@
++import { NextResponse } from "next/server";
++import { hashPassword, isPasswordHash, verifyPassword } from "@/server/auth/password";
++import { setSessionCookie } from "@/server/auth/session";
++import authUserStore from "@/server/auth/userStore";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++const MAX_PASSWORD_LENGTH = 256;
++
++type LoginRequest = {
++  login?: unknown;
++  password?: unknown;
++};
++
++export async function POST(request: Request) {
++  try {
++    const body = await request.json() as LoginRequest;
++    const login = typeof body.login === "string" ? body.login.trim() : "";
++    const password = typeof body.password === "string" ? body.password : "";
++
++    if (!login || !password || password.length > MAX_PASSWORD_LENGTH) {
++      return NextResponse.json({ error: "Invalid login or password." }, { status: 401 });
++    }
++
++    let user = await authUserStore.getByLogin(login);
++
++    if (!user || !await verifyPassword(password, user.password)) {
++      return NextResponse.json({ error: "Invalid login or password." }, { status: 401 });
++    }
++
++    if (!isPasswordHash(user.password)) {
++      user = await authUserStore.update(user.id, {
++        password: await hashPassword(password),
++      });
++    }
++
++    const response = NextResponse.json({
++      user: {
++        id: user.id,
++        name: user.name,
++        login: user.login,
++        role: user.role,
++        retreat_id: user.retreat_id,
++        created_at: user.created_at,
++      },
++    });
++
++    setSessionCookie(response, user);
++    return response;
++  } catch (error) {
++    const message = error instanceof Error ? error.message : "Authentication failed.";
++    return NextResponse.json({ error: message }, { status: 500 });
++  }
++}
+diff --git a/src/app/api/auth/logout/route.ts b/src/app/api/auth/logout/route.ts
+new file mode 100644
+index 0000000..3bd94b8
+--- /dev/null
++++ b/src/app/api/auth/logout/route.ts
+@@ -0,0 +1,11 @@
++import { NextResponse } from "next/server";
++import { clearSessionCookie } from "@/server/auth/session";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++export async function POST() {
++  const response = NextResponse.json({ ok: true });
++  clearSessionCookie(response);
++  return response;
++}
+diff --git a/src/app/api/mariadb/house-map-images/route.ts b/src/app/api/mariadb/house-map-images/route.ts
+index 3cb1994..5bf6219 100644
+--- a/src/app/api/mariadb/house-map-images/route.ts
++++ b/src/app/api/mariadb/house-map-images/route.ts
+@@ -1,6 +1,7 @@
+ import { mkdir, writeFile } from "node:fs/promises";
+ import path from "node:path";
+ import { NextResponse } from "next/server";
++import { getAuthenticatedUser } from "@/server/auth/session";
+ 
+ export const runtime = "nodejs";
+ export const dynamic = "force-dynamic";
+@@ -50,6 +51,16 @@ export async function POST(request: Request) {
+       );
+     }
+ 
++    const user = await getAuthenticatedUser();
++
++    if (!user) {
++      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
++    }
++
++    if (user.role !== "admin") {
++      return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
++    }
++
+     const formData = await request.formData();
+     const houseIdValue = formData.get("houseId");
+     const fileValue = formData.get("file");
+diff --git a/src/app/api/mariadb/route.ts b/src/app/api/mariadb/route.ts
+index 349116a..52e3d51 100644
+--- a/src/app/api/mariadb/route.ts
++++ b/src/app/api/mariadb/route.ts
+@@ -1,5 +1,6 @@
+ import { NextResponse } from "next/server";
+ import mariaDbServer from "@/server/mariaDatabase";
++import { getAuthenticatedUser } from "@/server/auth/session";
+ 
+ export const runtime = "nodejs";
+ export const dynamic = "force-dynamic";
+@@ -12,6 +13,9 @@ type MariaDbRequest = {
+ 
+ type AsyncOperation = (...args: never[]) => Promise<unknown>;
+ 
++const adminWriteEntities = new Set(["houses", "rooms", "houseMaps", "retreats", "retreatRooms"]);
++const adminWriteActions = new Set(["create", "update", "delete"]);
++
+ function getErrorMessage(error: unknown): string {
+   if (error instanceof Error) {
+     return error.message;
+@@ -43,6 +47,12 @@ export async function POST(request: Request) {
+       );
+     }
+ 
++    const user = await getAuthenticatedUser();
++
++    if (!user) {
++      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
++    }
++
+     const body = await request.json() as unknown;
+ 
+     if (!isMariaDbRequest(body)) {
+@@ -52,6 +62,14 @@ export async function POST(request: Request) {
+       );
+     }
+ 
++    const requiresAdmin = body.entity === "users" ||
++      (body.entity === "taxiRides" && body.action === "createRides") ||
++      (adminWriteEntities.has(body.entity) && adminWriteActions.has(body.action));
++
++    if (requiresAdmin && user.role !== "admin") {
++      return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
++    }
++
+     const entities = mariaDbServer as unknown as Record<string, Record<string, unknown>>;
+ 
+     if (!Object.prototype.hasOwnProperty.call(entities, body.entity)) {
+diff --git a/src/app/api/taxi-import/capabilities/route.ts b/src/app/api/taxi-import/capabilities/route.ts
+index 1e6dbc3..eb1506f 100644
+--- a/src/app/api/taxi-import/capabilities/route.ts
++++ b/src/app/api/taxi-import/capabilities/route.ts
+@@ -1,10 +1,13 @@
+ import { NextResponse } from "next/server";
++import { getAuthenticatedUser } from "@/server/auth/session";
+ 
+ export const runtime = "nodejs";
+ export const dynamic = "force-dynamic";
+ 
+ export async function GET() {
++  const user = await getAuthenticatedUser();
++
+   return NextResponse.json({
+-    imageImportAvailable: Boolean(process.env.REPLICATE_API_TOKEN),
++    imageImportAvailable: user?.role === "admin" && Boolean(process.env.REPLICATE_API_TOKEN),
+   });
+ }
+diff --git a/src/app/api/taxi-import/extract/route.ts b/src/app/api/taxi-import/extract/route.ts
+index 9d48571..de9a0f7 100644
+--- a/src/app/api/taxi-import/extract/route.ts
++++ b/src/app/api/taxi-import/extract/route.ts
+@@ -1,4 +1,5 @@
+ import { NextResponse } from "next/server";
++import { getAuthenticatedUser } from "@/server/auth/session";
+ 
+ export const runtime = "nodejs";
+ export const dynamic = "force-dynamic";
+@@ -246,6 +247,16 @@ export async function POST(request: Request) {
+   let uploadedFileId: string | null = null;
+ 
+   try {
++    const user = await getAuthenticatedUser();
++
++    if (!user) {
++      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
++    }
++
++    if (user.role !== "admin") {
++      return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
++    }
++
+     const token = ensureToken();
+     const formData = await request.formData();
+     const image = formData.get("image");
+diff --git a/src/app/api/users/route.ts b/src/app/api/users/route.ts
+new file mode 100644
+index 0000000..d059828
+--- /dev/null
++++ b/src/app/api/users/route.ts
+@@ -0,0 +1,232 @@
++import { NextResponse } from "next/server";
++import type { CreateUser, UpdateUser } from "@/services/database";
++import { hashPassword } from "@/server/auth/password";
++import { getAuthenticatedStoredUser, setSessionCookie } from "@/server/auth/session";
++import authUserStore, { toPublicUser } from "@/server/auth/userStore";
++import type { StoredUser, StoredUserCreate, StoredUserUpdate } from "@/server/auth/userStore";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++const MIN_PASSWORD_LENGTH = 8;
++const MAX_PASSWORD_LENGTH = 256;
++
++type UpdateRequest = {
++  id?: unknown;
++  changes?: unknown;
++};
++
++type DeleteRequest = {
++  id?: unknown;
++};
++
++type AdminAuthResult =
++  | { user: StoredUser; response: null }
++  | { user: null; response: NextResponse };
++
++function getErrorMessage(error: unknown): string {
++  return error instanceof Error ? error.message : "User operation failed.";
++}
++
++function validatePassword(password: string): string | null {
++  if (password.length < MIN_PASSWORD_LENGTH) {
++    return `Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`;
++  }
++
++  if (password.length > MAX_PASSWORD_LENGTH) {
++    return `Password must contain no more than ${MAX_PASSWORD_LENGTH} characters.`;
++  }
++
++  return null;
++}
++
++function getUserFields(value: unknown): Omit<StoredUserCreate, "password"> | null {
++  if (!value || typeof value !== "object") {
++    return null;
++  }
++
++  const record = value as Record<string, unknown>;
++  const name = typeof record.name === "string" ? record.name.trim() : "";
++  const login = typeof record.login === "string" ? record.login.trim() : "";
++  const role = typeof record.role === "string" ? record.role.trim() : "";
++  const retreatId = record.retreat_id === null || record.retreat_id === undefined
++    ? null
++    : Number(record.retreat_id);
++
++  if (!name || !login || !role || (retreatId !== null && !Number.isInteger(retreatId))) {
++    return null;
++  }
++
++  return {
++    name,
++    login,
++    role,
++    retreat_id: retreatId,
++  };
++}
++
++async function getAdminUser(): Promise<AdminAuthResult> {
++  const user = await getAuthenticatedStoredUser();
++
++  if (!user) {
++    return { user: null, response: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
++  }
++
++  if (user.role !== "admin") {
++    return { user: null, response: NextResponse.json({ error: "Administrator access required." }, { status: 403 }) };
++  }
++
++  return { user, response: null };
++}
++
++export async function GET() {
++  try {
++    const auth = await getAdminUser();
++
++    if (auth.response) {
++      return auth.response;
++    }
++
++    return NextResponse.json({ data: await authUserStore.getAll() });
++  } catch (error) {
++    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
++  }
++}
++
++export async function POST(request: Request) {
++  try {
++    const auth = await getAdminUser();
++
++    if (auth.response) {
++      return auth.response;
++    }
++
++    const body = await request.json() as CreateUser;
++    const fields = getUserFields(body);
++    const password = typeof body.password === "string" ? body.password : "";
++    const passwordError = validatePassword(password);
++
++    if (!fields) {
++      return NextResponse.json({ error: "Invalid user data." }, { status: 400 });
++    }
++
++    if (passwordError) {
++      return NextResponse.json({ error: passwordError }, { status: 400 });
++    }
++
++    const storedUser = await authUserStore.create({
++      ...fields,
++      password: await hashPassword(password),
++    });
++    return NextResponse.json({ data: toPublicUser(storedUser) });
++  } catch (error) {
++    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
++  }
++}
++
++export async function PATCH(request: Request) {
++  try {
++    const auth = await getAdminUser();
++
++    if (auth.response) {
++      return auth.response;
++    }
++
++    const body = await request.json() as UpdateRequest;
++    const id = Number(body.id);
++
++    if (!Number.isInteger(id) || !body.changes || typeof body.changes !== "object") {
++      return NextResponse.json({ error: "Invalid user update." }, { status: 400 });
++    }
++
++    const input = body.changes as UpdateUser;
++    const changes: StoredUserUpdate = {};
++
++    if (input.name !== undefined) {
++      const name = input.name.trim();
++
++      if (!name) {
++        return NextResponse.json({ error: "Name is required." }, { status: 400 });
++      }
++
++      changes.name = name;
++    }
++
++    if (input.login !== undefined) {
++      const login = input.login.trim();
++
++      if (!login) {
++        return NextResponse.json({ error: "Login is required." }, { status: 400 });
++      }
++
++      changes.login = login;
++    }
++
++    if (input.role !== undefined) {
++      const role = input.role.trim();
++
++      if (!role) {
++        return NextResponse.json({ error: "Role is required." }, { status: 400 });
++      }
++
++      changes.role = role;
++    }
++
++    if (input.retreat_id !== undefined) {
++      const retreatId = input.retreat_id === null ? null : Number(input.retreat_id);
++
++      if (retreatId !== null && !Number.isInteger(retreatId)) {
++        return NextResponse.json({ error: "Invalid retreat." }, { status: 400 });
++      }
++
++      changes.retreat_id = retreatId;
++    }
++
++    if (input.password !== undefined) {
++      const passwordError = validatePassword(input.password);
++
++      if (passwordError) {
++        return NextResponse.json({ error: passwordError }, { status: 400 });
++      }
++
++      changes.password = await hashPassword(input.password);
++    }
++
++    const storedUser = await authUserStore.update(id, changes);
++    const response = NextResponse.json({ data: toPublicUser(storedUser) });
++
++    if (auth.user.id === storedUser.id) {
++      setSessionCookie(response, storedUser);
++    }
++
++    return response;
++  } catch (error) {
++    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
++  }
++}
++
++export async function DELETE(request: Request) {
++  try {
++    const auth = await getAdminUser();
++
++    if (auth.response) {
++      return auth.response;
++    }
++
++    const body = await request.json() as DeleteRequest;
++    const id = Number(body.id);
++
++    if (!Number.isInteger(id)) {
++      return NextResponse.json({ error: "Invalid user id." }, { status: 400 });
++    }
++
++    if (id === auth.user.id) {
++      return NextResponse.json({ error: "You cannot delete your own user." }, { status: 400 });
++    }
++
++    await authUserStore.delete(id);
++    return NextResponse.json({ data: null });
++  } catch (error) {
++    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
++  }
++}
+diff --git a/src/app/globals.css b/src/app/globals.css
+index f98945b..f9123fd 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -299,6 +299,31 @@ input:focus-visible {
+   cursor: pointer;
+ }
+ 
++.ozen-user-selector-static {
++  cursor: default;
++}
++
++.ozen-user-logout-button {
++  margin-left: 4px;
++  padding: 5px 8px;
++  border: 1px solid #dce4dd;
++  border-radius: 6px;
++  background: #fff;
++  color: #657269;
++  font-size: calc(11px + var(--ui-font-offset));
++  cursor: pointer;
++}
++
++.ozen-user-logout-button:hover {
++  border-color: #bccbc0;
++  background: #f6f9f6;
++}
++
++.ozen-user-logout-button:disabled {
++  opacity: .6;
++  cursor: default;
++}
++
+ .ozen-mobile-user-menu {
+   display: none;
+   position: relative;
+@@ -312,6 +337,67 @@ input:focus-visible {
+   padding: 18px 22px 20px;
+ }
+ 
++
++.ozen-login-screen {
++  min-height: 100vh;
++  display: grid;
++  place-items: center;
++  padding: 24px;
++  background: #f5f8f5;
++}
++
++.ozen-login-card {
++  width: min(420px, 100%);
++  padding: 34px;
++  border: 1px solid #dfe6e0;
++  border-radius: 14px;
++  background: #fff;
++  box-shadow: 0 20px 56px rgba(35, 52, 40, .12);
++}
++
++.ozen-login-brand {
++  display: flex;
++  align-items: center;
++  gap: 9px;
++  color: #3f5e49;
++  font-family: Georgia, "Times New Roman", serif;
++  font-size: 20px;
++}
++
++.ozen-login-brand-mark {
++  color: #6d9d79;
++}
++
++.ozen-login-heading {
++  margin: 28px 0 22px;
++}
++
++.ozen-login-heading h1 {
++  margin: 0;
++  color: #33463a;
++  font-family: Georgia, "Times New Roman", serif;
++  font-size: 30px;
++  font-weight: 500;
++}
++
++.ozen-login-heading p {
++  margin: 8px 0 0;
++  color: #7d8980;
++  font-size: calc(13px + var(--ui-font-offset));
++}
++
++.ozen-login-form {
++  display: flex;
++  flex-direction: column;
++  gap: 16px;
++}
++
++.ozen-login-submit {
++  width: 100%;
++  justify-content: center;
++  margin-top: 4px;
++}
++
+ .ozen-user-avatar,
+ .ozen-guest-avatar {
+   display: grid;
+@@ -1372,6 +1458,23 @@ input:focus-visible {
+     color: #87928b;
+   }
+ 
++  .ozen-mobile-user-identity {
++    display: flex;
++    flex-direction: column;
++    gap: 2px;
++    padding: 9px 10px 7px;
++  }
++
++  .ozen-mobile-user-identity strong {
++    color: #405247;
++    font-size: calc(13px + var(--ui-font-offset));
++  }
++
++  .ozen-mobile-user-identity small {
++    color: #87928b;
++    font-size: calc(11px + var(--ui-font-offset));
++  }
++
+   .ozen-mobile-user-option {
+     display: block;
+     width: 100%;
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 5b99ee0..3395c5d 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,10 +1,24 @@
+ import AppShell from "@/components/layout/AppShell";
++import LoginScreen from "@/components/layout/LoginScreen";
+ import { CurrentUserProvider } from "@/contexts/CurrentUserContext";
++import { getAuthenticatedUser } from "@/server/auth/session";
++import authUserStore from "@/server/auth/userStore";
++
++export const dynamic = "force-dynamic";
++
++export default async function HomePage() {
++  const user = await getAuthenticatedUser();
++
++  if (!user) {
++    return <LoginScreen />;
++  }
++
++  const users = await authUserStore.getAll();
++  const userDirectory = users.map((item) => ({ id: item.id, name: item.name }));
+ 
+-export default function HomePage() {
+   return (
+-    <CurrentUserProvider>
++    <CurrentUserProvider initialUser={user} initialUsers={userDirectory}>
+       <AppShell />
+     </CurrentUserProvider>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/src/components/layout/LoginScreen.tsx b/src/components/layout/LoginScreen.tsx
+new file mode 100644
+index 0000000..3415b80
+--- /dev/null
++++ b/src/components/layout/LoginScreen.tsx
+@@ -0,0 +1,147 @@
++'use client';
++
++import { useEffect, useState } from "react";
++import type { ChangeEvent, SyntheticEvent } from "react";
++
++const KNOWN_LOGINS_STORAGE_KEY = "ozen-known-logins";
++const MAX_SAVED_LOGINS = 8;
++
++type LoginResponse = {
++  error?: string;
++};
++
++function readKnownLogins(): string[] {
++  try {
++    const value = window.localStorage.getItem(KNOWN_LOGINS_STORAGE_KEY);
++    const parsed = value ? JSON.parse(value) as unknown : [];
++
++    if (!Array.isArray(parsed)) {
++      return [];
++    }
++
++    return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
++  } catch {
++    return [];
++  }
++}
++
++function saveKnownLogin(login: string): void {
++  const existing = readKnownLogins().filter((item) => item !== login);
++  const next = [login, ...existing].slice(0, MAX_SAVED_LOGINS);
++  window.localStorage.setItem(KNOWN_LOGINS_STORAGE_KEY, JSON.stringify(next));
++}
++
++export default function LoginScreen() {
++  const strTitle = "Sign in";
++  const strCaption = "Enter your login and password.";
++  const strLogin = "Login";
++  const strPassword = "Password";
++  const strSignIn = "Sign in";
++  const strSigningIn = "Signing in...";
++  const strLoginError = "Invalid login or password.";
++  const [login, setLogin] = useState("");
++  const [password, setPassword] = useState("");
++  const [knownLogins, setKnownLogins] = useState<string[]>([]);
++  const [error, setError] = useState("");
++  const [isSubmitting, setIsSubmitting] = useState(false);
++
++  useEffect(() => {
++    const savedLogins = readKnownLogins();
++    setKnownLogins(savedLogins);
++    setLogin(savedLogins[0] ?? "");
++  }, []);
++
++  const onLoginChange = (event: ChangeEvent<HTMLInputElement>) => {
++    setLogin(event.target.value);
++    setError("");
++  };
++
++  const onPasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
++    setPassword(event.target.value);
++    setError("");
++  };
++
++  const onSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
++    event.preventDefault();
++
++    if (isSubmitting) {
++      return;
++    }
++
++    setIsSubmitting(true);
++    setError("");
++
++    try {
++      const response = await fetch("/api/auth/login", {
++        method: "POST",
++        headers: {
++          "Content-Type": "application/json",
++        },
++        body: JSON.stringify({ login: login.trim(), password }),
++      });
++      const data = await response.json() as LoginResponse;
++
++      if (!response.ok) {
++        setError(response.status === 401 ? strLoginError : data.error || strLoginError);
++        return;
++      }
++
++      const normalizedLogin = login.trim();
++      saveKnownLogin(normalizedLogin);
++      window.location.reload();
++    } catch {
++      setError(strLoginError);
++    } finally {
++      setIsSubmitting(false);
++    }
++  };
++
++  return (
++    <main className="ozen-login-screen">
++      <section className="ozen-login-card">
++        <div className="ozen-login-brand">
++          <span className="ozen-login-brand-mark">✦</span>
++          <strong>ozen</strong>
++        </div>
++        <div className="ozen-login-heading">
++          <h1>{strTitle}</h1>
++          <p>{strCaption}</p>
++        </div>
++        <form onSubmit={onSubmit} className="ozen-login-form">
++          <label htmlFor="login-name" className="ozen-form-field">
++            <span>{strLogin}</span>
++            <input
++              id="login-name"
++              value={login}
++              onChange={onLoginChange}
++              list={knownLogins.length > 0 ? "known-logins" : undefined}
++              autoComplete="username"
++              required
++            />
++          </label>
++          {knownLogins.length > 0 ? (
++            <datalist id="known-logins">
++              {knownLogins.map((knownLogin) => <option key={knownLogin} value={knownLogin} />)}
++            </datalist>
++          ) : null}
++          <label htmlFor="login-password" className="ozen-form-field">
++            <span>{strPassword}</span>
++            <input
++              id="login-password"
++              type="password"
++              value={password}
++              onChange={onPasswordChange}
++              autoComplete="current-password"
++              maxLength={256}
++              required
++            />
++          </label>
++          {error ? <div role="alert" className="ozen-state-message ozen-state-error">{error}</div> : null}
++          <button type="submit" disabled={isSubmitting} className="ozen-action-button ozen-action-button-primary ozen-login-submit">
++            {isSubmitting ? strSigningIn : strSignIn}
++          </button>
++        </form>
++      </section>
++    </main>
++  );
++}
+diff --git a/src/components/layout/UserSelector.tsx b/src/components/layout/UserSelector.tsx
+index 40d8343..839e637 100644
+--- a/src/components/layout/UserSelector.tsx
++++ b/src/components/layout/UserSelector.tsx
+@@ -11,46 +11,24 @@ import { useCurrentUser } from "@/contexts/CurrentUserContext";
+ 
+ export default function UserSelector() {
+   const strCurrentUser = "Current user";
+-  const strLoading = "Loading users...";
+-  const strLoadError = "Failed to load users.";
+   const strMobileMenu = "User menu";
+-  const strUsers = "Users";
+   const strSettings = "Settings";
+   const strFontSettings = "Settings";
+   const strFontSize = "Font size";
+   const strDefaultFontSize = "Default";
+   const strClose = "Close";
+-
+-  const {
+-    users,
+-    currentUser,
+-    setCurrentUser,
+-    isLoadingUsers,
+-    usersLoadError,
+-  } = useCurrentUser();
++  const strLogout = "Log out";
++  const strLoggingOut = "Logging out...";
++  const { currentUser } = useCurrentUser();
+   const { fontLevel, setFontLevel } = useFontSizeSettings();
+   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+   const [isFontSettingsOpen, setIsFontSettingsOpen] = useState(false);
+-
+-  const onUserChange = (event: ChangeEvent<HTMLSelectElement>) => {
+-    const userId = Number(event.target.value);
+-    const user = users.find((item) => item.id === userId);
+-
+-    if (!user) {
+-      return;
+-    }
+-
+-    setCurrentUser(user);
+-  };
++  const [isLoggingOut, setIsLoggingOut] = useState(false);
+ 
+   const onMobileMenuToggle = () => {
+     setIsMobileMenuOpen((isOpen) => !isOpen);
+   };
+ 
+-  const onMobileMenuClose = () => {
+-    setIsMobileMenuOpen(false);
+-  };
+-
+   const onSettingsClick = () => {
+     setIsMobileMenuOpen(false);
+     setIsFontSettingsOpen(true);
+@@ -64,6 +42,20 @@ export default function UserSelector() {
+     setFontLevel(Number(event.target.value));
+   };
+ 
++  const onLogoutClick = async () => {
++    if (isLoggingOut) {
++      return;
++    }
++
++    setIsLoggingOut(true);
++
++    try {
++      await fetch("/api/auth/logout", { method: "POST" });
++    } finally {
++      window.location.reload();
++    }
++  };
++
+   useEffect(() => {
+     if (!isFontSettingsOpen) {
+       return;
+@@ -79,25 +71,6 @@ export default function UserSelector() {
+     return () => window.removeEventListener("keydown", onKeyDown);
+   }, [isFontSettingsOpen]);
+ 
+-  const userOptions = users.map((user) => {
+-    return {
+-      id: user.id,
+-      label: `${user.name} (${user.role})`,
+-    };
+-  });
+-  const mobileUserRows = users.map((user) => {
+-    const onClickHandler = () => {
+-      setCurrentUser(user);
+-      onMobileMenuClose();
+-    };
+-
+-    return {
+-      id: user.id,
+-      name: user.name,
+-      isSelected: currentUser?.id === user.id,
+-      onClickHandler,
+-    };
+-  });
+   const fontLevelOptions = Array.from({ length: maxFontLevel - minFontLevel + 1 }, (_, index) => {
+     const level = minFontLevel + index;
+ 
+@@ -106,12 +79,12 @@ export default function UserSelector() {
+       label: level === minFontLevel ? strDefaultFontSize : `+${level} px`,
+     };
+   });
+-  const initials = currentUser?.name
++  const initials = currentUser.name
+     .split(" ")
+     .map((part) => part[0])
+     .join("")
+     .slice(0, 2)
+-    .toUpperCase() ?? "";
++    .toUpperCase();
+ 
+   return (
+     <>
+@@ -128,46 +101,24 @@ export default function UserSelector() {
+         </button>
+         {isMobileMenuOpen ? (
+           <div className="ozen-mobile-user-dropdown" role="group" aria-label={strMobileMenu}>
+-            <span className="ozen-mobile-user-menu-heading">{strUsers}</span>
+-            {isLoadingUsers ? <span className="ozen-mobile-user-state">{strLoading}</span> : null}
+-            {usersLoadError ? <span className="ozen-mobile-user-state ozen-user-message-error">{strLoadError}</span> : null}
+-            {!isLoadingUsers && !usersLoadError ? mobileUserRows.map((user) => (
+-                <button
+-                  key={user.id}
+-                  type="button"
+-                  aria-current={user.isSelected ? "true" : undefined}
+-                  className={user.isSelected ? "ozen-mobile-user-option ozen-mobile-user-option-active" : "ozen-mobile-user-option"}
+-                  onClick={user.onClickHandler}
+-                >
+-                  {user.name}
+-                </button>
+-              )) : null}
++            <div className="ozen-mobile-user-identity">
++              <strong>{currentUser.name}</strong>
++              <small>{currentUser.role}</small>
++            </div>
+             <div className="ozen-mobile-user-menu-divider" />
+-            <button type="button" className="ozen-mobile-user-option" onClick={onSettingsClick}>
+-              {strSettings}
+-            </button>
++            <button type="button" className="ozen-mobile-user-option" onClick={onSettingsClick}>{strSettings}</button>
++            <button type="button" className="ozen-mobile-user-option" onClick={onLogoutClick} disabled={isLoggingOut}>{isLoggingOut ? strLoggingOut : strLogout}</button>
+           </div>
+         ) : null}
+       </div>
+-      {isLoadingUsers ? (
+-        <div className="ozen-user-message">{strLoading}</div>
+-      ) : usersLoadError ? (
+-        <div className="ozen-user-message ozen-user-message-error">{strLoadError}</div>
+-      ) : (
+-        <label className="ozen-user-selector" aria-label={strCurrentUser}>
+-          <span className="ozen-user-avatar">{initials}</span>
+-          <span className="ozen-user-copy">
+-            <strong>{currentUser?.name}</strong>
+-            <small>{currentUser?.role}</small>
+-          </span>
+-          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7"><path d="m6 8 4 4 4-4" /></svg>
+-          <select value={currentUser?.id ?? ""} onChange={onUserChange}>
+-            {userOptions.map((user) => (
+-              <option key={user.id} value={user.id}>{user.label}</option>
+-            ))}
+-          </select>
+-        </label>
+-      )}
++      <div className="ozen-user-selector ozen-user-selector-static" aria-label={strCurrentUser}>
++        <span className="ozen-user-avatar">{initials}</span>
++        <span className="ozen-user-copy">
++          <strong>{currentUser.name}</strong>
++          <small>{currentUser.role}</small>
++        </span>
++        <button type="button" onClick={onLogoutClick} disabled={isLoggingOut} className="ozen-user-logout-button">{isLoggingOut ? strLoggingOut : strLogout}</button>
++      </div>
+       {isFontSettingsOpen ? (
+         <div className="ozen-modal-backdrop">
+           <div
+diff --git a/src/components/users/UserForm.tsx b/src/components/users/UserForm.tsx
+index ca605c2..0a793f1 100644
+--- a/src/components/users/UserForm.tsx
++++ b/src/components/users/UserForm.tsx
+@@ -45,7 +45,7 @@ export default function UserForm({
+ 
+   const [name, setName] = useState(user?.name ?? "");
+   const [login, setLogin] = useState(user?.login ?? "");
+-  const [password, setPassword] = useState(user?.password ?? "");
++  const [password, setPassword] = useState("");
+   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+   const [role, setRole] = useState(user?.role ?? roles[0]?.role_name ?? "");
+   const [retreatId, setRetreatId] = useState(user?.retreat_id?.toString() ?? "");
+@@ -113,7 +113,7 @@ export default function UserForm({
+           <label htmlFor="user-login" className="ozen-form-field"><span>{strLogin}</span><input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" /></label>
+           <div className="ozen-form-field">
+             <label htmlFor="user-password">{strPassword}</label>
+-            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" />
++            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" minLength={8} maxLength={256} />
+             <label className="ozen-checkbox-field ozen-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
+             {user ? <p className="ozen-field-note">{strPasswordOptional}</p> : null}
+           </div>
+diff --git a/src/components/users/UsersList.tsx b/src/components/users/UsersList.tsx
+index 533c182..9ef3ba9 100644
+--- a/src/components/users/UsersList.tsx
++++ b/src/components/users/UsersList.tsx
+@@ -47,7 +47,7 @@ export default function UsersList() {
+       ]);
+ 
+       setLocalUsers(usersData);
+-      setUsers(usersData);
++      setUsers(usersData.map((user) => ({ id: user.id, name: user.name })));
+       setRoles(rolesData);
+       setRetreats(retreatsData);
+     } catch (error) {
+@@ -165,7 +165,7 @@ export default function UsersList() {
+         }
+ 
+         setLocalUsers(usersData);
+-        setUsers(usersData);
++        setUsers(usersData.map((user) => ({ id: user.id, name: user.name })));
+         setRoles(rolesData);
+         setRetreats(retreatsData);
+       } catch (error) {
+diff --git a/src/contexts/CurrentUserContext.tsx b/src/contexts/CurrentUserContext.tsx
+index 1d95885..7286baf 100644
+--- a/src/contexts/CurrentUserContext.tsx
++++ b/src/contexts/CurrentUserContext.tsx
+@@ -1,76 +1,35 @@
+ 'use client';
+ 
+-import {
+-  createContext,
+-  useContext,
+-  useEffect,
+-  useState,
+-} from "react";
++import { createContext, useContext, useState } from "react";
+ import type { ReactNode } from "react";
+ import type { User } from "@/services/database";
+-import usersService from "@/services/usersService";
++
++export type UserDirectoryEntry = {
++  id: number;
++  name: string;
++};
+ 
+ type CurrentUserContextValue = {
+-  users: User[];
+-  currentUser: User | null;
+-  setUsers: (users: User[]) => void;
++  users: UserDirectoryEntry[];
++  currentUser: User;
++  setUsers: (users: UserDirectoryEntry[]) => void;
+   setCurrentUser: (user: User) => void;
+-  isLoadingUsers: boolean;
+-  usersLoadError: boolean;
+ };
+ 
+ type CurrentUserProviderProps = {
+   children: ReactNode;
++  initialUser: User;
++  initialUsers: UserDirectoryEntry[];
+ };
+ 
+ const CurrentUserContext = createContext<CurrentUserContextValue | null>(null);
+ 
+-export function CurrentUserProvider({
+-  children,
+-}: CurrentUserProviderProps) {
+-  const [users, setUsers] = useState<User[]>([]);
+-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+-  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+-  const [usersLoadError, setUsersLoadError] = useState(false);
+-
+-  const loadUsers = async () => {
+-    setIsLoadingUsers(true);
+-    setUsersLoadError(false);
+-
+-    try {
+-      const data = await usersService.getUsers();
+-
+-      setUsers(data);
+-
+-      const admin = data.find(
+-        (user) => user.login === "admin" && user.role === "admin"
+-      );
+-
+-      const defaultUser = admin ?? data[0] ?? null;
+-
+-      setCurrentUser(defaultUser);
+-    } catch {
+-      setUsersLoadError(true);
+-    } finally {
+-      setIsLoadingUsers(false);
+-    }
+-  };
+-
+-  useEffect(() => {
+-    loadUsers();
+-  }, []);
+-
+-  const value: CurrentUserContextValue = {
+-    users,
+-    currentUser,
+-    setUsers,
+-    setCurrentUser,
+-    isLoadingUsers,
+-    usersLoadError,
+-  };
++export function CurrentUserProvider({ children, initialUser, initialUsers }: CurrentUserProviderProps) {
++  const [users, setUsers] = useState<UserDirectoryEntry[]>(initialUsers);
++  const [currentUser, setCurrentUser] = useState<User>(initialUser);
+ 
+   return (
+-    <CurrentUserContext.Provider value={value}>
++    <CurrentUserContext.Provider value={{ users, currentUser, setUsers, setCurrentUser }}>
+       {children}
+     </CurrentUserContext.Provider>
+   );
+@@ -80,10 +39,8 @@ export function useCurrentUser(): CurrentUserContextValue {
+   const context = useContext(CurrentUserContext);
+ 
+   if (!context) {
+-    throw new Error(
+-      "useCurrentUser must be used inside CurrentUserProvider."
+-    );
++    throw new Error("useCurrentUser must be used inside CurrentUserProvider.");
+   }
+ 
+   return context;
+-}
+\ No newline at end of file
++}
+diff --git a/src/server/auth/password.ts b/src/server/auth/password.ts
+new file mode 100644
+index 0000000..d21af38
+--- /dev/null
++++ b/src/server/auth/password.ts
+@@ -0,0 +1,79 @@
++import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
++
++const HASH_PREFIX = "scrypt$v1";
++const KEY_LENGTH = 64;
++const SCRYPT_N = 32768;
++const SCRYPT_R = 8;
++const SCRYPT_P = 3;
++const SCRYPT_MAX_MEMORY = 128 * 1024 * 1024;
++
++function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
++  return new Promise((resolve, reject) => {
++    scrypt(
++      password,
++      salt,
++      KEY_LENGTH,
++      {
++        N: SCRYPT_N,
++        r: SCRYPT_R,
++        p: SCRYPT_P,
++        maxmem: SCRYPT_MAX_MEMORY,
++      },
++      (error, derivedKey) => {
++        if (error) {
++          reject(error);
++          return;
++        }
++
++        resolve(derivedKey);
++      }
++    );
++  });
++}
++
++export function isPasswordHash(value: string): boolean {
++  return value.startsWith(`${HASH_PREFIX}$`);
++}
++
++export async function hashPassword(password: string): Promise<string> {
++  const salt = randomBytes(16);
++  const derivedKey = await deriveKey(password, salt);
++
++  return [
++    HASH_PREFIX,
++    String(SCRYPT_N),
++    String(SCRYPT_R),
++    String(SCRYPT_P),
++    salt.toString("base64url"),
++    derivedKey.toString("base64url"),
++  ].join("$");
++}
++
++export async function verifyPassword(password: string, storedPassword: string): Promise<boolean> {
++  if (!isPasswordHash(storedPassword)) {
++    const provided = Buffer.from(password);
++    const stored = Buffer.from(storedPassword);
++
++    return provided.length === stored.length && timingSafeEqual(provided, stored);
++  }
++
++  const parts = storedPassword.split("$");
++
++  if (parts.length !== 7) {
++    return false;
++  }
++
++  const n = Number(parts[2]);
++  const r = Number(parts[3]);
++  const p = Number(parts[4]);
++  const salt = Buffer.from(parts[5], "base64url");
++  const expectedKey = Buffer.from(parts[6], "base64url");
++
++  if (n !== SCRYPT_N || r !== SCRYPT_R || p !== SCRYPT_P || expectedKey.length !== KEY_LENGTH) {
++    return false;
++  }
++
++  const actualKey = await deriveKey(password, salt);
++
++  return actualKey.length === expectedKey.length && timingSafeEqual(actualKey, expectedKey);
++}
+diff --git a/src/server/auth/session.ts b/src/server/auth/session.ts
+new file mode 100644
+index 0000000..0289734
+--- /dev/null
++++ b/src/server/auth/session.ts
+@@ -0,0 +1,148 @@
++import { createHash, createHmac, timingSafeEqual } from "node:crypto";
++import { cookies } from "next/headers";
++import type { NextResponse } from "next/server";
++import type { User } from "@/services/database";
++import authUserStore, { toPublicUser } from "@/server/auth/userStore";
++import type { StoredUser } from "@/server/auth/userStore";
++
++const SESSION_COOKIE_NAME = "ozen_session";
++const SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60;
++
++type SessionPayload = {
++  userId: number;
++  passwordVersion: string;
++  expiresAt: number;
++};
++
++function getSessionSecret(): string {
++  const secret = process.env.AUTH_SESSION_SECRET;
++
++  if (!secret || secret.length < 32) {
++    throw new Error("AUTH_SESSION_SECRET must contain at least 32 characters.");
++  }
++
++  return secret;
++}
++
++function getPasswordVersion(password: string): string {
++  return createHash("sha256").update(password).digest("base64url");
++}
++
++function signPayload(encodedPayload: string): string {
++  return createHmac("sha256", getSessionSecret())
++    .update(encodedPayload)
++    .digest("base64url");
++}
++
++function createSessionToken(user: StoredUser): string {
++  const payload: SessionPayload = {
++    userId: user.id,
++    passwordVersion: getPasswordVersion(user.password),
++    expiresAt: Math.floor(Date.now() / 1000) + SESSION_DURATION_SECONDS,
++  };
++  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
++  const signature = signPayload(encodedPayload);
++
++  return `${encodedPayload}.${signature}`;
++}
++
++function parseSessionToken(token: string): SessionPayload | null {
++  const [encodedPayload, signature, extra] = token.split(".");
++
++  if (!encodedPayload || !signature || extra !== undefined) {
++    return null;
++  }
++
++  const expectedSignature = signPayload(encodedPayload);
++  const actualBuffer = Buffer.from(signature);
++  const expectedBuffer = Buffer.from(expectedSignature);
++
++  if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
++    return null;
++  }
++
++  try {
++    const payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8")) as Partial<SessionPayload>;
++
++    if (
++      typeof payload.userId !== "number" ||
++      typeof payload.passwordVersion !== "string" ||
++      typeof payload.expiresAt !== "number" ||
++      payload.expiresAt <= Math.floor(Date.now() / 1000)
++    ) {
++      return null;
++    }
++
++    return payload as SessionPayload;
++  } catch {
++    return null;
++  }
++}
++
++export function setSessionCookie(response: NextResponse, user: StoredUser): void {
++  const token = createSessionToken(user);
++
++  response.cookies.set(SESSION_COOKIE_NAME, token, {
++    httpOnly: true,
++    secure: process.env.NODE_ENV === "production",
++    sameSite: "lax",
++    maxAge: SESSION_DURATION_SECONDS,
++    path: "/",
++  });
++}
++
++export function clearSessionCookie(response: NextResponse): void {
++  response.cookies.set(SESSION_COOKIE_NAME, "", {
++    httpOnly: true,
++    secure: process.env.NODE_ENV === "production",
++    sameSite: "lax",
++    maxAge: 0,
++    path: "/",
++  });
++}
++
++export async function getAuthenticatedUser(): Promise<User | null> {
++  const cookieStore = await cookies();
++  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
++
++  if (!token) {
++    return null;
++  }
++
++  const payload = parseSessionToken(token);
++
++  if (!payload) {
++    return null;
++  }
++
++  const user = await authUserStore.getById(payload.userId);
++
++  if (!user || payload.passwordVersion !== getPasswordVersion(user.password)) {
++    return null;
++  }
++
++  return toPublicUser(user);
++}
++
++export async function getAuthenticatedStoredUser(): Promise<StoredUser | null> {
++  const cookieStore = await cookies();
++  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
++
++  if (!token) {
++    return null;
++  }
++
++  const payload = parseSessionToken(token);
++
++  if (!payload) {
++    return null;
++  }
++
++  const user = await authUserStore.getById(payload.userId);
++
++  if (!user || payload.passwordVersion !== getPasswordVersion(user.password)) {
++    return null;
++  }
++
++  return user;
++}
+diff --git a/src/server/auth/userStore.ts b/src/server/auth/userStore.ts
+new file mode 100644
+index 0000000..300debf
+--- /dev/null
++++ b/src/server/auth/userStore.ts
+@@ -0,0 +1,245 @@
++import { createClient } from "@supabase/supabase-js";
++import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
++import type { User } from "@/services/database";
++import { getMariaDbPool } from "@/server/mariaDbPool";
++
++export type StoredUser = User & {
++  password: string;
++};
++
++export type StoredUserCreate = {
++  name: string;
++  login: string;
++  password: string;
++  role: string;
++  retreat_id: number | null;
++};
++
++export type StoredUserUpdate = Partial<StoredUserCreate>;
++
++export function toPublicUser(user: StoredUser): User {
++  return {
++    id: user.id,
++    name: user.name,
++    login: user.login,
++    role: user.role,
++    retreat_id: user.retreat_id,
++    created_at: user.created_at,
++  };
++}
++
++const PUBLIC_USER_COLUMNS = "id,name,login,role,retreat_id,created_at";
++const PRIVATE_USER_COLUMNS = "id,name,login,password,role,retreat_id,created_at";
++
++function useMariaDb(): boolean {
++  return process.env.MARIADB_API_ENABLED === "true";
++}
++
++function getSupabaseServerClient() {
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
++  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
++
++  if (!url) {
++    throw new Error("NEXT_PUBLIC_SUPABASE_URL is not defined.");
++  }
++
++  if (!key) {
++    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not defined.");
++  }
++
++  return createClient(url, key, {
++    auth: {
++      persistSession: false,
++      autoRefreshToken: false,
++    },
++  });
++}
++
++function toUser(row: Record<string, unknown>): User {
++  return {
++    id: Number(row.id),
++    name: String(row.name),
++    login: String(row.login),
++    role: String(row.role),
++    retreat_id: row.retreat_id === null ? null : Number(row.retreat_id),
++    created_at: String(row.created_at),
++  };
++}
++
++function toStoredUser(row: Record<string, unknown>): StoredUser {
++  return {
++    ...toUser(row),
++    password: String(row.password),
++  };
++}
++
++function getMariaRow(row: RowDataPacket): Record<string, unknown> {
++  return row as Record<string, unknown>;
++}
++
++async function getMariaStoredUserById(id: number): Promise<StoredUser | null> {
++  const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(
++    `select ${PRIVATE_USER_COLUMNS} from \`users\` where id = ? limit 1`,
++    [id]
++  );
++
++  return rows[0] ? toStoredUser(getMariaRow(rows[0])) : null;
++}
++
++async function getMariaStoredUserByLogin(login: string): Promise<StoredUser | null> {
++  const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(
++    `select ${PRIVATE_USER_COLUMNS} from \`users\` where login = ? limit 1`,
++    [login]
++  );
++
++  return rows[0] ? toStoredUser(getMariaRow(rows[0])) : null;
++}
++
++const authUserStore = {
++  getAll: async (): Promise<User[]> => {
++    if (useMariaDb()) {
++      const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(
++        `select ${PUBLIC_USER_COLUMNS} from \`users\` order by name`
++      );
++
++      return rows.map((row) => toUser(getMariaRow(row)));
++    }
++
++    const { data, error } = await getSupabaseServerClient()
++      .from("users")
++      .select(PUBLIC_USER_COLUMNS)
++      .order("name");
++
++    if (error) {
++      throw new Error(`Failed to get users: ${error.message}`);
++    }
++
++    return (data ?? []).map((row) => toUser(row));
++  },
++
++  getById: async (id: number): Promise<StoredUser | null> => {
++    if (useMariaDb()) {
++      return getMariaStoredUserById(id);
++    }
++
++    const { data, error } = await getSupabaseServerClient()
++      .from("users")
++      .select(PRIVATE_USER_COLUMNS)
++      .eq("id", id)
++      .maybeSingle();
++
++    if (error) {
++      throw new Error(`Failed to get user: ${error.message}`);
++    }
++
++    return data ? toStoredUser(data) : null;
++  },
++
++  getByLogin: async (login: string): Promise<StoredUser | null> => {
++    if (useMariaDb()) {
++      return getMariaStoredUserByLogin(login);
++    }
++
++    const { data, error } = await getSupabaseServerClient()
++      .from("users")
++      .select(PRIVATE_USER_COLUMNS)
++      .eq("login", login)
++      .maybeSingle();
++
++    if (error) {
++      throw new Error(`Failed to get user by login: ${error.message}`);
++    }
++
++    return data ? toStoredUser(data) : null;
++  },
++
++  create: async (user: StoredUserCreate): Promise<StoredUser> => {
++    if (useMariaDb()) {
++      const [result] = await getMariaDbPool().execute<ResultSetHeader>(
++        "insert into `users` (name, login, password, role, retreat_id) values (?, ?, ?, ?, ?)",
++        [user.name, user.login, user.password, user.role, user.retreat_id]
++      );
++      const storedUser = await getMariaStoredUserById(result.insertId);
++
++      if (!storedUser) {
++        throw new Error("Failed to read created user.");
++      }
++
++      return storedUser;
++    }
++
++    const { data, error } = await getSupabaseServerClient()
++      .from("users")
++      .insert(user)
++      .select(PRIVATE_USER_COLUMNS)
++      .single();
++
++    if (error) {
++      throw new Error(`Failed to create user: ${error.message}`);
++    }
++
++    return toStoredUser(data);
++  },
++
++  update: async (id: number, changes: StoredUserUpdate): Promise<StoredUser> => {
++    if (useMariaDb()) {
++      const entries = Object.entries(changes).filter(([, value]) => value !== undefined);
++
++      if (entries.length > 0) {
++        const allowedColumns = new Set(["name", "login", "password", "role", "retreat_id"]);
++        const filteredEntries = entries.filter(([key]) => allowedColumns.has(key));
++        const assignments = filteredEntries.map(([key]) => `\`${key}\` = ?`).join(", ");
++        const values = filteredEntries.map(([, value]) => value);
++
++        if (assignments) {
++          await getMariaDbPool().execute<ResultSetHeader>(
++            `update \`users\` set ${assignments} where id = ?`,
++            [...values, id]
++          );
++        }
++      }
++
++      const storedUser = await getMariaStoredUserById(id);
++
++      if (!storedUser) {
++        throw new Error(`User ${id} was not found.`);
++      }
++
++      return storedUser;
++    }
++
++    const { data, error } = await getSupabaseServerClient()
++      .from("users")
++      .update(changes)
++      .eq("id", id)
++      .select(PRIVATE_USER_COLUMNS)
++      .single();
++
++    if (error) {
++      throw new Error(`Failed to update user: ${error.message}`);
++    }
++
++    return toStoredUser(data);
++  },
++
++  delete: async (id: number): Promise<void> => {
++    if (useMariaDb()) {
++      await getMariaDbPool().execute<ResultSetHeader>(
++        "delete from `users` where id = ?",
++        [id]
++      );
++      return;
++    }
++
++    const { error } = await getSupabaseServerClient()
++      .from("users")
++      .delete()
++      .eq("id", id);
++
++    if (error) {
++      throw new Error(`Failed to delete user: ${error.message}`);
++    }
++  },
++};
++
++export default authUserStore;
+diff --git a/src/server/mariaDatabase.ts b/src/server/mariaDatabase.ts
+index 2613a62..078fffe 100644
+--- a/src/server/mariaDatabase.ts
++++ b/src/server/mariaDatabase.ts
+@@ -39,6 +39,18 @@ import type {
+ import { getMariaDbPool } from "./mariaDbPool";
+ 
+ type WritableRecord = Record<string, unknown>;
++type StoredUserRow = User & { password: string };
++
++function toPublicUser(user: StoredUserRow): User {
++  return {
++    id: user.id,
++    name: user.name,
++    login: user.login,
++    role: user.role,
++    retreat_id: user.retreat_id,
++    created_at: user.created_at,
++  };
++}
+ 
+ const booleanColumns = new Set([
+   "is_active",
+@@ -301,26 +313,31 @@ const mariaDbServer = {
+ 
+   users: {
+     getAll: async (): Promise<User[]> => {
+-      return selectMany<User>("select * from `users` order by name");
++      const users = await selectMany<StoredUserRow>("select * from `users` order by name");
++      return users.map(toPublicUser);
+     },
+ 
+     getById: async (id: number): Promise<User | null> => {
+-      return selectOne<User>("select * from `users` where id = ? limit 1", [id]);
++      const user = await selectOne<StoredUserRow>("select * from `users` where id = ? limit 1", [id]);
++      return user ? toPublicUser(user) : null;
+     },
+ 
+     getByLogin: async (login: string): Promise<User | null> => {
+-      return selectOne<User>(
++      const user = await selectOne<StoredUserRow>(
+         "select * from `users` where login = ? limit 1",
+         [login]
+       );
++      return user ? toPublicUser(user) : null;
+     },
+ 
+     create: async (user: CreateUser): Promise<User> => {
+-      return insertById<User>("users", user, userColumns);
++      const storedUser = await insertById<StoredUserRow>("users", user, userColumns);
++      return toPublicUser(storedUser);
+     },
+ 
+     update: async (id: number, changes: UpdateUser): Promise<User> => {
+-      return updateById<User>("users", id, changes, userColumns);
++      const storedUser = await updateById<StoredUserRow>("users", id, changes, userColumns);
++      return toPublicUser(storedUser);
+     },
+ 
+     delete: async (id: number): Promise<void> => {
+diff --git a/src/services/database.ts b/src/services/database.ts
+index c37ee29..24f94a9 100644
+--- a/src/services/database.ts
++++ b/src/services/database.ts
+@@ -11,7 +11,6 @@ export type User = {
+   id: number;
+   name: string;
+   login: string;
+-  password: string;
+   role: string;
+   retreat_id: number | null;
+   created_at: string;
+@@ -221,6 +220,8 @@ export type CreateTaxiRideBatch = {
+ |--------------------------------------------------------------------------
+ */
+ 
++const USER_PUBLIC_COLUMNS = "id,name,login,role,retreat_id,created_at";
++
+ function throwDatabaseError(
+   operation: string,
+   error: PostgrestError | null
+@@ -282,7 +283,7 @@ const db = {
+     getAll: async (): Promise<User[]> => {
+       const { data, error } = await supabase
+         .from("users")
+-        .select("*")
++        .select(USER_PUBLIC_COLUMNS)
+         .order("name");
+ 
+       if (error) {
+@@ -295,7 +296,7 @@ const db = {
+     getById: async (id: number): Promise<User | null> => {
+       const { data, error } = await supabase
+         .from("users")
+-        .select("*")
++        .select(USER_PUBLIC_COLUMNS)
+         .eq("id", id)
+         .maybeSingle();
+ 
+@@ -309,7 +310,7 @@ const db = {
+     getByLogin: async (login: string): Promise<User | null> => {
+       const { data, error } = await supabase
+         .from("users")
+-        .select("*")
++        .select(USER_PUBLIC_COLUMNS)
+         .eq("login", login)
+         .maybeSingle();
+ 
+@@ -324,7 +325,7 @@ const db = {
+       const { data, error } = await supabase
+         .from("users")
+         .insert(user)
+-        .select()
++        .select(USER_PUBLIC_COLUMNS)
+         .single();
+ 
+       if (error) {
+@@ -342,7 +343,7 @@ const db = {
+         .from("users")
+         .update(changes)
+         .eq("id", id)
+-        .select()
++        .select(USER_PUBLIC_COLUMNS)
+         .single();
+ 
+       if (error) {
+diff --git a/src/services/usersService.ts b/src/services/usersService.ts
+index 0e19d1d..99fbd45 100644
+--- a/src/services/usersService.ts
++++ b/src/services/usersService.ts
+@@ -1,30 +1,44 @@
+-import db from "./database";
+ import type { CreateUser, UpdateUser, User } from "./database";
+ 
++type UsersApiResponse<T> = {
++  data?: T;
++  error?: string;
++};
++
++async function requestUsersApi<T>(method: string, body?: unknown): Promise<T> {
++  const response = await fetch("/api/users", {
++    method,
++    headers: body === undefined ? undefined : {
++      "Content-Type": "application/json",
++    },
++    body: body === undefined ? undefined : JSON.stringify(body),
++    cache: "no-store",
++  });
++  const payload = await response.json() as UsersApiResponse<T>;
++
++  if (!response.ok) {
++    throw new Error(payload.error ?? "User operation failed.");
++  }
++
++  return payload.data as T;
++}
++
+ const usersService = {
+   getUsers: async (): Promise<User[]> => {
+-    return db.users.getAll();
++    return requestUsersApi<User[]>("GET");
+   },
+ 
+   createUser: async (user: CreateUser): Promise<User> => {
+-    return db.users.create(user);
++    return requestUsersApi<User>("POST", user);
+   },
+ 
+   updateUser: async (id: number, changes: UpdateUser): Promise<User> => {
+-    return db.users.update(id, changes);
++    return requestUsersApi<User>("PATCH", { id, changes });
+   },
+ 
+   deleteUser: async (id: number): Promise<void> => {
+-    return db.users.delete(id);
+-  },
+-
+-  getUserById: async (id: number): Promise<User | null> => {
+-    return db.users.getById(id);
+-  },
+-
+-  getUserByLogin: async (login: string): Promise<User | null> => {
+-    return db.users.getByLogin(login);
++    await requestUsersApi<null>("DELETE", { id });
+   },
+ };
+ 
+-export default usersService;
+\ No newline at end of file
++export default usersService;
+diff --git a/supabase/migrations/202610100001_protect_user_password.sql b/supabase/migrations/202610100001_protect_user_password.sql
+new file mode 100644
+index 0000000..a7cb6c7
+--- /dev/null
++++ b/supabase/migrations/202610100001_protect_user_password.sql
+@@ -0,0 +1,15 @@
++-- Authentication keeps credentials server-side. Browser clients may read only
++-- the non-sensitive user directory fields required by the existing UI.
++-- User creation, updates and deletes are performed by authenticated Next.js
++-- server routes using SUPABASE_SERVICE_ROLE_KEY.
++
++revoke all privileges on table public.users from anon, authenticated;
++
++grant select (
++  id,
++  name,
++  login,
++  role,
++  retreat_id,
++  created_at
++) on table public.users to anon, authenticated;

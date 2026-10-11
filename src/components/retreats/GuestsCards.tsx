@@ -85,7 +85,16 @@ export default function GuestsCards<T extends GuestCardRow>({
   const sortedGroups = [...groups.values()].sort((left, right) =>
     left.index - right.index || left.label.localeCompare(right.label)
   );
+  let previousMainLabel = "";
   const preparedGroups = sortedGroups.map((group) => {
+    const separatorIndex = group.label.indexOf("|");
+    const hasCompositeLabel = separatorIndex >= 0;
+    const mainLabel = hasCompositeLabel ? group.label.slice(0, separatorIndex).trim() : "";
+    const label = hasCompositeLabel ? group.label.slice(separatorIndex + 1).trim() : group.label;
+    const showMainLabel = mainLabel.length > 0 && mainLabel !== previousMainLabel;
+
+    previousMainLabel = mainLabel;
+
     const rows = group.rows.map(({ guest, actionButton }) => {
       const initials = guest.guest.name
         .split(" ")
@@ -115,6 +124,9 @@ export default function GuestsCards<T extends GuestCardRow>({
 
     return {
       ...group,
+      label,
+      mainLabel,
+      showMainLabel,
       rows,
     };
   });
@@ -138,8 +150,9 @@ export default function GuestsCards<T extends GuestCardRow>({
       {guests.length === 0 ? <p className="ozen-empty-message">{emptyMessage}</p> : (
         <div className="ozen-card-groups">
           {preparedGroups.map((group) => (
-            <section key={`${group.index}:${group.label}`} className="ozen-card-group">
-              {group.label ? <h3 className="ozen-card-group-title">{group.label}</h3> : null}
+            <section key={`${group.index}:${group.mainLabel}:${group.label}`} className="ozen-card-group">
+              {group.showMainLabel ? <h3 className="ozen-card-group-main-title">{group.mainLabel}</h3> : null}
+              {group.label ? <h4 className="ozen-card-group-title">{group.label}</h4> : null}
               <div className="ozen-guest-card-grid">
                 {group.rows.map(({ guest, actionButton, initials, menuActions }) => (
                   <article key={guest.guest.id} className="ozen-guest-card">

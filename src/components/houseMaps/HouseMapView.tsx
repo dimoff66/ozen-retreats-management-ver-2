@@ -33,6 +33,12 @@ type MapAction = {
   onClickHandler: () => void;
 };
 
+type RoomSelectionTarget = {
+  guestId: number | null;
+  name: string;
+  roomId: number | null;
+};
+
 type HouseMapViewProps = {
   openMode?: HouseMapOpenMode;
   guest?: Guest | null;
@@ -40,6 +46,8 @@ type HouseMapViewProps = {
   onRoomSelectActionClick?: (room: Room) => Promise<void>;
   onGuestSwapActionClick?: (guest: Guest) => Promise<void>;
   onCancelActionClick?: () => void;
+  roomSelectionTarget?: RoomSelectionTarget | null;
+  showRoomSelectionList?: boolean;
   showTitle?: boolean;
 };
 
@@ -50,6 +58,8 @@ export default function HouseMapView({
   onRoomSelectActionClick,
   onGuestSwapActionClick,
   onCancelActionClick,
+  roomSelectionTarget = null,
+  showRoomSelectionList = true,
   showTitle = true,
 }: HouseMapViewProps) {
   const strTitle = "House map";
@@ -90,8 +100,9 @@ export default function HouseMapView({
     not_coming: strStatusNotComing,
   };
 
+  const hasExternalRoomSelection = requestedSelectionMode === "room" && roomSelectionTarget !== null;
   const initialSelectionMode: SelectionMode =
-    openMode === "selection" && guest ? requestedSelectionMode : null;
+    openMode === "selection" && (guest || hasExternalRoomSelection) ? requestedSelectionMode : null;
 
   const { currentUser: user } = useCurrentUser();
   const {
@@ -311,22 +322,26 @@ export default function HouseMapView({
     }
   };
 
+  const selectionGuestId = actionGuest?.id ?? roomSelectionTarget?.guestId ?? null;
+  const selectionRoomId = actionGuest?.room_id ?? roomSelectionTarget?.roomId ?? null;
+  const selectionGuestName = actionGuest?.name ?? roomSelectionTarget?.name ?? "";
+  const hasRoomSelectionTarget = actionGuest !== null || roomSelectionTarget !== null;
   const selectableRooms = retreatRoomsService.getSelectableRooms(
     rooms,
     retreatRooms,
     guests,
     statuses,
-    actionGuest?.id ?? null
+    selectionGuestId
   );
 
   const selectableRoomIds = new Set(selectableRooms.map((room) => room.id));
 
   const canSelectRoom = (room: Room): boolean => {
-    if (selectionMode !== "room" || !actionGuest) {
+    if (selectionMode !== "room" || !hasRoomSelectionTarget) {
       return false;
     }
 
-    if (actionGuest.room_id === room.id) {
+    if (selectionRoomId === room.id) {
       return false;
     }
 
@@ -360,7 +375,7 @@ export default function HouseMapView({
   };
 
   const onRoomSelected = async (room: Room) => {
-    if (isSelectionPending || selectionMode !== "room" || !actionGuest || !canSelectRoom(room)) {
+    if (isSelectionPending || selectionMode !== "room" || !canSelectRoom(room)) {
       return;
     }
 
@@ -371,6 +386,10 @@ export default function HouseMapView({
       if (openMode === "selection" && onRoomSelectActionClick) {
         await onRoomSelectActionClick(room);
         return;
+      }
+
+      if (!actionGuest) {
+        throw new Error(strActionError);
       }
 
       await updateGuest(actionGuest.id, { room_id: room.id });
@@ -832,8 +851,8 @@ export default function HouseMapView({
 
   let selectionText = "";
 
-  if (selectionMode === "room" && actionGuest) {
-    selectionText = `${strSelectRoom} ${actionGuest.name}`;
+  if (selectionMode === "room" && selectionGuestName) {
+    selectionText = `${strSelectRoom} ${selectionGuestName}`;
   }
 
   if (selectionMode === "guest" && actionGuest) {
@@ -964,7 +983,7 @@ export default function HouseMapView({
                 </div>
               )}
             </section>
-          ) : (
+          ) : showRoomSelectionList ? (
             <section className="min-h-0 flex-1 overflow-auto">
               <h3 className="mb-3 text-lg font-semibold">{strRooms}</h3>
               {roomSelectionGroups.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (
@@ -1016,7 +1035,7 @@ export default function HouseMapView({
                 </div>
               )}
             </section>
-          )}
+          ) : null}
         </>
       ) : null}
       {isActionsOpen ? (

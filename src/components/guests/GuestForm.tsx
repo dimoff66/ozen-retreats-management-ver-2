@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { ChangeEvent, SyntheticEvent } from "react";
-import type { CreateGuest, Guest, House, RetreatRoom, Room } from "@/services/database";
+import HouseMapView from "@/components/houseMaps/HouseMapView";
+import type { CreateGuest, Guest, House, Room } from "@/services/database";
 import roomsService from "@/services/roomsService";
 
 type GuestFormProps = {
@@ -10,7 +11,6 @@ type GuestFormProps = {
   retreatId: number;
   houses: House[];
   rooms: Room[];
-  retreatRooms: RetreatRoom[];
   onSaveActionClick: (data: CreateGuest) => Promise<void>;
   onCancelActionClick: () => void;
 };
@@ -20,7 +20,6 @@ export default function GuestForm({
   retreatId,
   houses,
   rooms,
-  retreatRooms,
   onSaveActionClick,
   onCancelActionClick,
 }: GuestFormProps) {
@@ -32,6 +31,9 @@ export default function GuestForm({
   const strDiet = "Diet";
   const strRoom = "Room";
   const strNoRoom = "No room";
+  const strChooseRoom = "Choose on map";
+  const strClearRoom = "Clear room";
+  const strNewGuest = "new guest";
   const strSave = "Save";
   const strCancel = "Cancel";
 
@@ -43,21 +45,19 @@ export default function GuestForm({
   const [arrivalDate, setArrivalDate] = useState(guest?.arrival_date ?? "");
   const [dietNotes, setDietNotes] = useState(guest?.diet_notes ?? "");
   const [roomId, setRoomId] = useState(guest?.room_id?.toString() ?? "");
+  const [isRoomMapOpen, setIsRoomMapOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const availableRoomIds = new Set(retreatRooms.map((retreatRoom) => retreatRoom.room_id));
-  const availableRooms = rooms.filter((room) => room.is_available && availableRoomIds.has(room.id));
-  const sortedRooms = roomsService.sortRooms(availableRooms, houses);
-
-  const roomOptions = sortedRooms.map((room) => {
-    const house = houses.find((item) => item.id === room.house_id);
-    const label = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
-
-    return {
-      id: room.id,
-      label,
-    };
-  });
+  const selectedRoom = rooms.find((room) => room.id === Number(roomId));
+  const selectedHouse = houses.find((house) => house.id === selectedRoom?.house_id);
+  const roomLabel = selectedRoom && selectedHouse
+    ? roomsService.getRoomDisplayName(selectedRoom, selectedHouse)
+    : strNoRoom;
+  const roomSelectionTarget = {
+    guestId: guest?.id ?? null,
+    name: name.trim() || guest?.name || strNewGuest,
+    roomId: selectedRoom?.id ?? null,
+  };
 
   const onNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     setName(event.target.value);
@@ -75,8 +75,21 @@ export default function GuestForm({
     setDietNotes(event.target.value);
   };
 
-  const onRoomChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setRoomId(event.target.value);
+  const onChooseRoomActionClick = () => {
+    setIsRoomMapOpen(true);
+  };
+
+  const onClearRoomActionClick = () => {
+    setRoomId("");
+  };
+
+  const onRoomMapCancelActionClick = () => {
+    setIsRoomMapOpen(false);
+  };
+
+  const onRoomSelectActionClick = async (room: Room) => {
+    setRoomId(room.id.toString());
+    setIsRoomMapOpen(false);
   };
 
   const onSubmitHandler = async (event: SyntheticEvent<HTMLFormElement>) => {
@@ -99,6 +112,23 @@ export default function GuestForm({
       setIsSaving(false);
     }
   };
+
+  if (isRoomMapOpen) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+        <div className="h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-white p-6 shadow-xl">
+          <HouseMapView
+            openMode="selection"
+            initialSelectionMode="room"
+            roomSelectionTarget={roomSelectionTarget}
+            onRoomSelectActionClick={onRoomSelectActionClick}
+            onCancelActionClick={onRoomMapCancelActionClick}
+            showRoomSelectionList={false}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -123,12 +153,17 @@ export default function GuestForm({
           </div>
           <div className="mb-6">
             <label className="mb-1 block text-sm font-medium">{strRoom}</label>
-            <select value={roomId} onChange={onRoomChange} className="w-full rounded-md border border-gray-300 px-3 py-2">
-              <option value="">{strNoRoom}</option>
-              {roomOptions.map((room) => (
-                <option key={room.id} value={room.id}>{room.label}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={onChooseRoomActionClick} className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-left hover:bg-gray-50">
+                <span className="block truncate">{roomLabel}</span>
+                <span className="block text-xs text-gray-500">{strChooseRoom}</span>
+              </button>
+              {roomId ? (
+                <button type="button" onClick={onClearRoomActionClick} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold">
+                  {strClearRoom}
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>

@@ -1,9 +1,35 @@
 import db from "./database";
 import type { CreateHouse, House, UpdateHouse } from "./database";
 
+let housesCache: House[] | null = null;
+let housesRequest: Promise<House[]> | null = null;
+
+// Дома являются справочными данными: читаем список один раз и перечитываем только после изменений.
+async function loadHouses(force = false): Promise<House[]> {
+  if (!force && housesCache) {
+    return housesCache;
+  }
+
+  if (!force && housesRequest) {
+    return housesRequest;
+  }
+
+  const request = db.houses.getAll();
+  housesRequest = request;
+
+  try {
+    housesCache = await request;
+    return housesCache;
+  } finally {
+    if (housesRequest === request) {
+      housesRequest = null;
+    }
+  }
+}
+
 const housesService = {
   getHouses: async (): Promise<House[]> => {
-    return db.houses.getAll();
+    return loadHouses();
   },
 
   getHouseById: async (id: number): Promise<House | null> => {
@@ -15,15 +41,20 @@ const housesService = {
   },
 
   createHouse: async (house: CreateHouse): Promise<House> => {
-    return db.houses.create(house);
+    const createdHouse = await db.houses.create(house);
+    await loadHouses(true);
+    return createdHouse;
   },
 
   updateHouse: async (id: number, changes: UpdateHouse): Promise<House> => {
-    return db.houses.update(id, changes);
+    const updatedHouse = await db.houses.update(id, changes);
+    await loadHouses(true);
+    return updatedHouse;
   },
 
   deleteHouse: async (id: number): Promise<void> => {
-    return db.houses.delete(id);
+    await db.houses.delete(id);
+    await loadHouses(true);
   },
 };
 

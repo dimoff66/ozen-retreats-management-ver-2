@@ -14,6 +14,7 @@ import type {
 } from "@/services/database";
 import dateService from "@/services/dateService";
 import type { GuestAction } from "@/services/guestActionsService";
+import guestStatusesService from "@/services/guestStatusesService";
 import type { GuestStatusValue } from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
 import roomsService from "@/services/roomsService";
@@ -22,7 +23,7 @@ type GuestsListProps = {
   showTitle?: boolean;
 };
 
-export default function GuestsList({ showTitle = true }: GuestsListProps) {
+export default function GuestsList(props: GuestsListProps) {
   const strTitle = "Guests";
   const strColumnName = "Name";
   const strColumnDiet = "Diet";
@@ -33,10 +34,6 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
   const strOrganizer = "organizer";
   const strNoRoom = "-";
   const strNoDiet = "-";
-  const strStatusBooked = "Booked";
-  const strStatusCheckedIn = "Checked in";
-  const strStatusArrived = "Arrived";
-  const strStatusNotComing = "Not coming";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load guests.";
   const strSaveRoomError = "Failed to change room.";
@@ -77,26 +74,6 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
   const [searchText, setSearchText] = useState("");
 
   const canManageGuestRecords = user?.role === "admin" || user?.role === "organizer";
-
-  const getStatusLabel = (status: string): string => {
-    if (status === "booked") {
-      return strStatusBooked;
-    }
-
-    if (status === "checked_in") {
-      return strStatusCheckedIn;
-    }
-
-    if (status === "arrived") {
-      return strStatusArrived;
-    }
-
-    if (status === "not_coming") {
-      return strStatusNotComing;
-    }
-
-    return status;
-  };
 
   const getStatusBadgeClassName = (status: GuestStatusValue): string => {
     if (status === "checked_in") {
@@ -278,7 +255,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
       : "";
     const dietText = guest.diet_notes ?? strNoDiet;
     const status = guestStatuses.get(guest.id) ?? "booked";
-    const statusText = guest.room_id === null ? "" : getStatusLabel(status);
+    const statusText = guest.room_id === null ? "" : guestStatusesService.getStatusLabel(status);
     const statusBadgeClassName = getStatusBadgeClassName(status);
     const isSelected = selectedGuest?.id === guest.id;
     const actionRows = user
@@ -373,7 +350,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
 
   return (
     <div className="project-guests-list">
-      {showTitle && <div className="project-section-heading"><h2>{strTitle}</h2></div>}
+      {(props.showTitle ?? true) && <div className="project-section-heading"><h2>{strTitle}</h2></div>}
       <ActionBar
         selectedItem={selectedGuest}
         onAddActionClick={onAddActionClick}

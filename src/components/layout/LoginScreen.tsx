@@ -35,7 +35,7 @@ type LoginScreenProps = {
   invalidLink?: boolean;
 };
 
-export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
+export default function LoginScreen(props: LoginScreenProps) {
   const strTitle = "Sign in";
   const strCaption = "Enter your login and password.";
   const strLogin = "Login";
@@ -47,7 +47,7 @@ export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [knownLogins, setKnownLogins] = useState<string[]>([]);
-  const [error, setError] = useState(invalidLink ? strInvalidLink : "");
+  const [error, setError] = useState((props.invalidLink ?? false) ? strInvalidLink : "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {

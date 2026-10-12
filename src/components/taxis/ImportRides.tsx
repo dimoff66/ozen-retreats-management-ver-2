@@ -98,7 +98,7 @@ const shareNamePart = (leftParts: string[], rightParts: string[]): boolean => {
   return leftParts.some(part => rightSet.has(part));
 };
 
-export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+export default function ImportRides(props: ImportRidesProps) {
   const strTitle = "Import taxi rides";
   const strExistingWarning = "All existing taxi rides for this retreat will be deleted when the import is saved.";
   const strInputHelp = "Paste tab-separated data with columns: group, approxTime, name, time, houseCode.";
@@ -566,7 +566,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
     try {
       await taxiRidesService.createRides(retreat.id, rides);
       await refresh();
-      onCloseActionClick();
+      props.onCloseActionClick();
     } catch {
       setError(strSaveError);
     } finally {
@@ -739,7 +739,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
         )}
         <div className="project-form-footer">
           <div className="project-form-footer-actions">
-            <button type="button" onClick={onCloseActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button>
+            <button type="button" onClick={props.onCloseActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button>
             {isPreview && <button type="button" onClick={onBackClick} className="project-action-button project-action-button-secondary">{strBack}</button>}
             {isPreview ? (
               <button type="button" onClick={onSaveClick} disabled={isSaving} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button>

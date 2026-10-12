@@ -11,8 +11,8 @@ const partClassNames = {
   room: "project-history-room",
 };
 
-export default function HistoryActivity({ parts }: HistoryActivityProps) {
-  const renderedParts = parts.map((part, index) => ({
+export default function HistoryActivity(props: HistoryActivityProps) {
+  const renderedParts = props.parts.map((part, index) => ({
     key: index,
     className: partClassNames[part.type],
     text: part.text,

@@ -11,12 +11,7 @@ type HouseFormProps = {
   onCancelActionClick: () => void;
 };
 
-export default function HouseForm({
-  house,
-  houses,
-  onSaveActionClick,
-  onCancelActionClick,
-}: HouseFormProps) {
+export default function HouseForm(props: HouseFormProps) {
   const strAddTitle = "Add house";
   const strEditTitle = "Edit house";
   const strName = "Name";
@@ -25,16 +20,16 @@ export default function HouseForm({
   const strSave = "Save";
   const strCancel = "Cancel";
 
-  const isEditMode = house !== null;
+  const isEditMode = props.house !== null;
   const formTitle = isEditMode ? strEditTitle : strAddTitle;
 
-  const [name, setName] = useState(house?.name ?? "");
-  const [parentId, setParentId] = useState(house?.parent_id?.toString() ?? "");
+  const [name, setName] = useState(props.house?.name ?? "");
+  const [parentId, setParentId] = useState(props.house?.parent_id?.toString() ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
-  const availableParents = houses.filter(item => {
+  const availableParents = props.houses.filter(item => {
     const isRootHouse = item.parent_id === null;
-    const isCurrentHouse = item.id === house?.id;
+    const isCurrentHouse = item.id === props.house?.id;
 
     return isRootHouse && !isCurrentHouse;
   });
@@ -58,7 +53,7 @@ export default function HouseForm({
     setIsSaving(true);
 
     try {
-      await onSaveActionClick(data);
+      await props.onSaveActionClick(data);
     } finally {
       setIsSaving(false);
     }
@@ -71,7 +66,7 @@ export default function HouseForm({
         <form onSubmit={onSubmitHandler} className="project-form-body">
           <label className="project-form-field"><span>{strName}</span><input value={name} onChange={onNameChange} required /></label>
           <label className="project-form-field"><span>{strParent}</span><select value={parentId} onChange={onParentChange}><option value="">{strNoParent}</option>{availableParents.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
+          <div className="project-form-footer"><button type="button" onClick={props.onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

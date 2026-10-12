@@ -18,14 +18,14 @@ export const metadata: Metadata = {
   description: "Retreat guest, accommodation, arrival, and taxi management.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout(props: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <FontSizeSettingsProvider>{children}</FontSizeSettingsProvider>
+        <FontSizeSettingsProvider>{props.children}</FontSizeSettingsProvider>
       </body>
     </html>
   );

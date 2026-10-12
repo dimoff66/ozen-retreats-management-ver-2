@@ -30,10 +30,7 @@ const prepareRoomSettings = (
   };
 });
 
-export default function RetreatRoomsForm({
-  onCloseActionClick,
-  showTitle = true,
-}: RetreatRoomsFormProps) {
+export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
   const strTitle = "Retreat rooms";
   const strAvailable = "Available";
   const strMaxGuests = "Max guests";
@@ -256,7 +253,7 @@ export default function RetreatRoomsForm({
 
   return (
     <section className="project-room-settings-screen">
-      {showTitle && (
+      {(props.showTitle ?? true) && (
         <div className="project-room-settings-header">
           <div>
             <h2>{strTitle}</h2>
@@ -348,7 +345,7 @@ export default function RetreatRoomsForm({
       <div className="project-room-settings-footer">
         <button
           type="button"
-          onClick={onCloseActionClick}
+          onClick={props.onCloseActionClick}
           disabled={isSaving}
           className="project-secondary-button"
         >

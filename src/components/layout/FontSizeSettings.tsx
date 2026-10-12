@@ -47,9 +47,7 @@ const getStoredFontLevel = () => {
   }
 };
 
-export function FontSizeSettingsProvider({
-  children,
-}: FontSizeSettingsProviderProps) {
+export function FontSizeSettingsProvider(props: FontSizeSettingsProviderProps) {
   const [fontLevel, setFontLevelState] = useState(getStoredFontLevel);
   const fontLevelRef = useRef(fontLevel);
 
@@ -107,7 +105,7 @@ export function FontSizeSettingsProvider({
 
   return (
     <FontSizeSettingsContext.Provider value={value}>
-      {children}
+      {props.children}
     </FontSizeSettingsContext.Provider>
   );
 }

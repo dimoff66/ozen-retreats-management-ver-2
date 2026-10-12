@@ -29,12 +29,7 @@ type StatusHistoryModalProps = {
   onCloseActionClick: () => void;
 };
 
-export default function StatusHistoryModal({
-  retreatId,
-  target,
-  guests,
-  onCloseActionClick,
-}: StatusHistoryModalProps) {
+export default function StatusHistoryModal(props: StatusHistoryModalProps) {
   const strTitle = "History";
   const strDate = "Date";
   const strActivity = "Activity";
@@ -55,7 +50,7 @@ export default function StatusHistoryModal({
     setIsLoadError(false);
 
     try {
-      const data = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
+      const data = await guestStatusesService.getGuestStatusesByRetreatId(props.retreatId);
 
       setStatuses(data);
     } catch {
@@ -67,14 +62,14 @@ export default function StatusHistoryModal({
 
   const previousStatuses = getPreviousGuestStatuses(statuses);
   const filteredStatuses = statuses.filter(status => {
-    if (target.type === "guest") {
-      return status.guest_id === target.guestId;
+    if (props.target.type === "guest") {
+      return status.guest_id === props.target.guestId;
     }
 
-    return status.room === target.roomName;
+    return status.room === props.target.roomName;
   });
   const historyRows = filteredStatuses.map(status => {
-    const guest = guests.find(item => item.id === status.guest_id);
+    const guest = props.guests.find(item => item.id === status.guest_id);
     const updatedBy = users.find(item => item.id === status.updated_by);
 
     return {
@@ -91,14 +86,14 @@ export default function StatusHistoryModal({
 
   useEffect(() => {
     loadHistory();
-  }, [retreatId, target]);
+  }, [props.retreatId, props.target]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-6">
       <div className="flex max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         <div className="shrink-0 border-b border-gray-200 px-6 py-4">
           <h2 className="text-xl font-bold">{strTitle}</h2>
-          <div className="mt-1 text-gray-600">{target.label}</div>
+          <div className="mt-1 text-gray-600">{props.target.label}</div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <div className="p-6">{strLoading}</div>}
@@ -127,7 +122,7 @@ export default function StatusHistoryModal({
         </div>
         <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
           <div className="flex justify-end">
-            <button type="button" onClick={onCloseActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={props.onCloseActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50">
               {strClose}
             </button>
           </div>

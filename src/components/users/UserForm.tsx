@@ -22,14 +22,7 @@ type UserFormProps = {
   onCancelActionClick: () => void;
 };
 
-export default function UserForm({
-  user,
-  roles,
-  retreats,
-  actionError,
-  onSaveActionClick,
-  onCancelActionClick,
-}: UserFormProps) {
+export default function UserForm(props: UserFormProps) {
   const strAddTitle = "Add user";
   const strEditTitle = "Edit user";
   const strName = "Name";
@@ -46,15 +39,15 @@ export default function UserForm({
   const strCancel = "Cancel";
   const strSaving = "Saving...";
 
-  const [name, setName] = useState(user?.name ?? "");
-  const [login, setLogin] = useState(user?.login ?? "");
+  const [name, setName] = useState(props.user?.name ?? "");
+  const [login, setLogin] = useState(props.user?.login ?? "");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [linkCode, setLinkCode] = useState(user?.link_code ?? "");
-  const [role, setRole] = useState(user?.role ?? roles[0]?.role_name ?? "");
-  const [retreatId, setRetreatId] = useState(user?.retreat_id?.toString() ?? "");
+  const [linkCode, setLinkCode] = useState(props.user?.link_code ?? "");
+  const [role, setRole] = useState(props.user?.role ?? props.roles[0]?.role_name ?? "");
+  const [retreatId, setRetreatId] = useState(props.user?.retreat_id?.toString() ?? "");
   const [isSaving, setIsSaving] = useState(false);
-  const formTitle = user ? strEditTitle : strAddTitle;
+  const formTitle = props.user ? strEditTitle : strAddTitle;
 
   const onNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     setName(event.target.value);
@@ -107,7 +100,7 @@ export default function UserForm({
     setIsSaving(true);
 
     try {
-      await onSaveActionClick(data);
+      await props.onSaveActionClick(data);
     } finally {
       setIsSaving(false);
     }
@@ -122,17 +115,17 @@ export default function UserForm({
           <label htmlFor="user-login" className="project-form-field"><span>{strLogin}</span><input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" /></label>
           <div className="project-form-field">
             <label htmlFor="user-password">{strPassword}</label>
-            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" minLength={8} maxLength={256} />
+            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!props.user} autoComplete="new-password" minLength={8} maxLength={256} />
             <label className="project-checkbox-field project-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
-            {user && <p className="project-field-note">{strPasswordOptional}</p>}
+            {props.user && <p className="project-field-note">{strPasswordOptional}</p>}
           </div>
           <label htmlFor="user-link-code" className="project-form-field"><span>{strLinkCode}</span><input id="user-link-code" value={linkCode} onChange={onLinkCodeChange} maxLength={255} autoComplete="off" /><small className="project-field-note">{strLinkCodeNote}</small></label>
-          <label htmlFor="user-role" className="project-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{roles.map(item => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
+          <label htmlFor="user-role" className="project-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{props.roles.map(item => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
           {role === "organizer" && (
-            <label htmlFor="user-retreat" className="project-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{retreats.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+            <label htmlFor="user-retreat" className="project-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{props.retreats.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           )}
-          {actionError && <div role="alert" className="project-state-message project-state-error">{actionError}</div>}
-          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} disabled={isSaving} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving || roles.length === 0} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button></div>
+          {props.actionError && <div role="alert" className="project-state-message project-state-error">{props.actionError}</div>}
+          <div className="project-form-footer"><button type="button" onClick={props.onCancelActionClick} disabled={isSaving} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving || props.roles.length === 0} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button></div>
         </form>
       </div>
     </div>

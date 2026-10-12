@@ -1,0 +1,1797 @@
+diff --git a/docs/architecture.md b/docs/architecture.md
+index e230bd1..60f3144 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -99,6 +99,8 @@ src/
+ - Брендовое имя не используется в технических идентификаторах: CSS-классах, storage/cookie keys,
+   package name, переменных, функциях, типах и внутренних id. Для технических префиксов используйте
+   `project` или `proj`. Брендовое имя допустимо только как отображаемая эмблема.
++- Function component всегда принимает один объект `props`; props не деструктурируются в параметрах
++  функции. Внутри компонента используйте `props.propName`.
+ 
+ ## Текущий пользователь
+ 
+@@ -161,6 +163,11 @@ retreat_id
+ же сущностей дополнительные запросы в компонентах, если данные уже есть в
+ снимке.
+ 
++`houses` и `rooms` считаются справочными данными: их сервисы загружают полный
++список один раз и возвращают cache при последующих snapshot refresh. После
++`create`, `update` или `delete` соответствующий сервис перечитывает таблицу,
++поэтому следующий snapshot получает актуальный справочник без интервального DB IO.
++
+ Проверка запускается каждые пять секунд только пока вкладка видима. В скрытой
+ вкладке опрос прекращается; при возвращении к ней выполняется проверка сразу.
+ Пока у `retreats` нет поля `version`, контекст загружает агрегат целиком и
+diff --git a/docs/domain/database.md b/docs/domain/database.md
+index 1e81277..c01cb31 100644
+--- a/docs/domain/database.md
++++ b/docs/domain/database.md
+@@ -204,6 +204,9 @@ checked_in
+ not_coming
+ ```
+ 
++Отображаемое название статуса формирует `guestStatusesService.getStatusLabel(status)`.
++Компоненты не должны держать собственные таблицы или функции преобразования статуса в label.
++
+ Последовательность заселения:
+ 
+ ```text
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 03ae460..230ea90 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -18,14 +18,14 @@ export const metadata: Metadata = {
+   description: "Retreat guest, accommodation, arrival, and taxi management.",
+ };
+ 
+-export default function RootLayout({ children }: LayoutProps<"/">) {
++export default function RootLayout(props: LayoutProps<"/">) {
+   return (
+     <html
+       lang="en"
+       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+     >
+       <body className="min-h-full flex flex-col">
+-        <FontSizeSettingsProvider>{children}</FontSizeSettingsProvider>
++        <FontSizeSettingsProvider>{props.children}</FontSizeSettingsProvider>
+       </body>
+     </html>
+   );
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index dbeb47f..6751b29 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -19,8 +19,8 @@ function getSearchParam(value: string | string[] | undefined): string {
+   return value ?? "";
+ }
+ 
+-export default async function HomePage({ searchParams }: HomePageProps) {
+-  const params = await searchParams;
++export default async function HomePage(props: HomePageProps) {
++  const params = await props.searchParams;
+   const user = await getAuthenticatedUser();
+ 
+   if (!user) {
+diff --git a/src/components/common/ActionBar.tsx b/src/components/common/ActionBar.tsx
+index 8d35bea..8c080cd 100644
+--- a/src/components/common/ActionBar.tsx
++++ b/src/components/common/ActionBar.tsx
+@@ -20,45 +20,36 @@ interface ActionBarProps<T> {
+   extraContentPosition?: "left" | "right";
+ }
+ 
+-export default function ActionBar<T>({
+-  disabled = false,
+-  selectedItem,
+-  onAddActionClick,
+-  onEditActionClick,
+-  onDeleteActionClick,
+-  extraActions = [],
+-  extraContent,
+-  extraContentPosition = "left",
+-}: ActionBarProps<T>) {
++export default function ActionBar<T>(props: ActionBarProps<T>) {
+   const strBtnAdd = 'Add';
+   const strBtnEdit = 'Edit';
+   const strBtnDelete = 'Delete';
+ 
+-  const isActionDisabled = disabled || !selectedItem;
++  const isActionDisabled = (props.disabled ?? false) || !props.selectedItem;
+ 
+   const onEditHandler = () => {
+-    if (!selectedItem) {
++    if (!props.selectedItem) {
+       return;
+     }
+ 
+-    onEditActionClick(selectedItem);
++    props.onEditActionClick(props.selectedItem);
+   };
+ 
+   const onDeleteHandler = () => {
+-    if (!selectedItem) {
++    if (!props.selectedItem) {
+       return;
+     }
+ 
+-    onDeleteActionClick(selectedItem);
++    props.onDeleteActionClick(props.selectedItem);
+   };
+ 
+-  const preparedExtraActions = extraActions.map((action, index) => {
++  const preparedExtraActions = (props.extraActions ?? []).map((action, index) => {
+     const onClickHandler = () => {
+-      if (!selectedItem) {
++      if (!props.selectedItem) {
+         return;
+       }
+ 
+-      action.onClickHandler(selectedItem);
++      action.onClickHandler(props.selectedItem);
+     };
+ 
+     return {
+@@ -71,18 +62,18 @@ export default function ActionBar<T>({
+ 
+   return (
+     <div
+-      aria-disabled={disabled}
+-      className={`project-action-bar ${extraContent ? "project-action-bar-with-content" : ""}`}
++      aria-disabled={(props.disabled ?? false)}
++      className={`project-action-bar ${props.extraContent ? "project-action-bar-with-content" : ""}`}
+     >
+-      {extraContent && extraContentPosition === "left" && (
+-        <div className="project-action-bar-content">{extraContent}</div>
++      {props.extraContent && (props.extraContentPosition ?? "left") === "left" && (
++        <div className="project-action-bar-content">{props.extraContent}</div>
+       )}
+-      <div className={`project-action-buttons ${disabled ? "opacity-50 grayscale" : ""}`}>
++      <div className={`project-action-buttons ${(props.disabled ?? false) ? "opacity-50 grayscale" : ""}`}>
+         <button
+           type="button"
+-          onClick={onAddActionClick}
+-          disabled={disabled}
+-          aria-disabled={disabled}
++          onClick={props.onAddActionClick}
++          disabled={(props.disabled ?? false)}
++          aria-disabled={(props.disabled ?? false)}
+           className="project-action-button project-action-button-primary"
+         >
+           {strBtnAdd}
+@@ -118,8 +109,8 @@ export default function ActionBar<T>({
+           </button>
+         ))}
+       </div>
+-      {extraContent && extraContentPosition === "right" && (
+-        <div className="project-action-bar-content project-action-bar-content-right">{extraContent}</div>
++      {props.extraContent && (props.extraContentPosition ?? "left") === "right" && (
++        <div className="project-action-bar-content project-action-bar-content-right">{props.extraContent}</div>
+       )}
+     </div>
+   );
+diff --git a/src/components/guests/GuestForm.tsx b/src/components/guests/GuestForm.tsx
+index d298bb0..451ac0a 100644
+--- a/src/components/guests/GuestForm.tsx
++++ b/src/components/guests/GuestForm.tsx
+@@ -15,14 +15,7 @@ type GuestFormProps = {
+   onCancelActionClick: () => void;
+ };
+ 
+-export default function GuestForm({
+-  guest,
+-  retreatId,
+-  houses,
+-  rooms,
+-  onSaveActionClick,
+-  onCancelActionClick,
+-}: GuestFormProps) {
++export default function GuestForm(props: GuestFormProps) {
+   const strAddTitle = "Add guest";
+   const strEditTitle = "Edit guest";
+   const strName = "Name";
+@@ -37,25 +30,25 @@ export default function GuestForm({
+   const strSave = "Save";
+   const strCancel = "Cancel";
+ 
+-  const isEditMode = guest !== null;
++  const isEditMode = props.guest !== null;
+   const formTitle = isEditMode ? strEditTitle : strAddTitle;
+ 
+-  const [name, setName] = useState(guest?.name ?? "");
+-  const [isOrganizer, setIsOrganizer] = useState(guest?.is_organizer ?? false);
+-  const [arrivalDate, setArrivalDate] = useState(guest?.arrival_date ?? "");
+-  const [dietNotes, setDietNotes] = useState(guest?.diet_notes ?? "");
+-  const [roomId, setRoomId] = useState(guest?.room_id?.toString() ?? "");
++  const [name, setName] = useState(props.guest?.name ?? "");
++  const [isOrganizer, setIsOrganizer] = useState(props.guest?.is_organizer ?? false);
++  const [arrivalDate, setArrivalDate] = useState(props.guest?.arrival_date ?? "");
++  const [dietNotes, setDietNotes] = useState(props.guest?.diet_notes ?? "");
++  const [roomId, setRoomId] = useState(props.guest?.room_id?.toString() ?? "");
+   const [isRoomMapOpen, setIsRoomMapOpen] = useState(false);
+   const [isSaving, setIsSaving] = useState(false);
+ 
+-  const selectedRoom = rooms.find(room => room.id === Number(roomId));
+-  const selectedHouse = houses.find(house => house.id === selectedRoom?.house_id);
++  const selectedRoom = props.rooms.find(room => room.id === Number(roomId));
++  const selectedHouse = props.houses.find(house => house.id === selectedRoom?.house_id);
+   const roomLabel = selectedRoom && selectedHouse
+     ? roomsService.getRoomDisplayName(selectedRoom, selectedHouse)
+     : strNoRoom;
+   const roomSelectionTarget = {
+-    guestId: guest?.id ?? null,
+-    name: name.trim() || guest?.name || strNewGuest,
++    guestId: props.guest?.id ?? null,
++    name: name.trim() || props.guest?.name || strNewGuest,
+     roomId: selectedRoom?.id ?? null,
+   };
+ 
+@@ -96,7 +89,7 @@ export default function GuestForm({
+     event.preventDefault();
+ 
+     const data: CreateGuest = {
+-      retreat_id: retreatId,
++      retreat_id: props.retreatId,
+       name,
+       is_organizer: isOrganizer,
+       arrival_date: arrivalDate || null,
+@@ -107,7 +100,7 @@ export default function GuestForm({
+     setIsSaving(true);
+ 
+     try {
+-      await onSaveActionClick(data);
++      await props.onSaveActionClick(data);
+     } finally {
+       setIsSaving(false);
+     }
+@@ -166,7 +159,7 @@ export default function GuestForm({
+             </div>
+           </div>
+           <div className="flex justify-end gap-2">
+-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
++            <button type="button" onClick={props.onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
+             <button type="submit" disabled={isSaving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{strSave}</button>
+           </div>
+         </form>
+diff --git a/src/components/guests/GuestsList.tsx b/src/components/guests/GuestsList.tsx
+index b5f9d59..ec89f93 100644
+--- a/src/components/guests/GuestsList.tsx
++++ b/src/components/guests/GuestsList.tsx
+@@ -14,6 +14,7 @@ import type {
+ } from "@/services/database";
+ import dateService from "@/services/dateService";
+ import type { GuestAction } from "@/services/guestActionsService";
++import guestStatusesService from "@/services/guestStatusesService";
+ import type { GuestStatusValue } from "@/services/guestStatusesService";
+ import guestsService from "@/services/guestsService";
+ import roomsService from "@/services/roomsService";
+@@ -22,7 +23,7 @@ type GuestsListProps = {
+   showTitle?: boolean;
+ };
+ 
+-export default function GuestsList({ showTitle = true }: GuestsListProps) {
++export default function GuestsList(props: GuestsListProps) {
+   const strTitle = "Guests";
+   const strColumnName = "Name";
+   const strColumnDiet = "Diet";
+@@ -33,10 +34,6 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
+   const strOrganizer = "organizer";
+   const strNoRoom = "-";
+   const strNoDiet = "-";
+-  const strStatusBooked = "Booked";
+-  const strStatusCheckedIn = "Checked in";
+-  const strStatusArrived = "Arrived";
+-  const strStatusNotComing = "Not coming";
+   const strLoading = "Loading...";
+   const strLoadError = "Failed to load guests.";
+   const strSaveRoomError = "Failed to change room.";
+@@ -78,26 +75,6 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
+ 
+   const canManageGuestRecords = user?.role === "admin" || user?.role === "organizer";
+ 
+-  const getStatusLabel = (status: string): string => {
+-    if (status === "booked") {
+-      return strStatusBooked;
+-    }
+-
+-    if (status === "checked_in") {
+-      return strStatusCheckedIn;
+-    }
+-
+-    if (status === "arrived") {
+-      return strStatusArrived;
+-    }
+-
+-    if (status === "not_coming") {
+-      return strStatusNotComing;
+-    }
+-
+-    return status;
+-  };
+-
+   const getStatusBadgeClassName = (status: GuestStatusValue): string => {
+     if (status === "checked_in") {
+       return "bg-blue-100 text-blue-800";
+@@ -278,7 +255,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
+       : "";
+     const dietText = guest.diet_notes ?? strNoDiet;
+     const status = guestStatuses.get(guest.id) ?? "booked";
+-    const statusText = guest.room_id === null ? "" : getStatusLabel(status);
++    const statusText = guest.room_id === null ? "" : guestStatusesService.getStatusLabel(status);
+     const statusBadgeClassName = getStatusBadgeClassName(status);
+     const isSelected = selectedGuest?.id === guest.id;
+     const actionRows = user
+@@ -373,7 +350,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
+ 
+   return (
+     <div className="project-guests-list">
+-      {showTitle && <div className="project-section-heading"><h2>{strTitle}</h2></div>}
++      {(props.showTitle ?? true) && <div className="project-section-heading"><h2>{strTitle}</h2></div>}
+       <ActionBar
+         selectedItem={selectedGuest}
+         onAddActionClick={onAddActionClick}
+diff --git a/src/components/history/HistoryActivity.tsx b/src/components/history/HistoryActivity.tsx
+index 8b37b4d..56bc2c7 100644
+--- a/src/components/history/HistoryActivity.tsx
++++ b/src/components/history/HistoryActivity.tsx
+@@ -11,8 +11,8 @@ const partClassNames = {
+   room: "project-history-room",
+ };
+ 
+-export default function HistoryActivity({ parts }: HistoryActivityProps) {
+-  const renderedParts = parts.map((part, index) => ({
++export default function HistoryActivity(props: HistoryActivityProps) {
++  const renderedParts = props.parts.map((part, index) => ({
+     key: index,
+     className: partClassNames[part.type],
+     text: part.text,
+diff --git a/src/components/history/HistoryPanel.tsx b/src/components/history/HistoryPanel.tsx
+index 37ff27f..90423d3 100644
+--- a/src/components/history/HistoryPanel.tsx
++++ b/src/components/history/HistoryPanel.tsx
+@@ -15,7 +15,7 @@ type HistoryPanelProps = {
+   showTitle?: boolean;
+ };
+ 
+-export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
++export default function HistoryPanel(props: HistoryPanelProps) {
+   const strTitle = "History";
+   const strLoadError = "Failed to load retreat history.";
+   const strLoading = "Loading history...";
+@@ -62,7 +62,7 @@ export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
+   return (
+     <section className="project-history-screen">
+       <div className="project-section-toolbar">
+-        {showTitle ? <div><h2>{strTitle}</h2></div> : <span />}
++        {(props.showTitle ?? true) ? <div><h2>{strTitle}</h2></div> : <span />}
+         <label className="project-search-field project-history-search">
+           <span className="sr-only">Search history</span>
+           <input type="search" value={searchQuery} onChange={onSearchChange} aria-label="Search history" />
+diff --git a/src/components/houseMaps/HouseMapEditor.tsx b/src/components/houseMaps/HouseMapEditor.tsx
+index 88ff06b..e5dbdf5 100644
+--- a/src/components/houseMaps/HouseMapEditor.tsx
++++ b/src/components/houseMaps/HouseMapEditor.tsx
+@@ -23,13 +23,7 @@ type HouseMapEditorProps = {
+   onCancelActionClick: () => void;
+ };
+ 
+-export default function HouseMapEditor({
+-  house,
+-  houseMap,
+-  houses,
+-  onSaveActionClick,
+-  onCancelActionClick,
+-}: HouseMapEditorProps) {
++export default function HouseMapEditor(props: HouseMapEditorProps) {
+   const strCreateTitle = "Create map";
+   const strEditTitle = "Edit map";
+   const strRooms = "Rooms";
+@@ -46,7 +40,7 @@ export default function HouseMapEditor({
+ 
+   const [rooms, setRooms] = useState<Room[]>([]);
+   const [roomPositions, setRoomPositions] = useState<RoomPosition[]>([]);
+-  const [backgroundUrl, setBackgroundUrl] = useState(houseMap?.bg_image_url ?? "");
++  const [backgroundUrl, setBackgroundUrl] = useState(props.houseMap?.bg_image_url ?? "");
+   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+   const [previewUrl, setPreviewUrl] = useState("");
+   const [draggedRoomId, setDraggedRoomId] = useState<number | null>(null);
+@@ -54,7 +48,7 @@ export default function HouseMapEditor({
+   const [isLoadError, setIsLoadError] = useState(false);
+   const [isSaving, setIsSaving] = useState(false);
+ 
+-  const isEditMode = houseMap !== null;
++  const isEditMode = props.houseMap !== null;
+   const formTitle = isEditMode ? strEditTitle : strCreateTitle;
+   const imageUrl = previewUrl || backgroundUrl;
+   const hasImage = imageUrl !== "";
+@@ -66,13 +60,13 @@ export default function HouseMapEditor({
+     try {
+       const allRooms = await roomsService.getRooms();
+       const availableRooms = houseMapsService.getRoomsForHouseMap(
+-        house,
+-        houses,
++        props.house,
++        props.houses,
+         allRooms
+       );
+ 
+       setRooms(availableRooms);
+-      setRoomPositions(houseMapsService.getRoomPositions(houseMap));
++      setRoomPositions(houseMapsService.getRoomPositions(props.houseMap));
+     } catch {
+       setIsLoadError(true);
+     } finally {
+@@ -137,26 +131,26 @@ export default function HouseMapEditor({
+ 
+       if (backgroundFile) {
+         savedBackgroundUrl = await houseMapsService.uploadBackground(
+-          house.id,
++          props.house.id,
+           backgroundFile
+         );
+       }
+ 
+-      if (houseMap) {
++      if (props.houseMap) {
+         await houseMapsService.updateHouseMap(
+-          houseMap.id,
++          props.houseMap.id,
+           savedBackgroundUrl || null,
+           roomPositions
+         );
+       } else {
+         await houseMapsService.createHouseMap(
+-          house.id,
++          props.house.id,
+           savedBackgroundUrl || null,
+           roomPositions
+         );
+       }
+ 
+-      await onSaveActionClick();
++      await props.onSaveActionClick();
+     } finally {
+       setIsSaving(false);
+     }
+@@ -168,7 +162,7 @@ export default function HouseMapEditor({
+   );
+ 
+   const availableRoomItems = availableRooms.map(room => {
+-    const label = houseMapsService.getRoomLabel(room, house, houses);
++    const label = houseMapsService.getRoomLabel(room, props.house, props.houses);
+ 
+     const onDragStart = () => {
+       setDraggedRoomId(room.id);
+@@ -189,7 +183,7 @@ export default function HouseMapEditor({
+         return null;
+       }
+ 
+-      const label = houseMapsService.getRoomLabel(room, house, houses);
++      const label = houseMapsService.getRoomLabel(room, props.house, props.houses);
+ 
+       const onDragStart = () => {
+         setDraggedRoomId(room.id);
+@@ -225,8 +219,8 @@ export default function HouseMapEditor({
+     <div className="project-map-editor-backdrop">
+       <div className="project-map-editor-modal">
+         <header className="project-map-editor-header">
+-          <div><span>{strRooms}</span><h2>{formTitle}: {house.name}</h2></div>
+-          <div className="project-form-footer-actions"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="button" onClick={onSaveHandler} disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
++          <div><span>{strRooms}</span><h2>{formTitle}: {props.house.name}</h2></div>
++          <div className="project-form-footer-actions"><button type="button" onClick={props.onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="button" onClick={onSaveHandler} disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
+         </header>
+         {isLoading && <div className="project-state-message project-map-editor-message">{strLoading}</div>}
+         {isLoadError && <div className="project-state-message project-state-error project-map-editor-message">{strLoadError}</div>}
+@@ -246,7 +240,7 @@ export default function HouseMapEditor({
+               </div>
+               <div className="project-map-canvas-wrap">
+                 <div ref={mapRef} onDragOver={onDragOverHandler} onDrop={onDropHandler} className="project-map-canvas">
+-                  {hasImage && <img src={imageUrl} alt={house.name} className="project-map-background" draggable={false} />}
++                  {hasImage && <img src={imageUrl} alt={props.house.name} className="project-map-background" draggable={false} />}
+                   {!hasImage && <div className="project-map-no-image">{strNoImage}</div>}
+                   {placedRoomItems.map(room => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} style={room.style} className="project-map-room-marker">{room.label}</button>)}
+                 </div>
+diff --git a/src/components/houseMaps/HouseMapView.tsx b/src/components/houseMaps/HouseMapView.tsx
+index 666a259..030ccad 100644
+--- a/src/components/houseMaps/HouseMapView.tsx
++++ b/src/components/houseMaps/HouseMapView.tsx
+@@ -6,6 +6,7 @@ import type {
+   Guest,
+   Room,
+ } from "@/services/database";
++import guestStatusesService from "@/services/guestStatusesService";
+ import type {
+   GuestStatusValue,
+   LatestGuestStatus,
+@@ -51,17 +52,7 @@ type HouseMapViewProps = {
+   showTitle?: boolean;
+ };
+ 
+-export default function HouseMapView({
+-  openMode = "normal",
+-  guest = null,
+-  initialSelectionMode: requestedSelectionMode = "room",
+-  onRoomSelectActionClick,
+-  onGuestSwapActionClick,
+-  onCancelActionClick,
+-  roomSelectionTarget = null,
+-  showRoomSelectionList = true,
+-  showTitle = true,
+-}: HouseMapViewProps) {
++export default function HouseMapView(props: HouseMapViewProps) {
+   const strTitle = "House map";
+   const strSelectRoom = "Select a room for";
+   const strSelectGuest = "Select a guest to swap with";
+@@ -85,24 +76,14 @@ export default function HouseMapView({
+   const strShowHistory = "Show history";
+   const strCloseActions = "Close";
+   const strBooked = "booked";
+-  const strStatusBooked = "Booked";
+   const strCheckedIn = "checked_in";
+-  const strStatusCheckedIn = "Checked in";
+   const strArrived = "arrived";
+-  const strStatusArrived = "Arrived";
+   const strNotComingStatus = "not_coming";
+-  const strStatusNotComing = "Not coming";
+-  const strConfirmNonBookedGuest = "This guest's status is {status}, not Booked. Continue with the room swap?";
+-  const statusLabels: Record<GuestStatusValue, string> = {
+-    booked: strStatusBooked,
+-    arrived: strStatusArrived,
+-    checked_in: strStatusCheckedIn,
+-    not_coming: strStatusNotComing,
+-  };
++  const strConfirmNonBookedGuest = "This guest's status is {status}, not {bookedStatus}. Continue with the room swap?";
+ 
+-  const hasExternalRoomSelection = requestedSelectionMode === "room" && roomSelectionTarget !== null;
++  const hasExternalRoomSelection = (props.initialSelectionMode ?? "room") === "room" && (props.roomSelectionTarget ?? null) !== null;
+   const initialSelectionMode: SelectionMode =
+-    openMode === "selection" && (guest || hasExternalRoomSelection) ? requestedSelectionMode : null;
++    (props.openMode ?? "normal") === "selection" && ((props.guest ?? null) || hasExternalRoomSelection) ? (props.initialSelectionMode ?? "room") : null;
+ 
+   const { currentUser: user } = useCurrentUser();
+   const {
+@@ -125,7 +106,7 @@ export default function HouseMapView({
+   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
+   const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
+   const [actionGuest, setActionGuest] = useState<Guest | null>(
+-    initialSelectionMode ? guest : null
++    initialSelectionMode ? (props.guest ?? null) : null
+   );
+   const [actions, setActions] = useState<MapAction[]>([]);
+   const [actionsTitle, setActionsTitle] = useState("");
+@@ -322,10 +303,10 @@ export default function HouseMapView({
+     }
+   };
+ 
+-  const selectionGuestId = actionGuest?.id ?? roomSelectionTarget?.guestId ?? null;
+-  const selectionRoomId = actionGuest?.room_id ?? roomSelectionTarget?.roomId ?? null;
+-  const selectionGuestName = actionGuest?.name ?? roomSelectionTarget?.name ?? "";
+-  const hasRoomSelectionTarget = actionGuest !== null || roomSelectionTarget !== null;
++  const selectionGuestId = actionGuest?.id ?? (props.roomSelectionTarget ?? null)?.guestId ?? null;
++  const selectionRoomId = actionGuest?.room_id ?? (props.roomSelectionTarget ?? null)?.roomId ?? null;
++  const selectionGuestName = actionGuest?.name ?? (props.roomSelectionTarget ?? null)?.name ?? "";
++  const hasRoomSelectionTarget = actionGuest !== null || (props.roomSelectionTarget ?? null) !== null;
+   const selectableRooms = retreatRoomsService.getSelectableRooms(
+     rooms,
+     retreatRooms,
+@@ -383,8 +364,8 @@ export default function HouseMapView({
+     setActionError("");
+ 
+     try {
+-      if (openMode === "selection" && onRoomSelectActionClick) {
+-        await onRoomSelectActionClick(room);
++      if ((props.openMode ?? "normal") === "selection" && props.onRoomSelectActionClick) {
++        await props.onRoomSelectActionClick(room);
+         return;
+       }
+ 
+@@ -416,7 +397,9 @@ export default function HouseMapView({
+     const targetStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
+     if (
+       targetStatus !== strBooked
+-      && !window.confirm(strConfirmNonBookedGuest.replace("{status}", statusLabels[targetStatus]))
++      && !window.confirm(strConfirmNonBookedGuest
++        .replace("{status}", guestStatusesService.getStatusLabel(targetStatus))
++        .replace("{bookedStatus}", guestStatusesService.getStatusLabel("booked")))
+     ) {
+       return;
+     }
+@@ -425,8 +408,8 @@ export default function HouseMapView({
+     setActionError("");
+ 
+     try {
+-      if (openMode === "selection" && onGuestSwapActionClick) {
+-        await onGuestSwapActionClick(targetGuest);
++      if ((props.openMode ?? "normal") === "selection" && props.onGuestSwapActionClick) {
++        await props.onGuestSwapActionClick(targetGuest);
+         return;
+       }
+ 
+@@ -444,8 +427,8 @@ export default function HouseMapView({
+       return;
+     }
+ 
+-    if (openMode === "selection" && onCancelActionClick) {
+-      onCancelActionClick();
++    if ((props.openMode ?? "normal") === "selection" && props.onCancelActionClick) {
++      props.onCancelActionClick();
+       return;
+     }
+ 
+@@ -468,22 +451,6 @@ export default function HouseMapView({
+     return "text-gray-700";
+   };
+ 
+-  const getStatusLabel = (status: GuestStatusValue): string => {
+-    if (status === strCheckedIn) {
+-      return strStatusCheckedIn;
+-    }
+-
+-    if (status === strArrived) {
+-      return strStatusArrived;
+-    }
+-
+-    if (status === strNotComingStatus) {
+-      return strStatusNotComing;
+-    }
+-
+-    return strStatusBooked;
+-  };
+-
+   const getStatusBadgeClassName = (status: GuestStatusValue): string => {
+     if (status === strCheckedIn) {
+       return "bg-blue-100 text-blue-800";
+@@ -823,7 +790,7 @@ export default function HouseMapView({
+         id: roomGuest.id,
+         roomName,
+         guestName,
+-        statusLabel: getStatusLabel(status),
++        statusLabel: guestStatusesService.getStatusLabel(status),
+         statusBadgeClassName: getStatusBadgeClassName(status),
+         isSelectable: canSelectGuest(roomGuest),
+         onChoose: () => {
+@@ -863,7 +830,7 @@ export default function HouseMapView({
+     <div className="relative flex h-full flex-col" aria-busy={isSelectionPending}>
+       <div className="mb-4 flex shrink-0 items-center justify-between">
+         <div>
+-          {showTitle && <h2 className="text-xl font-bold">{strTitle}</h2>}
++          {(props.showTitle ?? true) && <h2 className="text-xl font-bold">{strTitle}</h2>}
+           {selectionText && <div className="mt-1 text-sm text-gray-600">{selectionText}</div>}
+         </div>
+         <div className="flex gap-2">
+@@ -872,8 +839,8 @@ export default function HouseMapView({
+               {strCancelSelection}
+             </button>
+           )}
+-          {!selectionMode && onCancelActionClick && (
+-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
++          {!selectionMode && props.onCancelActionClick && (
++            <button type="button" onClick={props.onCancelActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+               {strCancel}
+             </button>
+           )}
+@@ -983,7 +950,7 @@ export default function HouseMapView({
+                 </div>
+               )}
+             </section>
+-          ) : showRoomSelectionList && (
++          ) : (props.showRoomSelectionList ?? true) && (
+             <section className="min-h-0 flex-1 overflow-auto">
+               <h3 className="mb-3 text-lg font-semibold">{strRooms}</h3>
+               {roomSelectionGroups.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (
+diff --git a/src/components/houseMaps/HouseMapWorkspace.tsx b/src/components/houseMaps/HouseMapWorkspace.tsx
+index 500a8b9..da60f04 100644
+--- a/src/components/houseMaps/HouseMapWorkspace.tsx
++++ b/src/components/houseMaps/HouseMapWorkspace.tsx
+@@ -13,9 +13,7 @@ type HouseMapWorkspaceProps = {
+   openMode: HouseMapOpenMode;
+ };
+ 
+-export default function HouseMapWorkspace({
+-  openMode,
+-}: HouseMapWorkspaceProps) {
++export default function HouseMapWorkspace(props: HouseMapWorkspaceProps) {
+   const strRetreat = "Retreat";
+   const strLoading = "Loading...";
+   const strLoadError = "Failed to load retreats.";
+@@ -117,7 +115,7 @@ export default function HouseMapWorkspace({
+           retreats={retreats}
+           onChangeRetreat={setSelectedRetreatId}
+         >
+-          <HouseMapView openMode={openMode} />
++          <HouseMapView openMode={props.openMode} />
+         </RetreatProvider>
+       </div>
+     </div>
+diff --git a/src/components/houseMaps/StatusHistoryModal.tsx b/src/components/houseMaps/StatusHistoryModal.tsx
+index 2a30ba6..da20303 100644
+--- a/src/components/houseMaps/StatusHistoryModal.tsx
++++ b/src/components/houseMaps/StatusHistoryModal.tsx
+@@ -29,12 +29,7 @@ type StatusHistoryModalProps = {
+   onCloseActionClick: () => void;
+ };
+ 
+-export default function StatusHistoryModal({
+-  retreatId,
+-  target,
+-  guests,
+-  onCloseActionClick,
+-}: StatusHistoryModalProps) {
++export default function StatusHistoryModal(props: StatusHistoryModalProps) {
+   const strTitle = "History";
+   const strDate = "Date";
+   const strActivity = "Activity";
+@@ -55,7 +50,7 @@ export default function StatusHistoryModal({
+     setIsLoadError(false);
+ 
+     try {
+-      const data = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
++      const data = await guestStatusesService.getGuestStatusesByRetreatId(props.retreatId);
+ 
+       setStatuses(data);
+     } catch {
+@@ -67,14 +62,14 @@ export default function StatusHistoryModal({
+ 
+   const previousStatuses = getPreviousGuestStatuses(statuses);
+   const filteredStatuses = statuses.filter(status => {
+-    if (target.type === "guest") {
+-      return status.guest_id === target.guestId;
++    if (props.target.type === "guest") {
++      return status.guest_id === props.target.guestId;
+     }
+ 
+-    return status.room === target.roomName;
++    return status.room === props.target.roomName;
+   });
+   const historyRows = filteredStatuses.map(status => {
+-    const guest = guests.find(item => item.id === status.guest_id);
++    const guest = props.guests.find(item => item.id === status.guest_id);
+     const updatedBy = users.find(item => item.id === status.updated_by);
+ 
+     return {
+@@ -91,14 +86,14 @@ export default function StatusHistoryModal({
+ 
+   useEffect(() => {
+     loadHistory();
+-  }, [retreatId, target]);
++  }, [props.retreatId, props.target]);
+ 
+   return (
+     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-6">
+       <div className="flex max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+         <div className="shrink-0 border-b border-gray-200 px-6 py-4">
+           <h2 className="text-xl font-bold">{strTitle}</h2>
+-          <div className="mt-1 text-gray-600">{target.label}</div>
++          <div className="mt-1 text-gray-600">{props.target.label}</div>
+         </div>
+         <div className="min-h-0 flex-1 overflow-y-auto">
+           {isLoading && <div className="p-6">{strLoading}</div>}
+@@ -127,7 +122,7 @@ export default function StatusHistoryModal({
+         </div>
+         <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
+           <div className="flex justify-end">
+-            <button type="button" onClick={onCloseActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50">
++            <button type="button" onClick={props.onCloseActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50">
+               {strClose}
+             </button>
+           </div>
+diff --git a/src/components/houses/HouseForm.tsx b/src/components/houses/HouseForm.tsx
+index 43f4ff4..1d564ae 100644
+--- a/src/components/houses/HouseForm.tsx
++++ b/src/components/houses/HouseForm.tsx
+@@ -11,12 +11,7 @@ type HouseFormProps = {
+   onCancelActionClick: () => void;
+ };
+ 
+-export default function HouseForm({
+-  house,
+-  houses,
+-  onSaveActionClick,
+-  onCancelActionClick,
+-}: HouseFormProps) {
++export default function HouseForm(props: HouseFormProps) {
+   const strAddTitle = "Add house";
+   const strEditTitle = "Edit house";
+   const strName = "Name";
+@@ -25,16 +20,16 @@ export default function HouseForm({
+   const strSave = "Save";
+   const strCancel = "Cancel";
+ 
+-  const isEditMode = house !== null;
++  const isEditMode = props.house !== null;
+   const formTitle = isEditMode ? strEditTitle : strAddTitle;
+ 
+-  const [name, setName] = useState(house?.name ?? "");
+-  const [parentId, setParentId] = useState(house?.parent_id?.toString() ?? "");
++  const [name, setName] = useState(props.house?.name ?? "");
++  const [parentId, setParentId] = useState(props.house?.parent_id?.toString() ?? "");
+   const [isSaving, setIsSaving] = useState(false);
+ 
+-  const availableParents = houses.filter(item => {
++  const availableParents = props.houses.filter(item => {
+     const isRootHouse = item.parent_id === null;
+-    const isCurrentHouse = item.id === house?.id;
++    const isCurrentHouse = item.id === props.house?.id;
+ 
+     return isRootHouse && !isCurrentHouse;
+   });
+@@ -58,7 +53,7 @@ export default function HouseForm({
+     setIsSaving(true);
+ 
+     try {
+-      await onSaveActionClick(data);
++      await props.onSaveActionClick(data);
+     } finally {
+       setIsSaving(false);
+     }
+@@ -71,7 +66,7 @@ export default function HouseForm({
+         <form onSubmit={onSubmitHandler} className="project-form-body">
+           <label className="project-form-field"><span>{strName}</span><input value={name} onChange={onNameChange} required /></label>
+           <label className="project-form-field"><span>{strParent}</span><select value={parentId} onChange={onParentChange}><option value="">{strNoParent}</option>{availableParents.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+-          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
++          <div className="project-form-footer"><button type="button" onClick={props.onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
+         </form>
+       </div>
+     </div>
+diff --git a/src/components/layout/FontSizeSettings.tsx b/src/components/layout/FontSizeSettings.tsx
+index 5ef6eba..0013a09 100644
+--- a/src/components/layout/FontSizeSettings.tsx
++++ b/src/components/layout/FontSizeSettings.tsx
+@@ -47,9 +47,7 @@ const getStoredFontLevel = () => {
+   }
+ };
+ 
+-export function FontSizeSettingsProvider({
+-  children,
+-}: FontSizeSettingsProviderProps) {
++export function FontSizeSettingsProvider(props: FontSizeSettingsProviderProps) {
+   const [fontLevel, setFontLevelState] = useState(getStoredFontLevel);
+   const fontLevelRef = useRef(fontLevel);
+ 
+@@ -107,7 +105,7 @@ export function FontSizeSettingsProvider({
+ 
+   return (
+     <FontSizeSettingsContext.Provider value={value}>
+-      {children}
++      {props.children}
+     </FontSizeSettingsContext.Provider>
+   );
+ }
+diff --git a/src/components/layout/LoginScreen.tsx b/src/components/layout/LoginScreen.tsx
+index 9868105..1187d83 100644
+--- a/src/components/layout/LoginScreen.tsx
++++ b/src/components/layout/LoginScreen.tsx
+@@ -35,7 +35,7 @@ type LoginScreenProps = {
+   invalidLink?: boolean;
+ };
+ 
+-export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
++export default function LoginScreen(props: LoginScreenProps) {
+   const strTitle = "Sign in";
+   const strCaption = "Enter your login and password.";
+   const strLogin = "Login";
+@@ -47,7 +47,7 @@ export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
+   const [login, setLogin] = useState("");
+   const [password, setPassword] = useState("");
+   const [knownLogins, setKnownLogins] = useState<string[]>([]);
+-  const [error, setError] = useState(invalidLink ? strInvalidLink : "");
++  const [error, setError] = useState((props.invalidLink ?? false) ? strInvalidLink : "");
+   const [isSubmitting, setIsSubmitting] = useState(false);
+ 
+   useEffect(() => {
+diff --git a/src/components/layout/Sidebar.tsx b/src/components/layout/Sidebar.tsx
+index 26691fd..e13fd55 100644
+--- a/src/components/layout/Sidebar.tsx
++++ b/src/components/layout/Sidebar.tsx
+@@ -6,8 +6,8 @@ type SidebarProps = {
+   onMenuClick: (menu: string) => void;
+ };
+ 
+-function NavIcon({ label }: { label: string }) {
+-  if (label === "Admin") {
++function NavIcon(props: { label: string }) {
++  if (props.label === "Admin") {
+     return (
+       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-none stroke-current" strokeWidth="1.8">
+         <path d="M12 3.5 14 6l3.2-.2.8 3.1 2.7 1.7-1.7 2.7.2 3.2-3.1.8L14.5 20l-2.5-1.7L9.5 20l-1.6-2.7-3.1-.8.2-3.2-1.7-2.7L6 8.9l.8-3.1L10 6l2-2.5Z" />
+@@ -25,28 +25,24 @@ function NavIcon({ label }: { label: string }) {
+   );
+ }
+ 
+-export default function Sidebar({
+-  menuItems,
+-  selectedMenu,
+-  onMenuClick,
+-}: SidebarProps) {
++export default function Sidebar(props: SidebarProps) {
+   const strBrand = "ozen";
+   const strBrandMark = "✦";
+   const strBrandCaption = "RETREAT MANAGEMENT";
+   const strWorkspaceGroup = "WORKSPACE";
+   const strManageGroup = "MANAGE";
+   const strMainNavigation = "Main navigation";
+-  const retreatItems = menuItems.filter(label => label !== "Admin");
+-  const manageItems = menuItems.filter(label => label === "Admin");
++  const retreatItems = props.menuItems.filter(label => label !== "Admin");
++  const manageItems = props.menuItems.filter(label => label === "Admin");
+ 
+   const prepareItems = (items: string[]) => items.map(label => {
+     const onClickHandler = () => {
+-      onMenuClick(label);
++      props.onMenuClick(label);
+     };
+ 
+     return {
+       label,
+-      isSelected: selectedMenu === label,
++      isSelected: props.selectedMenu === label,
+       onClickHandler,
+     };
+   });
+diff --git a/src/components/retreats/GuestsCards.tsx b/src/components/retreats/GuestsCards.tsx
+index f28a9d4..833c359 100644
+--- a/src/components/retreats/GuestsCards.tsx
++++ b/src/components/retreats/GuestsCards.tsx
+@@ -36,11 +36,7 @@ type GuestsCardsProps<T extends GuestCardRow> = {
+   emptyMessage: string;
+ };
+ 
+-export default function GuestsCards<T extends GuestCardRow>({
+-  guests,
+-  getGuestCardGroup,
+-  emptyMessage,
+-}: GuestsCardsProps<T>) {
++export default function GuestsCards<T extends GuestCardRow>(props: GuestsCardsProps<T>) {
+   const strSearch = "Search guests";
+   const strGuestActions = "Guest actions";
+   const [searchText, setSearchText] = useState("");
+@@ -50,20 +46,20 @@ export default function GuestsCards<T extends GuestCardRow>({
+     { label: string; index: number; rows: { guest: T; actionButton: GuestCardActionButton | null }[] }
+   >();
+ 
+-  guests.forEach((guest, index) => {
++  props.guests.forEach((guest, index) => {
+     const matchesSearch = normalizedSearchText.length > 0
+       && guest.guest.name.toLocaleLowerCase().includes(normalizedSearchText);
+     const grouping = matchesSearch
+       ? null
+-      : getGuestCardGroup?.(guest, index, guests) ?? null;
++      : props.getGuestCardGroup?.(guest, index, props.guests) ?? null;
+     const groupLabel = matchesSearch
+       ? `search '${searchText.trim()}'`
+-      : getGuestCardGroup
++      : props.getGuestCardGroup
+         ? grouping?.groupLabel ?? "others"
+         : "";
+     const groupIndex = matchesSearch
+       ? Number.MIN_SAFE_INTEGER
+-      : getGuestCardGroup
++      : props.getGuestCardGroup
+         ? grouping?.groupIndex ?? Number.MAX_SAFE_INTEGER
+         : 0;
+     const actionButton = matchesSearch ? null : grouping?.actionButton ?? null;
+@@ -147,7 +143,7 @@ export default function GuestsCards<T extends GuestCardRow>({
+           <input type="search" value={searchText} onChange={onSearchChange} placeholder={strSearch} />
+         </label>
+       </div>
+-      {guests.length === 0 ? <p className="project-empty-message">{emptyMessage}</p> : (
++      {props.guests.length === 0 ? <p className="project-empty-message">{props.emptyMessage}</p> : (
+         <div className="project-card-groups">
+           {preparedGroups.map(group => (
+             <section key={`${group.index}:${group.mainLabel}:${group.label}`} className="project-card-group">
+diff --git a/src/components/retreats/ManagerArrivalPanel.tsx b/src/components/retreats/ManagerArrivalPanel.tsx
+index 255bea2..754173e 100644
+--- a/src/components/retreats/ManagerArrivalPanel.tsx
++++ b/src/components/retreats/ManagerArrivalPanel.tsx
+@@ -2,6 +2,7 @@
+ 
+ import { useEffect, useState } from "react";
+ import type { Guest, Room, TaxiRide } from "@/services/database";
++import guestStatusesService from "@/services/guestStatusesService";
+ import type { GuestStatusValue } from "@/services/guestStatusesService";
+ import type { GuestAction } from "@/services/guestActionsService";
+ import HouseMapView from "@/components/houseMaps/HouseMapView";
+@@ -44,8 +45,8 @@ type MeetingTaxiGroup = {
+ 
+ type ArrivalGuestCardRow = GuestCardRow & Pick<GuestRow, "houseName" | "houseId" | "taxiRideId" | "status">;
+ 
+-export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerArrivalPanelProps) {
+-  const strTitle = mode === "meeting" ? "Meeting" : "Check in";
++export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
++  const strTitle = props.mode === "meeting" ? "Meeting" : "Check in";
+   const strLoading = "Loading...";
+   const strLoadError = "Failed to load meeting data.";
+   const strStatusError = "Failed to update guest status.";
+@@ -57,16 +58,8 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+   const strRoomUnknown = "-";
+   const strNoHouse = "No assigned house";
+   const strNoTaxi = "No taxi assigned";
+-  const strArrived = "Arrived";
+   const strSetArrived = "SET ARRIVED";
+   const strCheckIn = "Check in";
+-  const strCheckedIn = "Checked in";
+-  const statusLabels: Record<GuestStatusValue, string> = {
+-    booked: "Booked",
+-    arrived: strArrived,
+-    checked_in: strCheckedIn,
+-    not_coming: "Not coming",
+-  };
+   const { currentUser } = useCurrentUser();
+   const {
+     retreat,
+@@ -354,7 +347,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+ 
+     return {
+       ...guestRow,
+-      statusLabel: statusLabels[guestRow.status],
++      statusLabel: guestStatusesService.getStatusLabel(guestRow.status),
+       statusBadgeClassName: guestRow.status === "checked_in"
+         ? "bg-blue-100 text-blue-800"
+         : guestRow.status === "arrived"
+@@ -364,17 +357,17 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+             : "bg-gray-100 text-gray-700",
+       isPending: pendingGuestIds.has(guestRow.guest.id),
+       showStatus: true,
+-      fallbackCaption: mode === "check-in"
++      fallbackCaption: props.mode === "check-in"
+         && guestRow.houseId !== null
+         && guestRow.status === "checked_in"
+-        ? strCheckedIn
++        ? guestStatusesService.getStatusLabel("checked_in")
+         : "",
+       menuActions,
+     };
+   });
+   const hasRideRows = rideRows.length > 0;
+   const getGuestCardGroup = (guestRow: ArrivalGuestCardRow) => {
+-    if (mode === "meeting") {
++    if (props.mode === "meeting") {
+       const meetingGroup = guestRow.taxiRideId === null
+         ? null
+         : meetingGroupByRideId.get(guestRow.taxiRideId) ?? null;
+@@ -404,7 +397,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+ 
+     if (guestRow.status === "arrived") {
+       return {
+-        groupLabel: strArrived,
++        groupLabel: guestStatusesService.getStatusLabel("arrived"),
+         groupIndex: 0,
+         actionButton: {
+           caption: strCheckIn,
+@@ -417,7 +410,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+ 
+     if (guestRow.status === "booked") {
+       return {
+-        groupLabel: "Booked",
++        groupLabel: guestStatusesService.getStatusLabel("booked"),
+         groupIndex: 1,
+         actionButton: null,
+       };
+@@ -425,7 +418,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+ 
+     if (guestRow.status === "checked_in") {
+       return {
+-        groupLabel: strCheckedIn,
++        groupLabel: guestStatusesService.getStatusLabel("checked_in"),
+         groupIndex: 2,
+         actionButton: null,
+       };
+@@ -449,11 +442,11 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
+ 
+   return (
+     <section>
+-      {showTitle && <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>}
++      {(props.showTitle ?? true) && <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>}
+       {error && <p role="alert" className="mb-4 text-red-600">{error}</p>}
+       {retreatError && <p role="alert" className="mb-4 text-red-600">{strLoadError}</p>}
+       {isSnapshotLoading && <p>{strLoading}</p>}
+-      {!isSnapshotLoading && mode === "meeting" && (
++      {!isSnapshotLoading && props.mode === "meeting" && (
+         <>
+           <div className="project-meeting-taxi-grid">
+             {rideRows.map(ride => (
+diff --git a/src/components/retreats/RetreatForm.tsx b/src/components/retreats/RetreatForm.tsx
+index 657e6c8..e313a33 100644
+--- a/src/components/retreats/RetreatForm.tsx
++++ b/src/components/retreats/RetreatForm.tsx
+@@ -10,11 +10,7 @@ type RetreatFormProps = {
+   onCancelActionClick: () => void;
+ };
+ 
+-export default function RetreatForm({
+-  retreat,
+-  onSaveActionClick,
+-  onCancelActionClick,
+-}: RetreatFormProps) {
++export default function RetreatForm(props: RetreatFormProps) {
+   const strAddTitle = "Add retreat";
+   const strEditTitle = "Edit retreat";
+   const strTitle = "Title";
+@@ -24,13 +20,13 @@ export default function RetreatForm({
+   const strSave = "Save";
+   const strCancel = "Cancel";
+ 
+-  const isEditMode = retreat !== null;
++  const isEditMode = props.retreat !== null;
+   const formTitle = isEditMode ? strEditTitle : strAddTitle;
+ 
+-  const [title, setTitle] = useState(retreat?.title ?? "");
+-  const [startDate, setStartDate] = useState(retreat?.start_date ?? "");
+-  const [endDate, setEndDate] = useState(retreat?.end_date ?? "");
+-  const [isActive, setIsActive] = useState(retreat?.is_active ?? true);
++  const [title, setTitle] = useState(props.retreat?.title ?? "");
++  const [startDate, setStartDate] = useState(props.retreat?.start_date ?? "");
++  const [endDate, setEndDate] = useState(props.retreat?.end_date ?? "");
++  const [isActive, setIsActive] = useState(props.retreat?.is_active ?? true);
+   const [isSaving, setIsSaving] = useState(false);
+ 
+   const onTitleChange = (event: ChangeEvent<HTMLInputElement>) => {
+@@ -62,7 +58,7 @@ export default function RetreatForm({
+     setIsSaving(true);
+ 
+     try {
+-      await onSaveActionClick(data);
++      await props.onSaveActionClick(data);
+     } finally {
+       setIsSaving(false);
+     }
+@@ -79,7 +75,7 @@ export default function RetreatForm({
+             <label className="project-form-field"><span>{strEndDate}</span><input type="date" value={endDate} onChange={onEndDateChange} required /></label>
+           </div>
+           <label className="project-checkbox-field"><input type="checkbox" checked={isActive} onChange={onActiveChange} /><span>{strActive}</span></label>
+-          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
++          <div className="project-form-footer"><button type="button" onClick={props.onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
+         </form>
+       </div>
+     </div>
+diff --git a/src/components/retreats/RetreatRoomsForm.tsx b/src/components/retreats/RetreatRoomsForm.tsx
+index 3d2342d..634ebd1 100644
+--- a/src/components/retreats/RetreatRoomsForm.tsx
++++ b/src/components/retreats/RetreatRoomsForm.tsx
+@@ -30,10 +30,7 @@ const prepareRoomSettings = (
+   };
+ });
+ 
+-export default function RetreatRoomsForm({
+-  onCloseActionClick,
+-  showTitle = true,
+-}: RetreatRoomsFormProps) {
++export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
+   const strTitle = "Retreat rooms";
+   const strAvailable = "Available";
+   const strMaxGuests = "Max guests";
+@@ -256,7 +253,7 @@ export default function RetreatRoomsForm({
+ 
+   return (
+     <section className="project-room-settings-screen">
+-      {showTitle && (
++      {(props.showTitle ?? true) && (
+         <div className="project-room-settings-header">
+           <div>
+             <h2>{strTitle}</h2>
+@@ -348,7 +345,7 @@ export default function RetreatRoomsForm({
+       <div className="project-room-settings-footer">
+         <button
+           type="button"
+-          onClick={onCloseActionClick}
++          onClick={props.onCloseActionClick}
+           disabled={isSaving}
+           className="project-secondary-button"
+         >
+diff --git a/src/components/retreats/RetreatWorkspace.tsx b/src/components/retreats/RetreatWorkspace.tsx
+index 7014132..19fe08a 100644
+--- a/src/components/retreats/RetreatWorkspace.tsx
++++ b/src/components/retreats/RetreatWorkspace.tsx
+@@ -45,9 +45,9 @@ const tabsByRole: Record<string, RetreatTab[]> = {
+ };
+ const noTabs: RetreatTab[] = [];
+ 
+-function RetreatHeading({ fallbackRetreat }: { fallbackRetreat: Retreat }) {
++function RetreatHeading(props: { fallbackRetreat: Retreat }) {
+   const { retreat } = useRetreat();
+-  const displayedRetreat = retreat ?? fallbackRetreat;
++  const displayedRetreat = retreat ?? props.fallbackRetreat;
+   const dateRange = `${dateService.formatDate(displayedRetreat.start_date)} – ${dateService.formatDate(displayedRetreat.end_date)}`;
+ 
+   return (
+diff --git a/src/components/rooms/RoomForm.tsx b/src/components/rooms/RoomForm.tsx
+index 42408c0..199d450 100644
+--- a/src/components/rooms/RoomForm.tsx
++++ b/src/components/rooms/RoomForm.tsx
+@@ -11,12 +11,7 @@ type RoomFormProps = {
+   onCancelActionClick: () => void;
+ };
+ 
+-export default function RoomForm({
+-  room,
+-  houses,
+-  onSaveActionClick,
+-  onCancelActionClick,
+-}: RoomFormProps) {
++export default function RoomForm(props: RoomFormProps) {
+   const strAddTitle = "Add room";
+   const strEditTitle = "Edit room";
+   const strRoomNumber = "Room number";
+@@ -26,12 +21,12 @@ export default function RoomForm({
+   const strSave = "Save";
+   const strCancel = "Cancel";
+ 
+-  const isEditMode = room !== null;
++  const isEditMode = props.room !== null;
+   const formTitle = isEditMode ? strEditTitle : strAddTitle;
+ 
+-  const [roomNumber, setRoomNumber] = useState(room?.room_number ?? "");
+-  const [houseId, setHouseId] = useState(room?.house_id?.toString() ?? "");
+-  const [isAvailable, setIsAvailable] = useState(room?.is_available ?? true);
++  const [roomNumber, setRoomNumber] = useState(props.room?.room_number ?? "");
++  const [houseId, setHouseId] = useState(props.room?.house_id?.toString() ?? "");
++  const [isAvailable, setIsAvailable] = useState(props.room?.is_available ?? true);
+   const [isSaving, setIsSaving] = useState(false);
+ 
+   const onRoomNumberChange = (event: ChangeEvent<HTMLInputElement>) => {
+@@ -62,7 +57,7 @@ export default function RoomForm({
+     setIsSaving(true);
+ 
+     try {
+-      await onSaveActionClick(data);
++      await props.onSaveActionClick(data);
+     } finally {
+       setIsSaving(false);
+     }
+@@ -74,9 +69,9 @@ export default function RoomForm({
+         <div className="project-form-modal-header"><h2>{formTitle}</h2></div>
+         <form onSubmit={onSubmitHandler} className="project-form-body">
+           <label className="project-form-field"><span>{strRoomNumber}</span><input value={roomNumber} onChange={onRoomNumberChange} maxLength={3} required /></label>
+-          <label className="project-form-field"><span>{strHouse}</span><select value={houseId} onChange={onHouseChange} required><option value="">{strSelectHouse}</option>{houses.map(house => <option key={house.id} value={house.id}>{house.name}</option>)}</select></label>
++          <label className="project-form-field"><span>{strHouse}</span><select value={houseId} onChange={onHouseChange} required><option value="">{strSelectHouse}</option>{props.houses.map(house => <option key={house.id} value={house.id}>{house.name}</option>)}</select></label>
+           <label className="project-checkbox-field"><input type="checkbox" checked={isAvailable} onChange={onAvailableChange} /><span>{strAvailable}</span></label>
+-          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
++          <div className="project-form-footer"><button type="button" onClick={props.onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
+         </form>
+       </div>
+     </div>
+diff --git a/src/components/taxis/ImportRides.tsx b/src/components/taxis/ImportRides.tsx
+index 53cbff4..67b0726 100644
+--- a/src/components/taxis/ImportRides.tsx
++++ b/src/components/taxis/ImportRides.tsx
+@@ -98,7 +98,7 @@ const shareNamePart = (leftParts: string[], rightParts: string[]): boolean => {
+   return leftParts.some(part => rightSet.has(part));
+ };
+ 
+-export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
++export default function ImportRides(props: ImportRidesProps) {
+   const strTitle = "Import taxi rides";
+   const strExistingWarning = "All existing taxi rides for this retreat will be deleted when the import is saved.";
+   const strInputHelp = "Paste tab-separated data with columns: group, approxTime, name, time, houseCode.";
+@@ -566,7 +566,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+     try {
+       await taxiRidesService.createRides(retreat.id, rides);
+       await refresh();
+-      onCloseActionClick();
++      props.onCloseActionClick();
+     } catch {
+       setError(strSaveError);
+     } finally {
+@@ -739,7 +739,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
+         )}
+         <div className="project-form-footer">
+           <div className="project-form-footer-actions">
+-            <button type="button" onClick={onCloseActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button>
++            <button type="button" onClick={props.onCloseActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button>
+             {isPreview && <button type="button" onClick={onBackClick} className="project-action-button project-action-button-secondary">{strBack}</button>}
+             {isPreview ? (
+               <button type="button" onClick={onSaveClick} disabled={isSaving} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button>
+diff --git a/src/components/taxis/TaxiRidesPanel.tsx b/src/components/taxis/TaxiRidesPanel.tsx
+index 0149b47..88346ea 100644
+--- a/src/components/taxis/TaxiRidesPanel.tsx
++++ b/src/components/taxis/TaxiRidesPanel.tsx
+@@ -21,7 +21,7 @@ const toLocalDateTimeInput = (value: string): string => {
+   return localDate.toISOString().slice(0, 16);
+ };
+ 
+-export default function TaxiRidesPanel({ canManage, canImport = false, showTitle = true }: TaxiRidesPanelProps) {
++export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
+   const strTitle = "Taxi rides";
+   const strLoading = "Loading...";
+   const strNoRides = "No taxi rides yet.";
+@@ -359,13 +359,13 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
+ 
+   return (
+     <section className="project-taxi-screen">
+-      {showTitle && <div className="project-section-toolbar"><div><h2>{strTitle}</h2></div></div>}
++      {(props.showTitle ?? true) && <div className="project-section-toolbar"><div><h2>{strTitle}</h2></div></div>}
+       {error && <p role="alert" className="project-state-message project-state-error">{error}</p>}
+       {retreatError && <p role="alert" className="project-state-message project-state-error">{retreatError}</p>}
+       {isSnapshotLoading && <p className="project-state-message">{strLoading}</p>}
+       {!isSnapshotLoading && (
+         <>
+-          {canImport && (
++          {(props.canImport ?? false) && (
+             <div className="project-taxi-import-toolbar">
+               <button type="button" onClick={onImportRidesClick} className="project-action-button project-action-button-secondary">{strImportRides}</button>
+             </div>
+@@ -380,10 +380,10 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
+                   {ride.driverName && <span className="project-taxi-driver">{ride.driverName}</span>}
+                   <span className="project-taxi-passenger-count">{ride.passengerCount}</span>
+                 </button>
+-                {canManage && <button type="button" onClick={ride.onEdit} className="project-taxi-edit">{strEditRide}</button>}
++                {props.canManage && <button type="button" onClick={ride.onEdit} className="project-taxi-edit">{strEditRide}</button>}
+               </article>
+             ))}
+-            {canManage && (
++            {props.canManage && (
+               <button type="button" onClick={onNewRideClick} className="project-taxi-add-card">
+                 <span className="project-taxi-add-icon">+</span>
+                 <span>{strAddRide}</span>
+@@ -416,7 +416,7 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
+                         <tr key={passenger.id}>
+                           <td>
+                             <div className="project-passenger-name">
+-                              {canManage && (
++                              {props.canManage && (
+                                 <button type="button" onClick={passenger.onRemoveClick} aria-label={`${strRemove} ${passenger.name}`} title={strRemove} className="project-remove-passenger">×</button>
+                               )}
+                               <span>{passenger.name}</span>
+@@ -429,7 +429,7 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
+                     </tbody>
+                   </table>
+                 </div>
+-                {canManage && (
++                {props.canManage && (
+                   <div className="project-taxi-passenger-editor">
+                     <label className="project-form-field">
+                       <span>{strSearchGuests}</span>
+@@ -458,8 +458,8 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
+           ) : !hasNoRides && <p className="project-empty-message">{strSelectRide}</p>}
+         </>
+       )}
+-      {isImportOpen && canImport && <ImportRides onCloseActionClick={onImportCloseActionClick} />}
+-      {isRideModalOpen && canManage && (
++      {isImportOpen && (props.canImport ?? false) && <ImportRides onCloseActionClick={onImportCloseActionClick} />}
++      {isRideModalOpen && props.canManage && (
+         <div className="project-modal-backdrop">
+           <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="project-form-modal">
+             <div className="project-form-modal-header">
+diff --git a/src/components/users/UserForm.tsx b/src/components/users/UserForm.tsx
+index 9cc8ac1..f725d0c 100644
+--- a/src/components/users/UserForm.tsx
++++ b/src/components/users/UserForm.tsx
+@@ -22,14 +22,7 @@ type UserFormProps = {
+   onCancelActionClick: () => void;
+ };
+ 
+-export default function UserForm({
+-  user,
+-  roles,
+-  retreats,
+-  actionError,
+-  onSaveActionClick,
+-  onCancelActionClick,
+-}: UserFormProps) {
++export default function UserForm(props: UserFormProps) {
+   const strAddTitle = "Add user";
+   const strEditTitle = "Edit user";
+   const strName = "Name";
+@@ -46,15 +39,15 @@ export default function UserForm({
+   const strCancel = "Cancel";
+   const strSaving = "Saving...";
+ 
+-  const [name, setName] = useState(user?.name ?? "");
+-  const [login, setLogin] = useState(user?.login ?? "");
++  const [name, setName] = useState(props.user?.name ?? "");
++  const [login, setLogin] = useState(props.user?.login ?? "");
+   const [password, setPassword] = useState("");
+   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+-  const [linkCode, setLinkCode] = useState(user?.link_code ?? "");
+-  const [role, setRole] = useState(user?.role ?? roles[0]?.role_name ?? "");
+-  const [retreatId, setRetreatId] = useState(user?.retreat_id?.toString() ?? "");
++  const [linkCode, setLinkCode] = useState(props.user?.link_code ?? "");
++  const [role, setRole] = useState(props.user?.role ?? props.roles[0]?.role_name ?? "");
++  const [retreatId, setRetreatId] = useState(props.user?.retreat_id?.toString() ?? "");
+   const [isSaving, setIsSaving] = useState(false);
+-  const formTitle = user ? strEditTitle : strAddTitle;
++  const formTitle = props.user ? strEditTitle : strAddTitle;
+ 
+   const onNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+     setName(event.target.value);
+@@ -107,7 +100,7 @@ export default function UserForm({
+     setIsSaving(true);
+ 
+     try {
+-      await onSaveActionClick(data);
++      await props.onSaveActionClick(data);
+     } finally {
+       setIsSaving(false);
+     }
+@@ -122,17 +115,17 @@ export default function UserForm({
+           <label htmlFor="user-login" className="project-form-field"><span>{strLogin}</span><input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" /></label>
+           <div className="project-form-field">
+             <label htmlFor="user-password">{strPassword}</label>
+-            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" minLength={8} maxLength={256} />
++            <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!props.user} autoComplete="new-password" minLength={8} maxLength={256} />
+             <label className="project-checkbox-field project-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
+-            {user && <p className="project-field-note">{strPasswordOptional}</p>}
++            {props.user && <p className="project-field-note">{strPasswordOptional}</p>}
+           </div>
+           <label htmlFor="user-link-code" className="project-form-field"><span>{strLinkCode}</span><input id="user-link-code" value={linkCode} onChange={onLinkCodeChange} maxLength={255} autoComplete="off" /><small className="project-field-note">{strLinkCodeNote}</small></label>
+-          <label htmlFor="user-role" className="project-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{roles.map(item => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
++          <label htmlFor="user-role" className="project-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{props.roles.map(item => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
+           {role === "organizer" && (
+-            <label htmlFor="user-retreat" className="project-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{retreats.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
++            <label htmlFor="user-retreat" className="project-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{props.retreats.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+           )}
+-          {actionError && <div role="alert" className="project-state-message project-state-error">{actionError}</div>}
+-          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} disabled={isSaving} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving || roles.length === 0} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button></div>
++          {props.actionError && <div role="alert" className="project-state-message project-state-error">{props.actionError}</div>}
++          <div className="project-form-footer"><button type="button" onClick={props.onCancelActionClick} disabled={isSaving} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving || props.roles.length === 0} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button></div>
+         </form>
+       </div>
+     </div>
+diff --git a/src/contexts/CurrentUserContext.tsx b/src/contexts/CurrentUserContext.tsx
+index 7286baf..171a13f 100644
+--- a/src/contexts/CurrentUserContext.tsx
++++ b/src/contexts/CurrentUserContext.tsx
+@@ -24,13 +24,13 @@ type CurrentUserProviderProps = {
+ 
+ const CurrentUserContext = createContext<CurrentUserContextValue | null>(null);
+ 
+-export function CurrentUserProvider({ children, initialUser, initialUsers }: CurrentUserProviderProps) {
+-  const [users, setUsers] = useState<UserDirectoryEntry[]>(initialUsers);
+-  const [currentUser, setCurrentUser] = useState<User>(initialUser);
++export function CurrentUserProvider(props: CurrentUserProviderProps) {
++  const [users, setUsers] = useState<UserDirectoryEntry[]>(props.initialUsers);
++  const [currentUser, setCurrentUser] = useState<User>(props.initialUser);
+ 
+   return (
+     <CurrentUserContext.Provider value={{ users, currentUser, setUsers, setCurrentUser }}>
+-      {children}
++      {props.children}
+     </CurrentUserContext.Provider>
+   );
+ }
+diff --git a/src/contexts/RetreatContext.tsx b/src/contexts/RetreatContext.tsx
+index f02969e..b9e0cce 100644
+--- a/src/contexts/RetreatContext.tsx
++++ b/src/contexts/RetreatContext.tsx
+@@ -77,12 +77,7 @@ const RetreatContext = createContext<RetreatContextValue | null>(null);
+ const POLL_INTERVAL_MS = 5_000;
+ const FULL_REFRESH_INTERVAL_MS = 120_000;
+ 
+-export function RetreatProvider({
+-  retreatId,
+-  retreats,
+-  onChangeRetreat,
+-  children,
+-}: RetreatProviderProps) {
++export function RetreatProvider(props: RetreatProviderProps) {
+   const { currentUser } = useCurrentUser();
+   const [snapshot, setSnapshot] = useState<RetreatSnapshot | null>(null);
+   const [isLoading, setIsLoading] = useState(true);
+@@ -108,7 +103,7 @@ export function RetreatProvider({
+     const requestId = ++requestIdRef.current;
+ 
+     try {
+-      const retreat = await retreatsService.getRetreatById(retreatId);
++      const retreat = await retreatsService.getRetreatById(props.retreatId);
+ 
+       if (background && document.visibilityState !== "visible") {
+         return;
+@@ -125,7 +120,7 @@ export function RetreatProvider({
+       const currentSnapshot = snapshotRef.current;
+       if (
+         !force
+-        && currentSnapshot?.retreat.id === retreatId
++        && currentSnapshot?.retreat.id === props.retreatId
+         && typeof retreat.version === "number"
+         && typeof currentSnapshot.retreat.version === "number"
+         && retreat.version === currentSnapshot.retreat.version
+@@ -136,7 +131,7 @@ export function RetreatProvider({
+         return;
+       }
+ 
+-      const nextSnapshot = await retreatSnapshotService.getSnapshot(retreatId);
++      const nextSnapshot = await retreatSnapshotService.getSnapshot(props.retreatId);
+ 
+       if (background && document.visibilityState !== "visible") {
+         return;
+@@ -149,7 +144,7 @@ export function RetreatProvider({
+       lastFullRefreshRef.current = Date.now();
+       if (
+         !currentSnapshot
+-        || currentSnapshot.retreat.id !== retreatId
++        || currentSnapshot.retreat.id !== props.retreatId
+         || JSON.stringify(currentSnapshot) !== JSON.stringify(nextSnapshot)
+       ) {
+         snapshotRef.current = nextSnapshot;
+@@ -172,7 +167,7 @@ export function RetreatProvider({
+         setIsLoading(false);
+       }
+     }
+-  }, [retreatId]);
++  }, [props.retreatId]);
+ 
+   const refresh = useCallback(async () => {
+     setIsLoading(snapshotRef.current === null);
+@@ -187,10 +182,10 @@ export function RetreatProvider({
+ 
+   const createGuest = useCallback(async (guest: Omit<CreateGuest, "retreat_id">) => {
+     await runMutation(() => guestsService.createGuest(
+-      { ...guest, retreat_id: retreatId },
++      { ...guest, retreat_id: props.retreatId },
+       currentUser.id
+     ));
+-  }, [currentUser.id, retreatId, runMutation]);
++  }, [currentUser.id, props.retreatId, runMutation]);
+ 
+   const updateGuest = useCallback(async (guestId: number, changes: UpdateGuest) => {
+     await runMutation(() => guestsService.updateGuest(guestId, changes, currentUser.id));
+@@ -211,23 +206,23 @@ export function RetreatProvider({
+     updatedBy: number
+   ) => {
+     await runMutation(() => guestStatusesService.createStatus(
+-      retreatId,
++      props.retreatId,
+       guestId,
+       status,
+       room,
+       updatedBy
+     ));
+-  }, [retreatId, runMutation]);
++  }, [props.retreatId, runMutation]);
+ 
+   const saveRooms = useCallback(async (settings: RetreatRoomSetting[]) => {
+-    await runMutation(() => retreatRoomsService.saveRetreatRooms(retreatId, settings));
+-  }, [retreatId, runMutation]);
++    await runMutation(() => retreatRoomsService.saveRetreatRooms(props.retreatId, settings));
++  }, [props.retreatId, runMutation]);
+ 
+   const createTaxiRide = useCallback(async (
+     ride: Omit<CreateTaxiRide, "retreat_id">
+   ): Promise<TaxiRide> => {
+-    return runMutation(() => taxiRidesService.create({ ...ride, retreat_id: retreatId }));
+-  }, [retreatId, runMutation]);
++    return runMutation(() => taxiRidesService.create({ ...ride, retreat_id: props.retreatId }));
++  }, [props.retreatId, runMutation]);
+ 
+   const updateTaxiRide = useCallback(async (
+     rideId: number,
+@@ -253,17 +248,17 @@ export function RetreatProvider({
+   }, [runMutation]);
+ 
+   const changeRetreat = useCallback((nextRetreatId: number) => {
+-    if (nextRetreatId === retreatId) {
++    if (nextRetreatId === props.retreatId) {
+       return;
+     }
+ 
+-    if (!retreats.some(item => item.id === nextRetreatId)) {
++    if (!props.retreats.some(item => item.id === nextRetreatId)) {
+       setError("The selected retreat is not available.");
+       return;
+     }
+ 
+-    onChangeRetreat(nextRetreatId);
+-  }, [onChangeRetreat, retreatId, retreats]);
++    props.onChangeRetreat(nextRetreatId);
++  }, [props.onChangeRetreat, props.retreatId, props.retreats]);
+ 
+   useEffect(() => {
+     const timeoutId = window.setTimeout(() => {
+@@ -302,7 +297,7 @@ export function RetreatProvider({
+   }, [loadSnapshot]);
+ 
+   const value = useMemo<RetreatContextValue>(() => ({
+-    retreats,
++    retreats: props.retreats,
+     retreat: snapshot?.retreat ?? null,
+     snapshot,
+     getGuests: () => snapshot?.guests ?? [],
+@@ -331,7 +326,7 @@ export function RetreatProvider({
+     moveTaxiGuest,
+     deleteTaxiGuest,
+   }), [
+-    retreats,
++    props.retreats,
+     snapshot,
+     isLoading,
+     error,
+@@ -353,7 +348,7 @@ export function RetreatProvider({
+ 
+   return (
+     <RetreatContext.Provider value={value}>
+-      {children}
++      {props.children}
+     </RetreatContext.Provider>
+   );
+ }
+diff --git a/src/services/guestStatusesService.ts b/src/services/guestStatusesService.ts
+index ad5e08f..d715217 100644
+--- a/src/services/guestStatusesService.ts
++++ b/src/services/guestStatusesService.ts
+@@ -7,6 +7,14 @@ export type GuestStatusValue =
+   | "checked_in"
+   | "not_coming";
+ 
++
++const guestStatusLabels: Record<GuestStatusValue, string> = {
++  booked: "Booked",
++  arrived: "Arrived",
++  checked_in: "Checked in",
++  not_coming: "Not coming",
++};
++
+ export type LatestGuestStatus = {
+   guestId: number;
+   status: GuestStatusValue;
+@@ -138,6 +146,11 @@ export function getGuestStatusHistoryMessage(
+ }
+ 
+ const guestStatusesService = {
++  // Возвращает единое отображаемое название статуса для всех компонентов.
++  getStatusLabel: (status: GuestStatusValue): string => {
++    return guestStatusLabels[status];
++  },
++
+   getGuestStatusesByRetreatId: async (retreatId: number): Promise<GuestStatus[]> => {
+     return db.guestStatuses.getByRetreatId(retreatId);
+   },
+diff --git a/src/services/housesService.ts b/src/services/housesService.ts
+index 2994c34..0bfe835 100644
+--- a/src/services/housesService.ts
++++ b/src/services/housesService.ts
+@@ -1,9 +1,35 @@
+ import db from "./database";
+ import type { CreateHouse, House, UpdateHouse } from "./database";
+ 
++let housesCache: House[] | null = null;
++let housesRequest: Promise<House[]> | null = null;
++
++// Дома являются справочными данными: читаем список один раз и перечитываем только после изменений.
++async function loadHouses(force = false): Promise<House[]> {
++  if (!force && housesCache) {
++    return housesCache;
++  }
++
++  if (!force && housesRequest) {
++    return housesRequest;
++  }
++
++  const request = db.houses.getAll();
++  housesRequest = request;
++
++  try {
++    housesCache = await request;
++    return housesCache;
++  } finally {
++    if (housesRequest === request) {
++      housesRequest = null;
++    }
++  }
++}
++
+ const housesService = {
+   getHouses: async (): Promise<House[]> => {
+-    return db.houses.getAll();
++    return loadHouses();
+   },
+ 
+   getHouseById: async (id: number): Promise<House | null> => {
+@@ -15,16 +41,21 @@ const housesService = {
+   },
+ 
+   createHouse: async (house: CreateHouse): Promise<House> => {
+-    return db.houses.create(house);
++    const createdHouse = await db.houses.create(house);
++    await loadHouses(true);
++    return createdHouse;
+   },
+ 
+   updateHouse: async (id: number, changes: UpdateHouse): Promise<House> => {
+-    return db.houses.update(id, changes);
++    const updatedHouse = await db.houses.update(id, changes);
++    await loadHouses(true);
++    return updatedHouse;
+   },
+ 
+   deleteHouse: async (id: number): Promise<void> => {
+-    return db.houses.delete(id);
++    await db.houses.delete(id);
++    await loadHouses(true);
+   },
+ };
+ 
+-export default housesService;
+\ No newline at end of file
++export default housesService;
+diff --git a/src/services/roomsService.ts b/src/services/roomsService.ts
+index f9d1f6e..f7ea881 100644
+--- a/src/services/roomsService.ts
++++ b/src/services/roomsService.ts
+@@ -1,9 +1,35 @@
+ import db from "./database";
+ import type { CreateRoom, House, Room, UpdateRoom } from "./database";
+ 
++let roomsCache: Room[] | null = null;
++let roomsRequest: Promise<Room[]> | null = null;
++
++// Комнаты являются справочными данными: читаем список один раз и перечитываем только после изменений.
++async function loadRooms(force = false): Promise<Room[]> {
++  if (!force && roomsCache) {
++    return roomsCache;
++  }
++
++  if (!force && roomsRequest) {
++    return roomsRequest;
++  }
++
++  const request = db.rooms.getAll();
++  roomsRequest = request;
++
++  try {
++    roomsCache = await request;
++    return roomsCache;
++  } finally {
++    if (roomsRequest === request) {
++      roomsRequest = null;
++    }
++  }
++}
++
+ const roomsService = {
+   getRooms: async (): Promise<Room[]> => {
+-    return db.rooms.getAll();
++    return loadRooms();
+   },
+ 
+   getRoomById: async (id: number): Promise<Room | null> => {
+@@ -15,15 +41,20 @@ const roomsService = {
+   },
+ 
+   createRoom: async (room: CreateRoom): Promise<Room> => {
+-    return db.rooms.create(room);
++    const createdRoom = await db.rooms.create(room);
++    await loadRooms(true);
++    return createdRoom;
+   },
+ 
+   updateRoom: async (id: number, changes: UpdateRoom): Promise<Room> => {
+-    return db.rooms.update(id, changes);
++    const updatedRoom = await db.rooms.update(id, changes);
++    await loadRooms(true);
++    return updatedRoom;
+   },
+ 
+   deleteRoom: async (id: number): Promise<void> => {
+-    return db.rooms.delete(id);
++    await db.rooms.delete(id);
++    await loadRooms(true);
+   },
+ 
+   // Формирует принятое в UI имя комнаты: Buddhas 3 -> Buddha 3, остальные houses склеиваются с номером.
+diff --git a/tests/services/guestStatusesService.test.ts b/tests/services/guestStatusesService.test.ts
+index d8beb32..040ee84 100644
+--- a/tests/services/guestStatusesService.test.ts
++++ b/tests/services/guestStatusesService.test.ts
+@@ -3,7 +3,7 @@ import {
+   testCreateGuestStatus,
+   testGuestStatusSequence,
+ } from "../../test-kit/retreat-services/guestStatusesService";
+-import { getLatestGuestStatuses } from "@/services/guestStatusesService";
++import guestStatusesService, { getLatestGuestStatuses } from "@/services/guestStatusesService";
+ import type { GuestStatus } from "@/services/database";
+ import { expectServiceTest } from "../helpers/serviceTest";
+ import {
+@@ -29,6 +29,13 @@ afterAll(async () => {
+ });
+ 
+ describe("guestStatusesService", () => {
++  it("returns shared status labels", () => {
++    expect(guestStatusesService.getStatusLabel("booked")).toBe("Booked");
++    expect(guestStatusesService.getStatusLabel("arrived")).toBe("Arrived");
++    expect(guestStatusesService.getStatusLabel("checked_in")).toBe("Checked in");
++    expect(guestStatusesService.getStatusLabel("not_coming")).toBe("Not coming");
++  });
++
+   // Latest выбирается по времени/id, а не по порядку записей в переданном массиве.
+   it("finds latest statuses regardless of input order", () => {
+     const statuses = [

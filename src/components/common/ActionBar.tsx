@@ -20,45 +20,36 @@ interface ActionBarProps<T> {
   extraContentPosition?: "left" | "right";
 }
 
-export default function ActionBar<T>({
-  disabled = false,
-  selectedItem,
-  onAddActionClick,
-  onEditActionClick,
-  onDeleteActionClick,
-  extraActions = [],
-  extraContent,
-  extraContentPosition = "left",
-}: ActionBarProps<T>) {
+export default function ActionBar<T>(props: ActionBarProps<T>) {
   const strBtnAdd = 'Add';
   const strBtnEdit = 'Edit';
   const strBtnDelete = 'Delete';
 
-  const isActionDisabled = disabled || !selectedItem;
+  const isActionDisabled = (props.disabled ?? false) || !props.selectedItem;
 
   const onEditHandler = () => {
-    if (!selectedItem) {
+    if (!props.selectedItem) {
       return;
     }
 
-    onEditActionClick(selectedItem);
+    props.onEditActionClick(props.selectedItem);
   };
 
   const onDeleteHandler = () => {
-    if (!selectedItem) {
+    if (!props.selectedItem) {
       return;
     }
 
-    onDeleteActionClick(selectedItem);
+    props.onDeleteActionClick(props.selectedItem);
   };
 
-  const preparedExtraActions = extraActions.map((action, index) => {
+  const preparedExtraActions = (props.extraActions ?? []).map((action, index) => {
     const onClickHandler = () => {
-      if (!selectedItem) {
+      if (!props.selectedItem) {
         return;
       }
 
-      action.onClickHandler(selectedItem);
+      action.onClickHandler(props.selectedItem);
     };
 
     return {
@@ -71,18 +62,18 @@ export default function ActionBar<T>({
 
   return (
     <div
-      aria-disabled={disabled}
-      className={`project-action-bar ${extraContent ? "project-action-bar-with-content" : ""}`}
+      aria-disabled={(props.disabled ?? false)}
+      className={`project-action-bar ${props.extraContent ? "project-action-bar-with-content" : ""}`}
     >
-      {extraContent && extraContentPosition === "left" && (
-        <div className="project-action-bar-content">{extraContent}</div>
+      {props.extraContent && (props.extraContentPosition ?? "left") === "left" && (
+        <div className="project-action-bar-content">{props.extraContent}</div>
       )}
-      <div className={`project-action-buttons ${disabled ? "opacity-50 grayscale" : ""}`}>
+      <div className={`project-action-buttons ${(props.disabled ?? false) ? "opacity-50 grayscale" : ""}`}>
         <button
           type="button"
-          onClick={onAddActionClick}
-          disabled={disabled}
-          aria-disabled={disabled}
+          onClick={props.onAddActionClick}
+          disabled={(props.disabled ?? false)}
+          aria-disabled={(props.disabled ?? false)}
           className="project-action-button project-action-button-primary"
         >
           {strBtnAdd}
@@ -118,8 +109,8 @@ export default function ActionBar<T>({
           </button>
         ))}
       </div>
-      {extraContent && extraContentPosition === "right" && (
-        <div className="project-action-bar-content project-action-bar-content-right">{extraContent}</div>
+      {props.extraContent && (props.extraContentPosition ?? "left") === "right" && (
+        <div className="project-action-bar-content project-action-bar-content-right">{props.extraContent}</div>
       )}
     </div>
   );

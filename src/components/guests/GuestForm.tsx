@@ -15,14 +15,7 @@ type GuestFormProps = {
   onCancelActionClick: () => void;
 };
 
-export default function GuestForm({
-  guest,
-  retreatId,
-  houses,
-  rooms,
-  onSaveActionClick,
-  onCancelActionClick,
-}: GuestFormProps) {
+export default function GuestForm(props: GuestFormProps) {
   const strAddTitle = "Add guest";
   const strEditTitle = "Edit guest";
   const strName = "Name";
@@ -37,25 +30,25 @@ export default function GuestForm({
   const strSave = "Save";
   const strCancel = "Cancel";
 
-  const isEditMode = guest !== null;
+  const isEditMode = props.guest !== null;
   const formTitle = isEditMode ? strEditTitle : strAddTitle;
 
-  const [name, setName] = useState(guest?.name ?? "");
-  const [isOrganizer, setIsOrganizer] = useState(guest?.is_organizer ?? false);
-  const [arrivalDate, setArrivalDate] = useState(guest?.arrival_date ?? "");
-  const [dietNotes, setDietNotes] = useState(guest?.diet_notes ?? "");
-  const [roomId, setRoomId] = useState(guest?.room_id?.toString() ?? "");
+  const [name, setName] = useState(props.guest?.name ?? "");
+  const [isOrganizer, setIsOrganizer] = useState(props.guest?.is_organizer ?? false);
+  const [arrivalDate, setArrivalDate] = useState(props.guest?.arrival_date ?? "");
+  const [dietNotes, setDietNotes] = useState(props.guest?.diet_notes ?? "");
+  const [roomId, setRoomId] = useState(props.guest?.room_id?.toString() ?? "");
   const [isRoomMapOpen, setIsRoomMapOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const selectedRoom = rooms.find(room => room.id === Number(roomId));
-  const selectedHouse = houses.find(house => house.id === selectedRoom?.house_id);
+  const selectedRoom = props.rooms.find(room => room.id === Number(roomId));
+  const selectedHouse = props.houses.find(house => house.id === selectedRoom?.house_id);
   const roomLabel = selectedRoom && selectedHouse
     ? roomsService.getRoomDisplayName(selectedRoom, selectedHouse)
     : strNoRoom;
   const roomSelectionTarget = {
-    guestId: guest?.id ?? null,
-    name: name.trim() || guest?.name || strNewGuest,
+    guestId: props.guest?.id ?? null,
+    name: name.trim() || props.guest?.name || strNewGuest,
     roomId: selectedRoom?.id ?? null,
   };
 
@@ -96,7 +89,7 @@ export default function GuestForm({
     event.preventDefault();
 
     const data: CreateGuest = {
-      retreat_id: retreatId,
+      retreat_id: props.retreatId,
       name,
       is_organizer: isOrganizer,
       arrival_date: arrivalDate || null,
@@ -107,7 +100,7 @@ export default function GuestForm({
     setIsSaving(true);
 
     try {
-      await onSaveActionClick(data);
+      await props.onSaveActionClick(data);
     } finally {
       setIsSaving(false);
     }
@@ -166,7 +159,7 @@ export default function GuestForm({
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
+            <button type="button" onClick={props.onCancelActionClick} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold">{strCancel}</button>
             <button type="submit" disabled={isSaving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{strSave}</button>
           </div>
         </form>

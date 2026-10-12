@@ -13,9 +13,7 @@ type HouseMapWorkspaceProps = {
   openMode: HouseMapOpenMode;
 };
 
-export default function HouseMapWorkspace({
-  openMode,
-}: HouseMapWorkspaceProps) {
+export default function HouseMapWorkspace(props: HouseMapWorkspaceProps) {
   const strRetreat = "Retreat";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load retreats.";
@@ -117,7 +115,7 @@ export default function HouseMapWorkspace({
           retreats={retreats}
           onChangeRetreat={setSelectedRetreatId}
         >
-          <HouseMapView openMode={openMode} />
+          <HouseMapView openMode={props.openMode} />
         </RetreatProvider>
       </div>
     </div>

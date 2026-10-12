@@ -21,7 +21,7 @@ const toLocalDateTimeInput = (value: string): string => {
   return localDate.toISOString().slice(0, 16);
 };
 
-export default function TaxiRidesPanel({ canManage, canImport = false, showTitle = true }: TaxiRidesPanelProps) {
+export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
   const strTitle = "Taxi rides";
   const strLoading = "Loading...";
   const strNoRides = "No taxi rides yet.";
@@ -359,13 +359,13 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
 
   return (
     <section className="project-taxi-screen">
-      {showTitle && <div className="project-section-toolbar"><div><h2>{strTitle}</h2></div></div>}
+      {(props.showTitle ?? true) && <div className="project-section-toolbar"><div><h2>{strTitle}</h2></div></div>}
       {error && <p role="alert" className="project-state-message project-state-error">{error}</p>}
       {retreatError && <p role="alert" className="project-state-message project-state-error">{retreatError}</p>}
       {isSnapshotLoading && <p className="project-state-message">{strLoading}</p>}
       {!isSnapshotLoading && (
         <>
-          {canImport && (
+          {(props.canImport ?? false) && (
             <div className="project-taxi-import-toolbar">
               <button type="button" onClick={onImportRidesClick} className="project-action-button project-action-button-secondary">{strImportRides}</button>
             </div>
@@ -380,10 +380,10 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
                   {ride.driverName && <span className="project-taxi-driver">{ride.driverName}</span>}
                   <span className="project-taxi-passenger-count">{ride.passengerCount}</span>
                 </button>
-                {canManage && <button type="button" onClick={ride.onEdit} className="project-taxi-edit">{strEditRide}</button>}
+                {props.canManage && <button type="button" onClick={ride.onEdit} className="project-taxi-edit">{strEditRide}</button>}
               </article>
             ))}
-            {canManage && (
+            {props.canManage && (
               <button type="button" onClick={onNewRideClick} className="project-taxi-add-card">
                 <span className="project-taxi-add-icon">+</span>
                 <span>{strAddRide}</span>
@@ -416,7 +416,7 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
                         <tr key={passenger.id}>
                           <td>
                             <div className="project-passenger-name">
-                              {canManage && (
+                              {props.canManage && (
                                 <button type="button" onClick={passenger.onRemoveClick} aria-label={`${strRemove} ${passenger.name}`} title={strRemove} className="project-remove-passenger">×</button>
                               )}
                               <span>{passenger.name}</span>
@@ -429,7 +429,7 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
                     </tbody>
                   </table>
                 </div>
-                {canManage && (
+                {props.canManage && (
                   <div className="project-taxi-passenger-editor">
                     <label className="project-form-field">
                       <span>{strSearchGuests}</span>
@@ -458,8 +458,8 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
           ) : !hasNoRides && <p className="project-empty-message">{strSelectRide}</p>}
         </>
       )}
-      {isImportOpen && canImport && <ImportRides onCloseActionClick={onImportCloseActionClick} />}
-      {isRideModalOpen && canManage && (
+      {isImportOpen && (props.canImport ?? false) && <ImportRides onCloseActionClick={onImportCloseActionClick} />}
+      {isRideModalOpen && props.canManage && (
         <div className="project-modal-backdrop">
           <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="project-form-modal">
             <div className="project-form-modal-header">

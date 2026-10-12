@@ -36,11 +36,7 @@ type GuestsCardsProps<T extends GuestCardRow> = {
   emptyMessage: string;
 };
 
-export default function GuestsCards<T extends GuestCardRow>({
-  guests,
-  getGuestCardGroup,
-  emptyMessage,
-}: GuestsCardsProps<T>) {
+export default function GuestsCards<T extends GuestCardRow>(props: GuestsCardsProps<T>) {
   const strSearch = "Search guests";
   const strGuestActions = "Guest actions";
   const [searchText, setSearchText] = useState("");
@@ -50,20 +46,20 @@ export default function GuestsCards<T extends GuestCardRow>({
     { label: string; index: number; rows: { guest: T; actionButton: GuestCardActionButton | null }[] }
   >();
 
-  guests.forEach((guest, index) => {
+  props.guests.forEach((guest, index) => {
     const matchesSearch = normalizedSearchText.length > 0
       && guest.guest.name.toLocaleLowerCase().includes(normalizedSearchText);
     const grouping = matchesSearch
       ? null
-      : getGuestCardGroup?.(guest, index, guests) ?? null;
+      : props.getGuestCardGroup?.(guest, index, props.guests) ?? null;
     const groupLabel = matchesSearch
       ? `search '${searchText.trim()}'`
-      : getGuestCardGroup
+      : props.getGuestCardGroup
         ? grouping?.groupLabel ?? "others"
         : "";
     const groupIndex = matchesSearch
       ? Number.MIN_SAFE_INTEGER
-      : getGuestCardGroup
+      : props.getGuestCardGroup
         ? grouping?.groupIndex ?? Number.MAX_SAFE_INTEGER
         : 0;
     const actionButton = matchesSearch ? null : grouping?.actionButton ?? null;
@@ -147,7 +143,7 @@ export default function GuestsCards<T extends GuestCardRow>({
           <input type="search" value={searchText} onChange={onSearchChange} placeholder={strSearch} />
         </label>
       </div>
-      {guests.length === 0 ? <p className="project-empty-message">{emptyMessage}</p> : (
+      {props.guests.length === 0 ? <p className="project-empty-message">{props.emptyMessage}</p> : (
         <div className="project-card-groups">
           {preparedGroups.map(group => (
             <section key={`${group.index}:${group.mainLabel}:${group.label}`} className="project-card-group">

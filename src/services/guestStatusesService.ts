@@ -7,6 +7,14 @@ export type GuestStatusValue =
   | "checked_in"
   | "not_coming";
 
+
+const guestStatusLabels: Record<GuestStatusValue, string> = {
+  booked: "Booked",
+  arrived: "Arrived",
+  checked_in: "Checked in",
+  not_coming: "Not coming",
+};
+
 export type LatestGuestStatus = {
   guestId: number;
   status: GuestStatusValue;
@@ -138,6 +146,11 @@ export function getGuestStatusHistoryMessage(
 }
 
 const guestStatusesService = {
+  // Возвращает единое отображаемое название статуса для всех компонентов.
+  getStatusLabel: (status: GuestStatusValue): string => {
+    return guestStatusLabels[status];
+  },
+
   getGuestStatusesByRetreatId: async (retreatId: number): Promise<GuestStatus[]> => {
     return db.guestStatuses.getByRetreatId(retreatId);
   },

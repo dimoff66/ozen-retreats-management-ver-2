@@ -3,7 +3,7 @@ import {
   testCreateGuestStatus,
   testGuestStatusSequence,
 } from "../../test-kit/retreat-services/guestStatusesService";
-import { getLatestGuestStatuses } from "@/services/guestStatusesService";
+import guestStatusesService, { getLatestGuestStatuses } from "@/services/guestStatusesService";
 import type { GuestStatus } from "@/services/database";
 import { expectServiceTest } from "../helpers/serviceTest";
 import {
@@ -29,6 +29,13 @@ afterAll(async () => {
 });
 
 describe("guestStatusesService", () => {
+  it("returns shared status labels", () => {
+    expect(guestStatusesService.getStatusLabel("booked")).toBe("Booked");
+    expect(guestStatusesService.getStatusLabel("arrived")).toBe("Arrived");
+    expect(guestStatusesService.getStatusLabel("checked_in")).toBe("Checked in");
+    expect(guestStatusesService.getStatusLabel("not_coming")).toBe("Not coming");
+  });
+
   // Latest выбирается по времени/id, а не по порядку записей в переданном массиве.
   it("finds latest statuses regardless of input order", () => {
     const statuses = [

@@ -19,8 +19,8 @@ function getSearchParam(value: string | string[] | undefined): string {
   return value ?? "";
 }
 
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const params = await searchParams;
+export default async function HomePage(props: HomePageProps) {
+  const params = await props.searchParams;
   const user = await getAuthenticatedUser();
 
   if (!user) {

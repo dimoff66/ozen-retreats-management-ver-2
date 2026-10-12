@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Guest, Room, TaxiRide } from "@/services/database";
+import guestStatusesService from "@/services/guestStatusesService";
 import type { GuestStatusValue } from "@/services/guestStatusesService";
 import type { GuestAction } from "@/services/guestActionsService";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
@@ -44,8 +45,8 @@ type MeetingTaxiGroup = {
 
 type ArrivalGuestCardRow = GuestCardRow & Pick<GuestRow, "houseName" | "houseId" | "taxiRideId" | "status">;
 
-export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerArrivalPanelProps) {
-  const strTitle = mode === "meeting" ? "Meeting" : "Check in";
+export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
+  const strTitle = props.mode === "meeting" ? "Meeting" : "Check in";
   const strLoading = "Loading...";
   const strLoadError = "Failed to load meeting data.";
   const strStatusError = "Failed to update guest status.";
@@ -57,16 +58,8 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
   const strRoomUnknown = "-";
   const strNoHouse = "No assigned house";
   const strNoTaxi = "No taxi assigned";
-  const strArrived = "Arrived";
   const strSetArrived = "SET ARRIVED";
   const strCheckIn = "Check in";
-  const strCheckedIn = "Checked in";
-  const statusLabels: Record<GuestStatusValue, string> = {
-    booked: "Booked",
-    arrived: strArrived,
-    checked_in: strCheckedIn,
-    not_coming: "Not coming",
-  };
   const { currentUser } = useCurrentUser();
   const {
     retreat,
@@ -354,7 +347,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
 
     return {
       ...guestRow,
-      statusLabel: statusLabels[guestRow.status],
+      statusLabel: guestStatusesService.getStatusLabel(guestRow.status),
       statusBadgeClassName: guestRow.status === "checked_in"
         ? "bg-blue-100 text-blue-800"
         : guestRow.status === "arrived"
@@ -364,17 +357,17 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
             : "bg-gray-100 text-gray-700",
       isPending: pendingGuestIds.has(guestRow.guest.id),
       showStatus: true,
-      fallbackCaption: mode === "check-in"
+      fallbackCaption: props.mode === "check-in"
         && guestRow.houseId !== null
         && guestRow.status === "checked_in"
-        ? strCheckedIn
+        ? guestStatusesService.getStatusLabel("checked_in")
         : "",
       menuActions,
     };
   });
   const hasRideRows = rideRows.length > 0;
   const getGuestCardGroup = (guestRow: ArrivalGuestCardRow) => {
-    if (mode === "meeting") {
+    if (props.mode === "meeting") {
       const meetingGroup = guestRow.taxiRideId === null
         ? null
         : meetingGroupByRideId.get(guestRow.taxiRideId) ?? null;
@@ -404,7 +397,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
 
     if (guestRow.status === "arrived") {
       return {
-        groupLabel: strArrived,
+        groupLabel: guestStatusesService.getStatusLabel("arrived"),
         groupIndex: 0,
         actionButton: {
           caption: strCheckIn,
@@ -417,7 +410,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
 
     if (guestRow.status === "booked") {
       return {
-        groupLabel: "Booked",
+        groupLabel: guestStatusesService.getStatusLabel("booked"),
         groupIndex: 1,
         actionButton: null,
       };
@@ -425,7 +418,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
 
     if (guestRow.status === "checked_in") {
       return {
-        groupLabel: strCheckedIn,
+        groupLabel: guestStatusesService.getStatusLabel("checked_in"),
         groupIndex: 2,
         actionButton: null,
       };
@@ -449,11 +442,11 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
 
   return (
     <section>
-      {showTitle && <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>}
+      {(props.showTitle ?? true) && <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>}
       {error && <p role="alert" className="mb-4 text-red-600">{error}</p>}
       {retreatError && <p role="alert" className="mb-4 text-red-600">{strLoadError}</p>}
       {isSnapshotLoading && <p>{strLoading}</p>}
-      {!isSnapshotLoading && mode === "meeting" && (
+      {!isSnapshotLoading && props.mode === "meeting" && (
         <>
           <div className="project-meeting-taxi-grid">
             {rideRows.map(ride => (

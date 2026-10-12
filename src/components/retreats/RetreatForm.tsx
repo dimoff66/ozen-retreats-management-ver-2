@@ -10,11 +10,7 @@ type RetreatFormProps = {
   onCancelActionClick: () => void;
 };
 
-export default function RetreatForm({
-  retreat,
-  onSaveActionClick,
-  onCancelActionClick,
-}: RetreatFormProps) {
+export default function RetreatForm(props: RetreatFormProps) {
   const strAddTitle = "Add retreat";
   const strEditTitle = "Edit retreat";
   const strTitle = "Title";
@@ -24,13 +20,13 @@ export default function RetreatForm({
   const strSave = "Save";
   const strCancel = "Cancel";
 
-  const isEditMode = retreat !== null;
+  const isEditMode = props.retreat !== null;
   const formTitle = isEditMode ? strEditTitle : strAddTitle;
 
-  const [title, setTitle] = useState(retreat?.title ?? "");
-  const [startDate, setStartDate] = useState(retreat?.start_date ?? "");
-  const [endDate, setEndDate] = useState(retreat?.end_date ?? "");
-  const [isActive, setIsActive] = useState(retreat?.is_active ?? true);
+  const [title, setTitle] = useState(props.retreat?.title ?? "");
+  const [startDate, setStartDate] = useState(props.retreat?.start_date ?? "");
+  const [endDate, setEndDate] = useState(props.retreat?.end_date ?? "");
+  const [isActive, setIsActive] = useState(props.retreat?.is_active ?? true);
   const [isSaving, setIsSaving] = useState(false);
 
   const onTitleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -62,7 +58,7 @@ export default function RetreatForm({
     setIsSaving(true);
 
     try {
-      await onSaveActionClick(data);
+      await props.onSaveActionClick(data);
     } finally {
       setIsSaving(false);
     }
@@ -79,7 +75,7 @@ export default function RetreatForm({
             <label className="project-form-field"><span>{strEndDate}</span><input type="date" value={endDate} onChange={onEndDateChange} required /></label>
           </div>
           <label className="project-checkbox-field"><input type="checkbox" checked={isActive} onChange={onActiveChange} /><span>{strActive}</span></label>
-          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
+          <div className="project-form-footer"><button type="button" onClick={props.onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

@@ -24,13 +24,13 @@ type CurrentUserProviderProps = {
 
 const CurrentUserContext = createContext<CurrentUserContextValue | null>(null);
 
-export function CurrentUserProvider({ children, initialUser, initialUsers }: CurrentUserProviderProps) {
-  const [users, setUsers] = useState<UserDirectoryEntry[]>(initialUsers);
-  const [currentUser, setCurrentUser] = useState<User>(initialUser);
+export function CurrentUserProvider(props: CurrentUserProviderProps) {
+  const [users, setUsers] = useState<UserDirectoryEntry[]>(props.initialUsers);
+  const [currentUser, setCurrentUser] = useState<User>(props.initialUser);
 
   return (
     <CurrentUserContext.Provider value={{ users, currentUser, setUsers, setCurrentUser }}>
-      {children}
+      {props.children}
     </CurrentUserContext.Provider>
   );
 }

@@ -45,9 +45,9 @@ const tabsByRole: Record<string, RetreatTab[]> = {
 };
 const noTabs: RetreatTab[] = [];
 
-function RetreatHeading({ fallbackRetreat }: { fallbackRetreat: Retreat }) {
+function RetreatHeading(props: { fallbackRetreat: Retreat }) {
   const { retreat } = useRetreat();
-  const displayedRetreat = retreat ?? fallbackRetreat;
+  const displayedRetreat = retreat ?? props.fallbackRetreat;
   const dateRange = `${dateService.formatDate(displayedRetreat.start_date)} – ${dateService.formatDate(displayedRetreat.end_date)}`;
 
   return (

@@ -77,12 +77,7 @@ const RetreatContext = createContext<RetreatContextValue | null>(null);
 const POLL_INTERVAL_MS = 5_000;
 const FULL_REFRESH_INTERVAL_MS = 120_000;
 
-export function RetreatProvider({
-  retreatId,
-  retreats,
-  onChangeRetreat,
-  children,
-}: RetreatProviderProps) {
+export function RetreatProvider(props: RetreatProviderProps) {
   const { currentUser } = useCurrentUser();
   const [snapshot, setSnapshot] = useState<RetreatSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +103,7 @@ export function RetreatProvider({
     const requestId = ++requestIdRef.current;
 
     try {
-      const retreat = await retreatsService.getRetreatById(retreatId);
+      const retreat = await retreatsService.getRetreatById(props.retreatId);
 
       if (background && document.visibilityState !== "visible") {
         return;
@@ -125,7 +120,7 @@ export function RetreatProvider({
       const currentSnapshot = snapshotRef.current;
       if (
         !force
-        && currentSnapshot?.retreat.id === retreatId
+        && currentSnapshot?.retreat.id === props.retreatId
         && typeof retreat.version === "number"
         && typeof currentSnapshot.retreat.version === "number"
         && retreat.version === currentSnapshot.retreat.version
@@ -136,7 +131,7 @@ export function RetreatProvider({
         return;
       }
 
-      const nextSnapshot = await retreatSnapshotService.getSnapshot(retreatId);
+      const nextSnapshot = await retreatSnapshotService.getSnapshot(props.retreatId);
 
       if (background && document.visibilityState !== "visible") {
         return;
@@ -149,7 +144,7 @@ export function RetreatProvider({
       lastFullRefreshRef.current = Date.now();
       if (
         !currentSnapshot
-        || currentSnapshot.retreat.id !== retreatId
+        || currentSnapshot.retreat.id !== props.retreatId
         || JSON.stringify(currentSnapshot) !== JSON.stringify(nextSnapshot)
       ) {
         snapshotRef.current = nextSnapshot;
@@ -172,7 +167,7 @@ export function RetreatProvider({
         setIsLoading(false);
       }
     }
-  }, [retreatId]);
+  }, [props.retreatId]);
 
   const refresh = useCallback(async () => {
     setIsLoading(snapshotRef.current === null);
@@ -187,10 +182,10 @@ export function RetreatProvider({
 
   const createGuest = useCallback(async (guest: Omit<CreateGuest, "retreat_id">) => {
     await runMutation(() => guestsService.createGuest(
-      { ...guest, retreat_id: retreatId },
+      { ...guest, retreat_id: props.retreatId },
       currentUser.id
     ));
-  }, [currentUser.id, retreatId, runMutation]);
+  }, [currentUser.id, props.retreatId, runMutation]);
 
   const updateGuest = useCallback(async (guestId: number, changes: UpdateGuest) => {
     await runMutation(() => guestsService.updateGuest(guestId, changes, currentUser.id));
@@ -211,23 +206,23 @@ export function RetreatProvider({
     updatedBy: number
   ) => {
     await runMutation(() => guestStatusesService.createStatus(
-      retreatId,
+      props.retreatId,
       guestId,
       status,
       room,
       updatedBy
     ));
-  }, [retreatId, runMutation]);
+  }, [props.retreatId, runMutation]);
 
   const saveRooms = useCallback(async (settings: RetreatRoomSetting[]) => {
-    await runMutation(() => retreatRoomsService.saveRetreatRooms(retreatId, settings));
-  }, [retreatId, runMutation]);
+    await runMutation(() => retreatRoomsService.saveRetreatRooms(props.retreatId, settings));
+  }, [props.retreatId, runMutation]);
 
   const createTaxiRide = useCallback(async (
     ride: Omit<CreateTaxiRide, "retreat_id">
   ): Promise<TaxiRide> => {
-    return runMutation(() => taxiRidesService.create({ ...ride, retreat_id: retreatId }));
-  }, [retreatId, runMutation]);
+    return runMutation(() => taxiRidesService.create({ ...ride, retreat_id: props.retreatId }));
+  }, [props.retreatId, runMutation]);
 
   const updateTaxiRide = useCallback(async (
     rideId: number,
@@ -253,17 +248,17 @@ export function RetreatProvider({
   }, [runMutation]);
 
   const changeRetreat = useCallback((nextRetreatId: number) => {
-    if (nextRetreatId === retreatId) {
+    if (nextRetreatId === props.retreatId) {
       return;
     }
 
-    if (!retreats.some(item => item.id === nextRetreatId)) {
+    if (!props.retreats.some(item => item.id === nextRetreatId)) {
       setError("The selected retreat is not available.");
       return;
     }
 
-    onChangeRetreat(nextRetreatId);
-  }, [onChangeRetreat, retreatId, retreats]);
+    props.onChangeRetreat(nextRetreatId);
+  }, [props.onChangeRetreat, props.retreatId, props.retreats]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -302,7 +297,7 @@ export function RetreatProvider({
   }, [loadSnapshot]);
 
   const value = useMemo<RetreatContextValue>(() => ({
-    retreats,
+    retreats: props.retreats,
     retreat: snapshot?.retreat ?? null,
     snapshot,
     getGuests: () => snapshot?.guests ?? [],
@@ -331,7 +326,7 @@ export function RetreatProvider({
     moveTaxiGuest,
     deleteTaxiGuest,
   }), [
-    retreats,
+    props.retreats,
     snapshot,
     isLoading,
     error,
@@ -353,7 +348,7 @@ export function RetreatProvider({
 
   return (
     <RetreatContext.Provider value={value}>
-      {children}
+      {props.children}
     </RetreatContext.Provider>
   );
 }

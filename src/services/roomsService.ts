@@ -1,9 +1,35 @@
 import db from "./database";
 import type { CreateRoom, House, Room, UpdateRoom } from "./database";
 
+let roomsCache: Room[] | null = null;
+let roomsRequest: Promise<Room[]> | null = null;
+
+// Комнаты являются справочными данными: читаем список один раз и перечитываем только после изменений.
+async function loadRooms(force = false): Promise<Room[]> {
+  if (!force && roomsCache) {
+    return roomsCache;
+  }
+
+  if (!force && roomsRequest) {
+    return roomsRequest;
+  }
+
+  const request = db.rooms.getAll();
+  roomsRequest = request;
+
+  try {
+    roomsCache = await request;
+    return roomsCache;
+  } finally {
+    if (roomsRequest === request) {
+      roomsRequest = null;
+    }
+  }
+}
+
 const roomsService = {
   getRooms: async (): Promise<Room[]> => {
-    return db.rooms.getAll();
+    return loadRooms();
   },
 
   getRoomById: async (id: number): Promise<Room | null> => {
@@ -15,15 +41,20 @@ const roomsService = {
   },
 
   createRoom: async (room: CreateRoom): Promise<Room> => {
-    return db.rooms.create(room);
+    const createdRoom = await db.rooms.create(room);
+    await loadRooms(true);
+    return createdRoom;
   },
 
   updateRoom: async (id: number, changes: UpdateRoom): Promise<Room> => {
-    return db.rooms.update(id, changes);
+    const updatedRoom = await db.rooms.update(id, changes);
+    await loadRooms(true);
+    return updatedRoom;
   },
 
   deleteRoom: async (id: number): Promise<void> => {
-    return db.rooms.delete(id);
+    await db.rooms.delete(id);
+    await loadRooms(true);
   },
 
   // Формирует принятое в UI имя комнаты: Buddhas 3 -> Buddha 3, остальные houses склеиваются с номером.

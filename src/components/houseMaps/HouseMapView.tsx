@@ -6,6 +6,7 @@ import type {
   Guest,
   Room,
 } from "@/services/database";
+import guestStatusesService from "@/services/guestStatusesService";
 import type {
   GuestStatusValue,
   LatestGuestStatus,
@@ -51,17 +52,7 @@ type HouseMapViewProps = {
   showTitle?: boolean;
 };
 
-export default function HouseMapView({
-  openMode = "normal",
-  guest = null,
-  initialSelectionMode: requestedSelectionMode = "room",
-  onRoomSelectActionClick,
-  onGuestSwapActionClick,
-  onCancelActionClick,
-  roomSelectionTarget = null,
-  showRoomSelectionList = true,
-  showTitle = true,
-}: HouseMapViewProps) {
+export default function HouseMapView(props: HouseMapViewProps) {
   const strTitle = "House map";
   const strSelectRoom = "Select a room for";
   const strSelectGuest = "Select a guest to swap with";
@@ -85,24 +76,14 @@ export default function HouseMapView({
   const strShowHistory = "Show history";
   const strCloseActions = "Close";
   const strBooked = "booked";
-  const strStatusBooked = "Booked";
   const strCheckedIn = "checked_in";
-  const strStatusCheckedIn = "Checked in";
   const strArrived = "arrived";
-  const strStatusArrived = "Arrived";
   const strNotComingStatus = "not_coming";
-  const strStatusNotComing = "Not coming";
-  const strConfirmNonBookedGuest = "This guest's status is {status}, not Booked. Continue with the room swap?";
-  const statusLabels: Record<GuestStatusValue, string> = {
-    booked: strStatusBooked,
-    arrived: strStatusArrived,
-    checked_in: strStatusCheckedIn,
-    not_coming: strStatusNotComing,
-  };
+  const strConfirmNonBookedGuest = "This guest's status is {status}, not {bookedStatus}. Continue with the room swap?";
 
-  const hasExternalRoomSelection = requestedSelectionMode === "room" && roomSelectionTarget !== null;
+  const hasExternalRoomSelection = (props.initialSelectionMode ?? "room") === "room" && (props.roomSelectionTarget ?? null) !== null;
   const initialSelectionMode: SelectionMode =
-    openMode === "selection" && (guest || hasExternalRoomSelection) ? requestedSelectionMode : null;
+    (props.openMode ?? "normal") === "selection" && ((props.guest ?? null) || hasExternalRoomSelection) ? (props.initialSelectionMode ?? "room") : null;
 
   const { currentUser: user } = useCurrentUser();
   const {
@@ -125,7 +106,7 @@ export default function HouseMapView({
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
   const [actionGuest, setActionGuest] = useState<Guest | null>(
-    initialSelectionMode ? guest : null
+    initialSelectionMode ? (props.guest ?? null) : null
   );
   const [actions, setActions] = useState<MapAction[]>([]);
   const [actionsTitle, setActionsTitle] = useState("");
@@ -322,10 +303,10 @@ export default function HouseMapView({
     }
   };
 
-  const selectionGuestId = actionGuest?.id ?? roomSelectionTarget?.guestId ?? null;
-  const selectionRoomId = actionGuest?.room_id ?? roomSelectionTarget?.roomId ?? null;
-  const selectionGuestName = actionGuest?.name ?? roomSelectionTarget?.name ?? "";
-  const hasRoomSelectionTarget = actionGuest !== null || roomSelectionTarget !== null;
+  const selectionGuestId = actionGuest?.id ?? (props.roomSelectionTarget ?? null)?.guestId ?? null;
+  const selectionRoomId = actionGuest?.room_id ?? (props.roomSelectionTarget ?? null)?.roomId ?? null;
+  const selectionGuestName = actionGuest?.name ?? (props.roomSelectionTarget ?? null)?.name ?? "";
+  const hasRoomSelectionTarget = actionGuest !== null || (props.roomSelectionTarget ?? null) !== null;
   const selectableRooms = retreatRoomsService.getSelectableRooms(
     rooms,
     retreatRooms,
@@ -383,8 +364,8 @@ export default function HouseMapView({
     setActionError("");
 
     try {
-      if (openMode === "selection" && onRoomSelectActionClick) {
-        await onRoomSelectActionClick(room);
+      if ((props.openMode ?? "normal") === "selection" && props.onRoomSelectActionClick) {
+        await props.onRoomSelectActionClick(room);
         return;
       }
 
@@ -416,7 +397,9 @@ export default function HouseMapView({
     const targetStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
     if (
       targetStatus !== strBooked
-      && !window.confirm(strConfirmNonBookedGuest.replace("{status}", statusLabels[targetStatus]))
+      && !window.confirm(strConfirmNonBookedGuest
+        .replace("{status}", guestStatusesService.getStatusLabel(targetStatus))
+        .replace("{bookedStatus}", guestStatusesService.getStatusLabel("booked")))
     ) {
       return;
     }
@@ -425,8 +408,8 @@ export default function HouseMapView({
     setActionError("");
 
     try {
-      if (openMode === "selection" && onGuestSwapActionClick) {
-        await onGuestSwapActionClick(targetGuest);
+      if ((props.openMode ?? "normal") === "selection" && props.onGuestSwapActionClick) {
+        await props.onGuestSwapActionClick(targetGuest);
         return;
       }
 
@@ -444,8 +427,8 @@ export default function HouseMapView({
       return;
     }
 
-    if (openMode === "selection" && onCancelActionClick) {
-      onCancelActionClick();
+    if ((props.openMode ?? "normal") === "selection" && props.onCancelActionClick) {
+      props.onCancelActionClick();
       return;
     }
 
@@ -466,22 +449,6 @@ export default function HouseMapView({
     }
 
     return "text-gray-700";
-  };
-
-  const getStatusLabel = (status: GuestStatusValue): string => {
-    if (status === strCheckedIn) {
-      return strStatusCheckedIn;
-    }
-
-    if (status === strArrived) {
-      return strStatusArrived;
-    }
-
-    if (status === strNotComingStatus) {
-      return strStatusNotComing;
-    }
-
-    return strStatusBooked;
   };
 
   const getStatusBadgeClassName = (status: GuestStatusValue): string => {
@@ -823,7 +790,7 @@ export default function HouseMapView({
         id: roomGuest.id,
         roomName,
         guestName,
-        statusLabel: getStatusLabel(status),
+        statusLabel: guestStatusesService.getStatusLabel(status),
         statusBadgeClassName: getStatusBadgeClassName(status),
         isSelectable: canSelectGuest(roomGuest),
         onChoose: () => {
@@ -863,7 +830,7 @@ export default function HouseMapView({
     <div className="relative flex h-full flex-col" aria-busy={isSelectionPending}>
       <div className="mb-4 flex shrink-0 items-center justify-between">
         <div>
-          {showTitle && <h2 className="text-xl font-bold">{strTitle}</h2>}
+          {(props.showTitle ?? true) && <h2 className="text-xl font-bold">{strTitle}</h2>}
           {selectionText && <div className="mt-1 text-sm text-gray-600">{selectionText}</div>}
         </div>
         <div className="flex gap-2">
@@ -872,8 +839,8 @@ export default function HouseMapView({
               {strCancelSelection}
             </button>
           )}
-          {!selectionMode && onCancelActionClick && (
-            <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+          {!selectionMode && props.onCancelActionClick && (
+            <button type="button" onClick={props.onCancelActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
               {strCancel}
             </button>
           )}
@@ -983,7 +950,7 @@ export default function HouseMapView({
                 </div>
               )}
             </section>
-          ) : showRoomSelectionList && (
+          ) : (props.showRoomSelectionList ?? true) && (
             <section className="min-h-0 flex-1 overflow-auto">
               <h3 className="mb-3 text-lg font-semibold">{strRooms}</h3>
               {roomSelectionGroups.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (

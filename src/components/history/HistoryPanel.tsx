@@ -15,7 +15,7 @@ type HistoryPanelProps = {
   showTitle?: boolean;
 };
 
-export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
+export default function HistoryPanel(props: HistoryPanelProps) {
   const strTitle = "History";
   const strLoadError = "Failed to load retreat history.";
   const strLoading = "Loading history...";
@@ -62,7 +62,7 @@ export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
   return (
     <section className="project-history-screen">
       <div className="project-section-toolbar">
-        {showTitle ? <div><h2>{strTitle}</h2></div> : <span />}
+        {(props.showTitle ?? true) ? <div><h2>{strTitle}</h2></div> : <span />}
         <label className="project-search-field project-history-search">
           <span className="sr-only">Search history</span>
           <input type="search" value={searchQuery} onChange={onSearchChange} aria-label="Search history" />

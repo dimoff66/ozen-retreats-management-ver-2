@@ -23,13 +23,7 @@ type HouseMapEditorProps = {
   onCancelActionClick: () => void;
 };
 
-export default function HouseMapEditor({
-  house,
-  houseMap,
-  houses,
-  onSaveActionClick,
-  onCancelActionClick,
-}: HouseMapEditorProps) {
+export default function HouseMapEditor(props: HouseMapEditorProps) {
   const strCreateTitle = "Create map";
   const strEditTitle = "Edit map";
   const strRooms = "Rooms";
@@ -46,7 +40,7 @@ export default function HouseMapEditor({
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomPositions, setRoomPositions] = useState<RoomPosition[]>([]);
-  const [backgroundUrl, setBackgroundUrl] = useState(houseMap?.bg_image_url ?? "");
+  const [backgroundUrl, setBackgroundUrl] = useState(props.houseMap?.bg_image_url ?? "");
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [draggedRoomId, setDraggedRoomId] = useState<number | null>(null);
@@ -54,7 +48,7 @@ export default function HouseMapEditor({
   const [isLoadError, setIsLoadError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const isEditMode = houseMap !== null;
+  const isEditMode = props.houseMap !== null;
   const formTitle = isEditMode ? strEditTitle : strCreateTitle;
   const imageUrl = previewUrl || backgroundUrl;
   const hasImage = imageUrl !== "";
@@ -66,13 +60,13 @@ export default function HouseMapEditor({
     try {
       const allRooms = await roomsService.getRooms();
       const availableRooms = houseMapsService.getRoomsForHouseMap(
-        house,
-        houses,
+        props.house,
+        props.houses,
         allRooms
       );
 
       setRooms(availableRooms);
-      setRoomPositions(houseMapsService.getRoomPositions(houseMap));
+      setRoomPositions(houseMapsService.getRoomPositions(props.houseMap));
     } catch {
       setIsLoadError(true);
     } finally {
@@ -137,26 +131,26 @@ export default function HouseMapEditor({
 
       if (backgroundFile) {
         savedBackgroundUrl = await houseMapsService.uploadBackground(
-          house.id,
+          props.house.id,
           backgroundFile
         );
       }
 
-      if (houseMap) {
+      if (props.houseMap) {
         await houseMapsService.updateHouseMap(
-          houseMap.id,
+          props.houseMap.id,
           savedBackgroundUrl || null,
           roomPositions
         );
       } else {
         await houseMapsService.createHouseMap(
-          house.id,
+          props.house.id,
           savedBackgroundUrl || null,
           roomPositions
         );
       }
 
-      await onSaveActionClick();
+      await props.onSaveActionClick();
     } finally {
       setIsSaving(false);
     }
@@ -168,7 +162,7 @@ export default function HouseMapEditor({
   );
 
   const availableRoomItems = availableRooms.map(room => {
-    const label = houseMapsService.getRoomLabel(room, house, houses);
+    const label = houseMapsService.getRoomLabel(room, props.house, props.houses);
 
     const onDragStart = () => {
       setDraggedRoomId(room.id);
@@ -189,7 +183,7 @@ export default function HouseMapEditor({
         return null;
       }
 
-      const label = houseMapsService.getRoomLabel(room, house, houses);
+      const label = houseMapsService.getRoomLabel(room, props.house, props.houses);
 
       const onDragStart = () => {
         setDraggedRoomId(room.id);
@@ -225,8 +219,8 @@ export default function HouseMapEditor({
     <div className="project-map-editor-backdrop">
       <div className="project-map-editor-modal">
         <header className="project-map-editor-header">
-          <div><span>{strRooms}</span><h2>{formTitle}: {house.name}</h2></div>
-          <div className="project-form-footer-actions"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="button" onClick={onSaveHandler} disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
+          <div><span>{strRooms}</span><h2>{formTitle}: {props.house.name}</h2></div>
+          <div className="project-form-footer-actions"><button type="button" onClick={props.onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="button" onClick={onSaveHandler} disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
         </header>
         {isLoading && <div className="project-state-message project-map-editor-message">{strLoading}</div>}
         {isLoadError && <div className="project-state-message project-state-error project-map-editor-message">{strLoadError}</div>}
@@ -246,7 +240,7 @@ export default function HouseMapEditor({
               </div>
               <div className="project-map-canvas-wrap">
                 <div ref={mapRef} onDragOver={onDragOverHandler} onDrop={onDropHandler} className="project-map-canvas">
-                  {hasImage && <img src={imageUrl} alt={house.name} className="project-map-background" draggable={false} />}
+                  {hasImage && <img src={imageUrl} alt={props.house.name} className="project-map-background" draggable={false} />}
                   {!hasImage && <div className="project-map-no-image">{strNoImage}</div>}
                   {placedRoomItems.map(room => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} style={room.style} className="project-map-room-marker">{room.label}</button>)}
                 </div>

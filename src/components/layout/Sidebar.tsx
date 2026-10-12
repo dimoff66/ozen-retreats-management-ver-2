@@ -6,8 +6,8 @@ type SidebarProps = {
   onMenuClick: (menu: string) => void;
 };
 
-function NavIcon({ label }: { label: string }) {
-  if (label === "Admin") {
+function NavIcon(props: { label: string }) {
+  if (props.label === "Admin") {
     return (
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-none stroke-current" strokeWidth="1.8">
         <path d="M12 3.5 14 6l3.2-.2.8 3.1 2.7 1.7-1.7 2.7.2 3.2-3.1.8L14.5 20l-2.5-1.7L9.5 20l-1.6-2.7-3.1-.8.2-3.2-1.7-2.7L6 8.9l.8-3.1L10 6l2-2.5Z" />
@@ -25,28 +25,24 @@ function NavIcon({ label }: { label: string }) {
   );
 }
 
-export default function Sidebar({
-  menuItems,
-  selectedMenu,
-  onMenuClick,
-}: SidebarProps) {
+export default function Sidebar(props: SidebarProps) {
   const strBrand = "ozen";
   const strBrandMark = "✦";
   const strBrandCaption = "RETREAT MANAGEMENT";
   const strWorkspaceGroup = "WORKSPACE";
   const strManageGroup = "MANAGE";
   const strMainNavigation = "Main navigation";
-  const retreatItems = menuItems.filter(label => label !== "Admin");
-  const manageItems = menuItems.filter(label => label === "Admin");
+  const retreatItems = props.menuItems.filter(label => label !== "Admin");
+  const manageItems = props.menuItems.filter(label => label === "Admin");
 
   const prepareItems = (items: string[]) => items.map(label => {
     const onClickHandler = () => {
-      onMenuClick(label);
+      props.onMenuClick(label);
     };
 
     return {
       label,
-      isSelected: selectedMenu === label,
+      isSelected: props.selectedMenu === label,
       onClickHandler,
     };
   });

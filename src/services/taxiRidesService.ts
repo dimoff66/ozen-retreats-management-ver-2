@@ -14,6 +14,7 @@ const taxiRidesService = {
     return db.taxiGuests.getByRideIds(rideIds);
   },
 
+  // Атомарно заменяет весь набор taxi rides ретрита вместе с их пассажирами.
   createRides: (retreatId: number, rides: CreateTaxiRideBatch[]): Promise<TaxiRide[]> => {
     return db.taxiRides.createRides(retreatId, rides);
   },

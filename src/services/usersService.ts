@@ -5,6 +5,7 @@ type UsersApiResponse<T> = {
   error?: string;
 };
 
+// Выполняет операции с users через server API, чтобы auth-поля не обрабатывались обычным клиентским DB adapter.
 async function requestUsersApi<T>(method: string, body?: unknown): Promise<T> {
   const response = await fetch("/api/users", {
     method,

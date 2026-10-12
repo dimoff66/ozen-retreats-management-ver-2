@@ -52,6 +52,7 @@ const houseMapsService = {
     return db.houseMapImages.upload(houseId, file);
   },
 
+  // Для обычного house возвращает его комнаты, а для группы — комнаты всех непосредственных дочерних houses.
   getRoomsForHouseMap: (house: House, houses: House[], rooms: Room[]): Room[] => {
     const childHouses = houses.filter((item) => item.parent_id === house.id);
     const isHouseGroup = childHouses.length > 0;
@@ -67,6 +68,7 @@ const houseMapsService = {
     return roomsService.sortRooms(groupRooms, houses);
   },
 
+  // На карте обычного house показывает только номер, а в группе — полное имя комнаты.
   getRoomLabel: (room: Room, mapHouse: House, houses: House[]): string => {
     const childHouses = houses.filter((item) => item.parent_id === mapHouse.id);
     const isHouseGroup = childHouses.length > 0;
@@ -84,6 +86,7 @@ const houseMapsService = {
     return roomsService.getRoomDisplayName(room, roomHouse);
   },
 
+  // Безопасно извлекает сохранённые координаты, сохраняя совместимость с пустыми или старыми записями карты.
   getRoomPositions: (houseMap: HouseMap | null): RoomPosition[] => {
     if (!houseMap || !Array.isArray(houseMap.room_positions)) {
       return [];
@@ -102,6 +105,7 @@ const houseMapsService = {
     return roomPositions.find((position) => position.room_id === roomId) ?? null;
   },
 
+  // Возвращает новый список координат: обновляет существующий маркер или добавляет новый.
   setRoomPosition: (
     roomId: number,
     x: number,

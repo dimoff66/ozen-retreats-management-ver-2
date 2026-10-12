@@ -33,6 +33,7 @@ export type RetreatSnapshot = {
 };
 
 const retreatSnapshotService = {
+  // Загружает согласованный набор данных рабочей области ретрита одним вызовом сервиса.
   getSnapshot: async (retreatId: number): Promise<RetreatSnapshot> => {
     const retreat = await retreatsService.getRetreatById(retreatId);
 

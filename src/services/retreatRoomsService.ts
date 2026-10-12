@@ -13,6 +13,7 @@ const retreatRoomsService = {
     return db.retreatRooms.getByRetreatId(retreatId);
   },
 
+  // Синхронизирует настройки комнат ретрита и запрещает отключать комнату, занятую гостем не в статусе not_coming.
   saveRetreatRooms: async (
     retreatId: number,
     settings: RetreatRoomSetting[]
@@ -82,6 +83,7 @@ const retreatRoomsService = {
     await Promise.all(operations);
   },
 
+  // Оставляет доступные комнаты со свободной вместимостью; редактируемого гостя не считает дополнительным жильцом.
   getSelectableRooms: (
     rooms: Room[],
     retreatRooms: RetreatRoom[],

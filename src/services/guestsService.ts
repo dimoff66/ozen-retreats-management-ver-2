@@ -45,6 +45,7 @@ const guestsService = {
     return db.guests.getByRoomId(roomId);
   },
 
+  // Готовит пункты меню гостя из разрешённых действий и привязывает их к одному обработчику.
   getGuestMenuActions: (
     guest: Guest,
     role: string,
@@ -95,6 +96,7 @@ const guestsService = {
     return db.guests.update(id, data, status);
   },
 
+  // Готовит обе стороны обмена комнатами и записи статусов до передачи одной атомарной операции адаптеру.
   swapRooms: async (firstGuestId: number, secondGuestId: number, updatedBy: number): Promise<SwapGuestRoomsResult> => {
     if (firstGuestId === secondGuestId) {
       throw new Error("Choose another guest for the room swap.");
@@ -149,6 +151,7 @@ const guestsService = {
   },
 };
 
+// Готовит статус booked при назначении комнаты, включая отображаемое имя комнаты и автора изменения.
 async function prepareBookedStatus(
   retreatId: number, roomId: number, updatedBy: number
 ): Promise<CreateGuestStatusForNewGuest> {
@@ -172,6 +175,7 @@ async function prepareBookedStatus(
   };
 }
 
+// Нормализует ввод гостя перед записью и не допускает пустое имя после trim.
 function normalizeGuest(guest: CreateGuest): CreateGuest {
   const name = guest.name.trim();
 

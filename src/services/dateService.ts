@@ -36,6 +36,7 @@ function parseDate(value: DateValue): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// Форматирует date-only строки без преобразования часового пояса, чтобы календарная дата не сдвигалась.
 function formatDate(value: DateValue): string {
   if (typeof value === "string") {
     const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);

@@ -1,0 +1,218 @@
+diff --git a/docs/architecture.md b/docs/architecture.md
+index 30350d9..3ae4e4f 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -81,6 +81,13 @@ src/
+ областью проекта и следуйте уже существующим соглашениям. Не создавайте новую
+ архитектурную структуру параллельно существующей без отдельной необходимости.
+ 
++### Комментарии в сервисах
++
++Перед нестандартными service-функциями оставляйте короткий комментарий на русском,
++если функция реализует правило предметной области, неочевидную фильтрацию/сортировку,
++агрегацию данных или подготовку атомарной операции. Очевидные CRUD-методы вроде
++`get`, `create`, `update` и `delete` комментировать только ради самого комментария не нужно.
++
+ ## Текущий пользователь
+ 
+ Текущий пользователь приложения доступен через React Context:
+diff --git a/src/services/dateService.ts b/src/services/dateService.ts
+index 18d54b9..c0e7bac 100644
+--- a/src/services/dateService.ts
++++ b/src/services/dateService.ts
+@@ -36,6 +36,7 @@ function parseDate(value: DateValue): Date | null {
+   return Number.isNaN(date.getTime()) ? null : date;
+ }
+ 
++// Форматирует date-only строки без преобразования часового пояса, чтобы календарная дата не сдвигалась.
+ function formatDate(value: DateValue): string {
+   if (typeof value === "string") {
+     const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+diff --git a/src/services/guestActionsService.ts b/src/services/guestActionsService.ts
+index 36e4be1..62c0407 100644
+--- a/src/services/guestActionsService.ts
++++ b/src/services/guestActionsService.ts
+@@ -9,6 +9,7 @@ export type GuestAction =
+   | "cancel_check_in"
+   | "cancel_arrival";
+ 
++// Определяет допустимые действия с гостем по роли, текущему статусу и наличию комнаты.
+ export function getAvailableGuestActions(
+   role: string,
+   status: GuestStatusValue,
+diff --git a/src/services/guestStatusesService.ts b/src/services/guestStatusesService.ts
+index a53359c..f085f5b 100644
+--- a/src/services/guestStatusesService.ts
++++ b/src/services/guestStatusesService.ts
+@@ -19,6 +19,7 @@ export type GuestStatusHistoryPart = {
+   text: string;
+ };
+ 
++// Строит связь status -> предыдущий status того же гостя для формирования истории изменений.
+ export function getPreviousGuestStatuses(statuses: GuestStatus[]): Map<number, GuestStatus> {
+   const previousStatuses = new Map<number, GuestStatus>();
+   const latestByGuest = new Map<number, GuestStatus>();
+@@ -41,6 +42,7 @@ export function getPreviousGuestStatuses(statuses: GuestStatus[]): Map<number, G
+   return previousStatuses;
+ }
+ 
++// Преобразует переход статуса в структурированное сообщение истории с отдельными user/guest/room частями.
+ export function getGuestStatusHistoryMessage(
+   status: GuestStatus,
+   previousStatus: GuestStatus | undefined,
+@@ -108,6 +110,7 @@ const guestStatusesService = {
+     return db.guestStatuses.getByRetreatId(retreatId);
+   },
+ 
++  // Возвращает по одному последнему статусу на гостя; адаптер уже отдаёт статусы от новых к старым.
+   getLatestForRetreat: async (retreatId: number): Promise<Map<number, LatestGuestStatus>> => {
+     const statuses = await db.guestStatuses.getByRetreatId(retreatId);
+     const latestStatuses = new Map<number, LatestGuestStatus>();
+diff --git a/src/services/guestsService.ts b/src/services/guestsService.ts
+index df8ad00..2b3137b 100644
+--- a/src/services/guestsService.ts
++++ b/src/services/guestsService.ts
+@@ -45,6 +45,7 @@ const guestsService = {
+     return db.guests.getByRoomId(roomId);
+   },
+ 
++  // Готовит пункты меню гостя из разрешённых действий и привязывает их к одному обработчику.
+   getGuestMenuActions: (
+     guest: Guest,
+     role: string,
+@@ -95,6 +96,7 @@ const guestsService = {
+     return db.guests.update(id, data, status);
+   },
+ 
++  // Готовит обе стороны обмена комнатами и записи статусов до передачи одной атомарной операции адаптеру.
+   swapRooms: async (firstGuestId: number, secondGuestId: number, updatedBy: number): Promise<SwapGuestRoomsResult> => {
+     if (firstGuestId === secondGuestId) {
+       throw new Error("Choose another guest for the room swap.");
+@@ -149,6 +151,7 @@ const guestsService = {
+   },
+ };
+ 
++// Готовит статус booked при назначении комнаты, включая отображаемое имя комнаты и автора изменения.
+ async function prepareBookedStatus(
+   retreatId: number, roomId: number, updatedBy: number
+ ): Promise<CreateGuestStatusForNewGuest> {
+@@ -172,6 +175,7 @@ async function prepareBookedStatus(
+   };
+ }
+ 
++// Нормализует ввод гостя перед записью и не допускает пустое имя после trim.
+ function normalizeGuest(guest: CreateGuest): CreateGuest {
+   const name = guest.name.trim();
+ 
+diff --git a/src/services/houseMapsService.ts b/src/services/houseMapsService.ts
+index 9f52051..9e1e203 100644
+--- a/src/services/houseMapsService.ts
++++ b/src/services/houseMapsService.ts
+@@ -52,6 +52,7 @@ const houseMapsService = {
+     return db.houseMapImages.upload(houseId, file);
+   },
+ 
++  // Для обычного house возвращает его комнаты, а для группы — комнаты всех непосредственных дочерних houses.
+   getRoomsForHouseMap: (house: House, houses: House[], rooms: Room[]): Room[] => {
+     const childHouses = houses.filter((item) => item.parent_id === house.id);
+     const isHouseGroup = childHouses.length > 0;
+@@ -67,6 +68,7 @@ const houseMapsService = {
+     return roomsService.sortRooms(groupRooms, houses);
+   },
+ 
++  // На карте обычного house показывает только номер, а в группе — полное имя комнаты.
+   getRoomLabel: (room: Room, mapHouse: House, houses: House[]): string => {
+     const childHouses = houses.filter((item) => item.parent_id === mapHouse.id);
+     const isHouseGroup = childHouses.length > 0;
+@@ -84,6 +86,7 @@ const houseMapsService = {
+     return roomsService.getRoomDisplayName(room, roomHouse);
+   },
+ 
++  // Безопасно извлекает сохранённые координаты, сохраняя совместимость с пустыми или старыми записями карты.
+   getRoomPositions: (houseMap: HouseMap | null): RoomPosition[] => {
+     if (!houseMap || !Array.isArray(houseMap.room_positions)) {
+       return [];
+@@ -102,6 +105,7 @@ const houseMapsService = {
+     return roomPositions.find((position) => position.room_id === roomId) ?? null;
+   },
+ 
++  // Возвращает новый список координат: обновляет существующий маркер или добавляет новый.
+   setRoomPosition: (
+     roomId: number,
+     x: number,
+diff --git a/src/services/retreatRoomsService.ts b/src/services/retreatRoomsService.ts
+index 41154ab..60d85f9 100644
+--- a/src/services/retreatRoomsService.ts
++++ b/src/services/retreatRoomsService.ts
+@@ -13,6 +13,7 @@ const retreatRoomsService = {
+     return db.retreatRooms.getByRetreatId(retreatId);
+   },
+ 
++  // Синхронизирует настройки комнат ретрита и запрещает отключать комнату, занятую гостем не в статусе not_coming.
+   saveRetreatRooms: async (
+     retreatId: number,
+     settings: RetreatRoomSetting[]
+@@ -82,6 +83,7 @@ const retreatRoomsService = {
+     await Promise.all(operations);
+   },
+ 
++  // Оставляет доступные комнаты со свободной вместимостью; редактируемого гостя не считает дополнительным жильцом.
+   getSelectableRooms: (
+     rooms: Room[],
+     retreatRooms: RetreatRoom[],
+diff --git a/src/services/retreatSnapshotService.ts b/src/services/retreatSnapshotService.ts
+index 3ad99b2..f1c0d30 100644
+--- a/src/services/retreatSnapshotService.ts
++++ b/src/services/retreatSnapshotService.ts
+@@ -33,6 +33,7 @@ export type RetreatSnapshot = {
+ };
+ 
+ const retreatSnapshotService = {
++  // Загружает согласованный набор данных рабочей области ретрита одним вызовом сервиса.
+   getSnapshot: async (retreatId: number): Promise<RetreatSnapshot> => {
+     const retreat = await retreatsService.getRetreatById(retreatId);
+ 
+diff --git a/src/services/roomsService.ts b/src/services/roomsService.ts
+index aa2171f..f61699e 100644
+--- a/src/services/roomsService.ts
++++ b/src/services/roomsService.ts
+@@ -26,6 +26,7 @@ const roomsService = {
+     return db.rooms.delete(id);
+   },
+ 
++  // Формирует принятое в UI имя комнаты: Buddhas 3 -> Buddha 3, остальные houses склеиваются с номером.
+   getRoomDisplayName: (room: Room, house: House): string => {
+     const houseNameEndsWithS = house.name.endsWith("s");
+ 
+@@ -37,6 +38,7 @@ const roomsService = {
+     return `${house.name}${room.room_number}`;
+   },
+ 
++  // Сортирует комнаты по house, буквенной части номера и затем по числовой части (A2 раньше A10).
+   sortRooms: (rooms: Room[], houses: House[]): Room[] => {
+     const getSortValues = (room: Room) => {
+       const match = room.room_number.match(/^([A-Za-z]*)(\d+)/);
+diff --git a/src/services/taxiRidesService.ts b/src/services/taxiRidesService.ts
+index 08e6dd1..a424ca6 100644
+--- a/src/services/taxiRidesService.ts
++++ b/src/services/taxiRidesService.ts
+@@ -14,6 +14,7 @@ const taxiRidesService = {
+     return db.taxiGuests.getByRideIds(rideIds);
+   },
+ 
++  // Атомарно заменяет весь набор taxi rides ретрита вместе с их пассажирами.
+   createRides: (retreatId: number, rides: CreateTaxiRideBatch[]): Promise<TaxiRide[]> => {
+     return db.taxiRides.createRides(retreatId, rides);
+   },
+diff --git a/src/services/usersService.ts b/src/services/usersService.ts
+index 214a398..5d7dbc3 100644
+--- a/src/services/usersService.ts
++++ b/src/services/usersService.ts
+@@ -5,6 +5,7 @@ type UsersApiResponse<T> = {
+   error?: string;
+ };
+ 
++// Выполняет операции с users через server API, чтобы auth-поля не обрабатывались обычным клиентским DB adapter.
+ async function requestUsersApi<T>(method: string, body?: unknown): Promise<T> {
+   const response = await fetch("/api/users", {
+     method,

@@ -19,6 +19,7 @@ export type GuestStatusHistoryPart = {
   text: string;
 };
 
+//  Ищет предыдущий статус гостя для формирования истории изменений.
 export function getPreviousGuestStatuses(statuses: GuestStatus[]): Map<number, GuestStatus> {
   const previousStatuses = new Map<number, GuestStatus>();
   const latestByGuest = new Map<number, GuestStatus>();
@@ -41,6 +42,7 @@ export function getPreviousGuestStatuses(statuses: GuestStatus[]): Map<number, G
   return previousStatuses;
 }
 
+// Создает человеческое представление статуса для вывода на экран
 export function getGuestStatusHistoryMessage(
   status: GuestStatus,
   previousStatus: GuestStatus | undefined,
@@ -108,6 +110,7 @@ const guestStatusesService = {
     return db.guestStatuses.getByRetreatId(retreatId);
   },
 
+  // Возвращает по одному последнему статусу на гостя; адаптер уже отдаёт статусы от новых к старым.
   getLatestForRetreat: async (retreatId: number): Promise<Map<number, LatestGuestStatus>> => {
     const statuses = await db.guestStatuses.getByRetreatId(retreatId);
     const latestStatuses = new Map<number, LatestGuestStatus>();

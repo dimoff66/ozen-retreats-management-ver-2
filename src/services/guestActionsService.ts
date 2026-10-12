@@ -9,6 +9,7 @@ export type GuestAction =
   | "cancel_check_in"
   | "cancel_arrival";
 
+// Определяет допустимые действия с гостем по роли, текущему статусу и наличию комнаты.
 export function getAvailableGuestActions(
   role: string,
   status: GuestStatusValue,

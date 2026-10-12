@@ -26,6 +26,7 @@ const roomsService = {
     return db.rooms.delete(id);
   },
 
+  // Формирует принятое в UI имя комнаты: Buddhas 3 -> Buddha 3, остальные houses склеиваются с номером.
   getRoomDisplayName: (room: Room, house: House): string => {
     const houseNameEndsWithS = house.name.endsWith("s");
 
@@ -37,6 +38,7 @@ const roomsService = {
     return `${house.name}${room.room_number}`;
   },
 
+  // Сортирует комнаты по house, буквенной части номера и затем по числовой части (A2 раньше A10).
   sortRooms: (rooms: Room[], houses: House[]): Room[] => {
     const getSortValues = (room: Room) => {
       const match = room.room_number.match(/^([A-Za-z]*)(\d+)/);

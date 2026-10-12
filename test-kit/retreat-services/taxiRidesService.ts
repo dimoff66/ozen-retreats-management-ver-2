@@ -12,7 +12,7 @@ export async function testCreateTaxiRide(ride: CreateTaxiRide): Promise<ServiceT
     const created = await taxiRidesService.create(ride);
     const rides = await taxiRidesService.getByRetreatId(ride.retreat_id);
 
-    assertTest(rides.some((item) => item.id === created.id), "Created taxi ride is missing from retreat rides.");
+    assertTest(rides.some(item => item.id === created.id), "Created taxi ride is missing from retreat rides.");
     assertTest(isSameDateTime(created.arrival_datetime, ride.arrival_datetime), "Taxi ride arrival time does not match.");
   });
 }
@@ -25,7 +25,7 @@ export async function testUpdateTaxiRide(
   return runServiceTest(async () => {
     const updated = await taxiRidesService.update(rideId, changes);
     const rides = await taxiRidesService.getByRetreatId(retreatId);
-    const loaded = rides.find((item) => item.id === rideId);
+    const loaded = rides.find(item => item.id === rideId);
 
     assertTest(Boolean(loaded), "Updated taxi ride cannot be loaded.");
 
@@ -51,7 +51,7 @@ export async function testAddTaxiGuest(guest: CreateTaxiGuest): Promise<ServiceT
     const created = await taxiRidesService.addGuest(guest);
     const guests = await taxiRidesService.getGuestsByRideId(guest.ride_id);
 
-    assertTest(guests.some((item) => item.id === created.id), "Taxi guest was not added to the ride.");
+    assertTest(guests.some(item => item.id === created.id), "Taxi guest was not added to the ride.");
   });
 }
 
@@ -64,7 +64,7 @@ export async function testMoveTaxiGuest(
     const guests = await taxiRidesService.getGuestsByRideId(targetRideId);
 
     assertTest(moved.ride_id === targetRideId, "Moved taxi guest has the wrong ride_id.");
-    assertTest(guests.some((item) => item.id === taxiGuestId), "Moved taxi guest is missing from target ride.");
+    assertTest(guests.some(item => item.id === taxiGuestId), "Moved taxi guest is missing from target ride.");
   });
 }
 
@@ -76,7 +76,7 @@ export async function testDeleteTaxiGuest(
     await taxiRidesService.deleteGuest(taxiGuestId);
     const guests = await taxiRidesService.getGuestsByRideId(rideId);
 
-    assertTest(!guests.some((item) => item.id === taxiGuestId), "Deleted taxi guest still exists in ride.");
+    assertTest(!guests.some(item => item.id === taxiGuestId), "Deleted taxi guest still exists in ride.");
   });
 }
 
@@ -88,7 +88,7 @@ export async function testDeleteTaxiRide(
     await taxiRidesService.delete(rideId);
     const rides = await taxiRidesService.getByRetreatId(retreatId);
 
-    assertTest(!rides.some((item) => item.id === rideId), "Deleted taxi ride still exists.");
+    assertTest(!rides.some(item => item.id === rideId), "Deleted taxi ride still exists.");
   });
 }
 
@@ -106,9 +106,9 @@ export async function testCreateTaxiRidesBatch(
 
     const created = await taxiRidesService.createRides(retreatId, rides);
     const loaded = await taxiRidesService.getByRetreatId(retreatId);
-    const allTaxiGuests = await taxiRidesService.getGuestsByRideIds(loaded.map((ride) => ride.id));
+    const allTaxiGuests = await taxiRidesService.getGuestsByRideIds(loaded.map(ride => ride.id));
 
-    assertTest(!loaded.some((ride) => ride.id === oldRide.id), "Old taxi ride was not removed by batch replace.");
+    assertTest(!loaded.some(ride => ride.id === oldRide.id), "Old taxi ride was not removed by batch replace.");
     assertTest(created.length === rides.length, "Batch create returned the wrong number of taxi rides.");
     assertTest(loaded.length === rides.length, "Retreat contains the wrong number of taxi rides after batch replace.");
     assertTest(
@@ -117,7 +117,7 @@ export async function testCreateTaxiRidesBatch(
     );
 
     for (const rideInput of rides) {
-      const ride = loaded.find((item) => isSameDateTime(item.arrival_datetime, rideInput.arrival_datetime));
+      const ride = loaded.find(item => isSameDateTime(item.arrival_datetime, rideInput.arrival_datetime));
 
       assertTest(Boolean(ride), `Taxi ride ${rideInput.arrival_datetime} was not created.`);
 
@@ -129,8 +129,8 @@ export async function testCreateTaxiRidesBatch(
 
       assertTest(guests.length === rideInput.guests.length, "Taxi ride passenger count does not match batch input.");
 
-      rideInput.guests.forEach((guestInput) => {
-        const matchingGuest = guests.find((guest) => (
+      rideInput.guests.forEach(guestInput => {
+        const matchingGuest = guests.find(guest => (
           guest.guest_id === guestInput.guest_id
           && guest.unbooked_guest_name === guestInput.unbooked_guest_name
         ));

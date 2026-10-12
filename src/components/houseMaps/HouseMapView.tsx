@@ -132,7 +132,7 @@ export default function HouseMapView({
   const [actionError, setActionError] = useState("");
   const [isSelectionPending, setIsSelectionPending] = useState(false);
 
-  const activeMapId = houseMaps.some((houseMap) => houseMap.id === selectedMapId)
+  const activeMapId = houseMaps.some(houseMap => houseMap.id === selectedMapId)
     ? selectedMapId
     : houseMaps[0]?.id ?? null;
 
@@ -141,7 +141,7 @@ export default function HouseMapView({
   }
 
   const getRoomName = (room: Room): string => {
-    const house = houses.find((item) => item.id === room.house_id);
+    const house = houses.find(item => item.id === room.house_id);
 
     if (!house) {
       return room.room_number;
@@ -155,7 +155,7 @@ export default function HouseMapView({
       return null;
     }
 
-    const room = rooms.find((item) => item.id === targetGuest.room_id);
+    const room = rooms.find(item => item.id === targetGuest.room_id);
 
     if (!room) {
       return null;
@@ -287,7 +287,7 @@ export default function HouseMapView({
       }
     );
 
-    availableActions.push(...guestActions.map((guestAction) => ({
+    availableActions.push(...guestActions.map(guestAction => ({
       id: guestAction.id,
       label: guestAction.caption,
       onClickHandler: guestAction.action,
@@ -334,7 +334,7 @@ export default function HouseMapView({
     selectionGuestId
   );
 
-  const selectableRoomIds = new Set(selectableRooms.map((room) => room.id));
+  const selectableRoomIds = new Set(selectableRooms.map(room => room.id));
 
   const canSelectRoom = (room: Room): boolean => {
     if (selectionMode !== "room" || !hasRoomSelectionTarget) {
@@ -501,17 +501,17 @@ export default function HouseMapView({
   };
 
   const selectedMap =
-    houseMaps.find((item) => item.id === activeMapId) ?? null;
+    houseMaps.find(item => item.id === activeMapId) ?? null;
 
   const selectedHouse =
-    houses.find((item) => item.id === selectedMap?.house_id) ?? null;
+    houses.find(item => item.id === selectedMap?.house_id) ?? null;
 
   const roomPositions = houseMapsService.getRoomPositions(selectedMap);
 
   const mapTabs = [...houseMaps]
     .sort((left, right) => left.house_id - right.house_id || left.id - right.id)
-    .map((houseMap) => {
-      const house = houses.find((item) => item.id === houseMap.house_id);
+    .map(houseMap => {
+      const house = houses.find(item => item.id === houseMap.house_id);
       const label = house?.name ?? "";
       const isSelected = houseMap.id === activeMapId;
 
@@ -529,21 +529,21 @@ export default function HouseMapView({
 
   const mapRoomItems = roomPositions
     .map((position: RoomPosition) => {
-      const room = rooms.find((item) => item.id === position.room_id);
+      const room = rooms.find(item => item.id === position.room_id);
 
       if (!room || !selectedHouse) {
         return null;
       }
 
       const retreatRoom = retreatRooms.find(
-        (item) => item.room_id === room.id
+        item => item.room_id === room.id
       );
 
       const roomGuests = guests.filter(
-        (item) => item.room_id === room.id
+        item => item.room_id === room.id
       );
 
-      const activeGuests = roomGuests.filter((roomGuest) => {
+      const activeGuests = roomGuests.filter(roomGuest => {
         const status = statuses.get(roomGuest.id);
 
         return status?.status !== strNotComingStatus;
@@ -609,7 +609,7 @@ export default function HouseMapView({
         isRoomInteractive ? "cursor-pointer" : "cursor-default",
       ].join(" ");
 
-      const guestItems = roomGuests.map((roomGuest) => {
+      const guestItems = roomGuests.map(roomGuest => {
         const guestStatus = statuses.get(roomGuest.id);
         const status = guestStatus?.status ?? strBooked;
 
@@ -684,14 +684,14 @@ export default function HouseMapView({
         guestItems,
       };
     })
-    .filter((item) => item !== null);
+    .filter(item => item !== null);
 
-  const roomSelectionItems = roomsService.sortRooms(rooms, houses).map((room) => {
-    const house = houses.find((item) => item.id === room.house_id);
-    const retreatRoom = retreatRooms.find((item) => item.room_id === room.id);
-    const roomGuests = guests.filter((item) => item.room_id === room.id);
+  const roomSelectionItems = roomsService.sortRooms(rooms, houses).map(room => {
+    const house = houses.find(item => item.id === room.house_id);
+    const retreatRoom = retreatRooms.find(item => item.room_id === room.id);
+    const roomGuests = guests.filter(item => item.room_id === room.id);
     const activeGuests = roomGuests.filter(
-      (roomGuest) => statuses.get(roomGuest.id)?.status !== strNotComingStatus
+      roomGuest => statuses.get(roomGuest.id)?.status !== strNotComingStatus
     );
     const maxGuests = retreatRoom?.max_guests ?? 0;
     const isRoomAvailable = room.is_available && retreatRoom !== undefined;
@@ -723,7 +723,7 @@ export default function HouseMapView({
       setActionsTitle(roomName);
     };
 
-    const guestItems = roomGuests.map((roomGuest) => {
+    const guestItems = roomGuests.map(roomGuest => {
       const status = statuses.get(roomGuest.id)?.status ?? strBooked;
       const isGuestSelectable = canSelectGuest(roomGuest);
       const guestName = roomGuest.is_organizer
@@ -782,8 +782,8 @@ export default function HouseMapView({
 
   const roomSelectionGroups = [...houses]
     .sort((left, right) => left.id - right.id)
-    .map((house) => {
-      const houseRooms = roomSelectionItems.filter((room) => room.houseId === house.id);
+    .map(house => {
+      const houseRooms = roomSelectionItems.filter(room => room.houseId === house.id);
       const roomGroups = houseRooms.reduce<Array<{ prefix: string; rooms: typeof houseRooms }>>((groups, room) => {
         const prefix = room.roomNumber.match(/^[A-Za-z]+/)?.[0] ?? "";
         const currentGroup = groups[groups.length - 1];
@@ -804,16 +804,16 @@ export default function HouseMapView({
         roomGroups,
       };
     })
-    .filter((house) => house.rooms.some((room) => room.isAvailableForRetreat));
+    .filter(house => house.rooms.some(room => room.isAvailableForRetreat));
 
-  const guestSelectionRows = roomsService.sortRooms(rooms, houses).flatMap((room) => {
-    const house = houses.find((item) => item.id === room.house_id);
+  const guestSelectionRows = roomsService.sortRooms(rooms, houses).flatMap(room => {
+    const house = houses.find(item => item.id === room.house_id);
     const roomName = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
     const roomGuests = guests
-      .filter((roomGuest) => roomGuest.room_id === room.id)
+      .filter(roomGuest => roomGuest.room_id === room.id)
       .sort((left, right) => left.name.localeCompare(right.name));
 
-    return roomGuests.map((roomGuest) => {
+    return roomGuests.map(roomGuest => {
       const status = statuses.get(roomGuest.id)?.status ?? strBooked;
       const guestName = roomGuest.is_organizer
         ? `${roomGuest.name} (${strOrganizer})`
@@ -833,7 +833,7 @@ export default function HouseMapView({
     });
   });
 
-  const preparedActions = actions.map((action) => {
+  const preparedActions = actions.map(action => {
     const onClickHandler = () => {
       action.onClickHandler();
     };
@@ -863,37 +863,37 @@ export default function HouseMapView({
     <div className="relative flex h-full flex-col" aria-busy={isSelectionPending}>
       <div className="mb-4 flex shrink-0 items-center justify-between">
         <div>
-          {showTitle ? <h2 className="text-xl font-bold">{strTitle}</h2> : null}
-          {selectionText ? <div className="mt-1 text-sm text-gray-600">{selectionText}</div> : null}
+          {showTitle && <h2 className="text-xl font-bold">{strTitle}</h2>}
+          {selectionText && <div className="mt-1 text-sm text-gray-600">{selectionText}</div>}
         </div>
         <div className="flex gap-2">
-          {selectionMode ? (
+          {selectionMode && (
             <button type="button" onClick={onCancelSelectionActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
               {strCancelSelection}
             </button>
-          ) : null}
-          {!selectionMode && onCancelActionClick ? (
+          )}
+          {!selectionMode && onCancelActionClick && (
             <button type="button" onClick={onCancelActionClick} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
               {strCancel}
             </button>
-          ) : null}
+          )}
         </div>
       </div>
-      {actionError ? <div className="mb-4 text-red-600">{actionError}</div> : null}
-      {isSnapshotLoading ? <div>{strLoading}</div> : null}
-      {isLoadError ? <div>{strLoadError}</div> : null}
-      {!isSnapshotLoading && !isLoadError && (houseMaps.length > 0 || rooms.length > 0) ? (
+      {actionError && <div className="mb-4 text-red-600">{actionError}</div>}
+      {isSnapshotLoading && <div>{strLoading}</div>}
+      {isLoadError && <div>{strLoadError}</div>}
+      {!isSnapshotLoading && !isLoadError && (houseMaps.length > 0 || rooms.length > 0) && (
         <>
           {mapTabs.length > 0 ? (
             <>
               <div className="mb-4 flex shrink-0 flex-wrap gap-2">
-                {mapTabs.map((tab) => (
+                {mapTabs.map(tab => (
                   <button key={tab.id} type="button" onClick={tab.onClickHandler} className={tab.isSelected ? "rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white" : "rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"}>
                     {tab.label}
                   </button>
                 ))}
               </div>
-              {selectedMap ? (
+              {selectedMap && (
                 <div className="mb-6 min-h-[400px] max-h-[70vh] overflow-auto bg-gray-100 p-4">
                   <div className="relative mx-auto w-full max-w-5xl overflow-hidden border border-gray-300 bg-white shadow-sm">
                     {selectedMap.bg_image_url ? (
@@ -901,7 +901,7 @@ export default function HouseMapView({
                     ) : (
                       <div className="flex min-h-[500px] items-center justify-center text-gray-500">{strNoBackground}</div>
                     )}
-                    {mapRoomItems.map((room) => (
+                    {mapRoomItems.map(room => (
                       <div
                         key={room.id}
                         style={room.style}
@@ -918,7 +918,7 @@ export default function HouseMapView({
                         <div className="mt-1 flex min-h-5 flex-wrap items-center justify-center gap-x-1 px-0.5 text-[10px]">
                           {room.guestItems.map((roomGuest, index) => (
                             <span key={roomGuest.id} className="group/guest relative flex items-center gap-x-0.5">
-                              {index > 0 ? <span aria-hidden="true" className="text-gray-500">+</span> : null}
+                              {index > 0 && <span aria-hidden="true" className="text-gray-500">+</span>}
                               <button
                                 type="button"
                                 onClick={roomGuest.onClickHandler}
@@ -939,7 +939,7 @@ export default function HouseMapView({
                     ))}
                   </div>
                 </div>
-              ) : null}
+              )}
             </>
           ) : <div className="mb-6 text-gray-500">{strNoMaps}</div>}
           {selectionMode === "guest" ? (
@@ -957,7 +957,7 @@ export default function HouseMapView({
                       </tr>
                     </thead>
                     <tbody>
-                      {guestSelectionRows.map((row) => (
+                      {guestSelectionRows.map(row => (
                         <tr key={row.id} className="border-t border-gray-200">
                           <td className="px-4 py-3">
                             <button
@@ -983,18 +983,18 @@ export default function HouseMapView({
                 </div>
               )}
             </section>
-          ) : showRoomSelectionList ? (
+          ) : showRoomSelectionList && (
             <section className="min-h-0 flex-1 overflow-auto">
               <h3 className="mb-3 text-lg font-semibold">{strRooms}</h3>
               {roomSelectionGroups.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (
                 <div className="space-y-4">
-                  {roomSelectionGroups.map((house) => (
+                  {roomSelectionGroups.map(house => (
                     <section key={house.id} className="rounded-lg border border-gray-200 bg-white p-4">
                       <h4 className="mb-3 font-semibold text-gray-800">{house.name}</h4>
                       <div className="space-y-2">
-                        {house.roomGroups.map((roomGroup) => (
+                        {house.roomGroups.map(roomGroup => (
                           <div key={`${house.id}-${roomGroup.prefix || "numeric"}`} className="flex flex-wrap gap-2">
-                            {roomGroup.rooms.map((room) => (
+                            {roomGroup.rooms.map(room => (
                           <div key={room.id} className={`flex h-24 w-48 shrink-0 flex-col overflow-hidden rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
                             <div className="flex items-center gap-2">
                               <button
@@ -1010,9 +1010,9 @@ export default function HouseMapView({
                             <div className="mt-1 h-1 w-full rounded-full bg-gray-200">
                               <div className={`h-full w-full rounded-full ${room.statusBarClassName}`} />
                             </div>
-                            {room.guestItems.length > 0 ? (
+                            {room.guestItems.length > 0 && (
                               <div className="mt-1 flex min-h-0 flex-1 flex-wrap content-start gap-1 overflow-y-auto">
-                                {room.guestItems.map((roomGuest) => (
+                                {room.guestItems.map(roomGuest => (
                                   <button
                                     key={roomGuest.id}
                                     type="button"
@@ -1024,7 +1024,7 @@ export default function HouseMapView({
                                   </button>
                                 ))}
                               </div>
-                            ) : null}
+                            )}
                           </div>
                             ))}
                           </div>
@@ -1035,15 +1035,15 @@ export default function HouseMapView({
                 </div>
               )}
             </section>
-          ) : null}
+          )}
         </>
-      ) : null}
-      {isActionsOpen ? (
+      )}
+      {isActionsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
             <h3 className="mb-4 text-lg font-bold">{actionsTitle}</h3>
             <div className="flex flex-col gap-2">
-              {preparedActions.map((action) => (
+              {preparedActions.map(action => (
                 <button key={action.id} type="button" onClick={action.onClickHandler} className="rounded-md border border-gray-300 bg-white px-4 py-2 text-left font-medium hover:bg-gray-50">
                   {action.label}
                 </button>
@@ -1056,12 +1056,12 @@ export default function HouseMapView({
             </div>
           </div>
         </div>
-      ) : null}
-      {isSelectionPending ? (
+      )}
+      {isSelectionPending && (
         <div className="absolute inset-0 z-[60] flex cursor-wait items-center justify-center bg-white/30" role="status">
           <span className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow">{strSelecting}</span>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

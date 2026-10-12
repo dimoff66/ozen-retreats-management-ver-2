@@ -95,7 +95,7 @@ const normalizeImportedRoom = (value: string): string => {
 
 const shareNamePart = (leftParts: string[], rightParts: string[]): boolean => {
   const rightSet = new Set(rightParts);
-  return leftParts.some((part) => rightSet.has(part));
+  return leftParts.some(part => rightSet.has(part));
 };
 
 export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
@@ -215,13 +215,13 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
       return "-";
     }
 
-    const room = rooms.find((item) => item.id === guest.room_id);
-    const house = room ? houses.find((item) => item.id === room.house_id) : undefined;
+    const room = rooms.find(item => item.id === guest.room_id);
+    const house = room ? houses.find(item => item.id === room.house_id) : undefined;
 
     return room && house ? roomsService.getRoomDisplayName(room, house) : "-";
   };
 
-  const guestMatchData: GuestMatchData[] = guests.map((guest) => ({
+  const guestMatchData: GuestMatchData[] = guests.map(guest => ({
     guest,
     normalizedName: normalizeName(guest.name),
     nameParts: getNameParts(guest.name),
@@ -256,7 +256,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   };
 
   const onImagePaste = (event: ClipboardEvent<HTMLDivElement>) => {
-    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith("image/"));
+    const imageItem = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"));
 
     if (!imageItem) {
       return;
@@ -349,14 +349,14 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
       return;
     }
 
-    const sourceLines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    const sourceLines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
 
     if (sourceLines.length === 0) {
       setError(strNoData);
       return;
     }
 
-    const firstCells = sourceLines[0].split("\t").map((cell) => cell.trim().toLocaleLowerCase());
+    const firstCells = sourceLines[0].split("\t").map(cell => cell.trim().toLocaleLowerCase());
     const lines = firstCells[0] === "group" && firstCells[2] === "name"
       ? sourceLines.slice(1)
       : sourceLines;
@@ -368,7 +368,7 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
     const seenGroups = new Set<number>();
 
     lines.forEach((line, index) => {
-      const cells = line.split("\t").map((cell) => cell.trim());
+      const cells = line.split("\t").map(cell => cell.trim());
       const rowNumber = index + 1;
 
       if (cells.length < 5) {
@@ -453,9 +453,9 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
     const exactGuestByRowId = new Map<number, number>();
     const exactMatchedGuestIds = new Set<number>();
 
-    parsedRows.forEach((row) => {
+    parsedRows.forEach(row => {
       const normalizedName = normalizeName(row.name);
-      const exactMatches = guestMatchData.filter((item) => item.normalizedName === normalizedName);
+      const exactMatches = guestMatchData.filter(item => item.normalizedName === normalizedName);
 
       if (exactMatches.length !== 1) {
         return;
@@ -471,11 +471,11 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
       exactMatchedGuestIds.add(guestId);
     });
 
-    const matchedRows: MatchedImportRow[] = parsedRows.map((row) => {
+    const matchedRows: MatchedImportRow[] = parsedRows.map(row => {
       const nameParts = getNameParts(row.name);
       const exactGuestId = exactGuestByRowId.get(row.id) ?? null;
       const partialMatches = exactGuestId === null
-        ? guestMatchData.filter((item) => (
+        ? guestMatchData.filter(item => (
           !exactMatchedGuestIds.has(item.guest.id) && shareNamePart(nameParts, item.nameParts)
         ))
         : [];
@@ -483,12 +483,12 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
       return {
         ...row,
         matchedGuestId: exactGuestId,
-        suggestionGuestIds: Array.from(new Set(partialMatches.map((item) => item.guest.id))),
+        suggestionGuestIds: Array.from(new Set(partialMatches.map(item => item.guest.id))),
       };
     });
-    const groupNumbers = Array.from(new Set(matchedRows.map((row) => row.group))).sort((left, right) => left - right);
-    const nextGroups = groupNumbers.map((groupNumber) => {
-      const rows = matchedRows.filter((row) => row.group === groupNumber);
+    const groupNumbers = Array.from(new Set(matchedRows.map(row => row.group))).sort((left, right) => left - right);
+    const nextGroups = groupNumbers.map(groupNumber => {
+      const rows = matchedRows.filter(row => row.group === groupNumber);
       const approxTime = rows[0]?.approxTime ?? "00:00";
       const localDate = new Date(`${retreat.start_date}T${approxTime}:00`);
 
@@ -512,22 +512,22 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   };
 
   const onSuggestionClick = (rowId: number, guestId: number) => {
-    const existingMatch = groups.flatMap((group) => group.rows.map((row) => ({ group: group.group, row })))
-      .find((item) => item.row.id !== rowId && item.row.matchedGuestId === guestId);
+    const existingMatch = groups.flatMap(group => group.rows.map(row => ({ group: group.group, row })))
+      .find(item => item.row.id !== rowId && item.row.matchedGuestId === guestId);
 
     if (existingMatch) {
       setError(`${strAlreadyAssigned} ${strTaxi} ${existingMatch.group}.`);
       return;
     }
 
-    setGroups((currentGroups) => currentGroups.map((group) => ({
+    setGroups(currentGroups => currentGroups.map(group => ({
       ...group,
-      rows: group.rows.map((row) => {
+      rows: group.rows.map(row => {
         if (row.id !== rowId) {
           return row;
         }
 
-        const nextSuggestions = row.suggestionGuestIds.filter((id) => id !== guestId);
+        const nextSuggestions = row.suggestionGuestIds.filter(id => id !== guestId);
 
         if (row.matchedGuestId !== null && !nextSuggestions.includes(row.matchedGuestId)) {
           nextSuggestions.push(row.matchedGuestId);
@@ -551,10 +551,10 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
     const rides: CreateTaxiRideBatch[] = groups
       .slice()
       .sort((left, right) => left.group - right.group)
-      .map((group) => ({
+      .map(group => ({
         arrival_datetime: group.arrivalDateTime,
         driver_name: null,
-        guests: group.rows.map((row) => ({
+        guests: group.rows.map(row => ({
           guest_id: row.matchedGuestId,
           unbooked_guest_name: row.matchedGuestId === null ? row.name : null,
         })),
@@ -574,8 +574,8 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
     }
   };
 
-  const selectedGroup = groups.find((group) => group.group === selectedGroupNumber) ?? groups[0] ?? null;
-  const groupCards = groups.map((group) => {
+  const selectedGroup = groups.find(group => group.group === selectedGroupNumber) ?? groups[0] ?? null;
+  const groupCards = groups.map(group => {
     const onSelect = () => {
       setSelectedGroupNumber(group.group);
       setError("");
@@ -591,12 +591,12 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
       onSelect,
     };
   });
-  const previewRows = (selectedGroup?.rows ?? []).map((row) => {
+  const previewRows = (selectedGroup?.rows ?? []).map(row => {
     const matchedGuest = row.matchedGuestId === null
       ? null
-      : guestMatchData.find((item) => item.guest.id === row.matchedGuestId) ?? null;
-    const suggestions = row.suggestionGuestIds.flatMap((guestId) => {
-      const guestData = guestMatchData.find((item) => item.guest.id === guestId);
+      : guestMatchData.find(item => item.guest.id === row.matchedGuestId) ?? null;
+    const suggestions = row.suggestionGuestIds.flatMap(guestId => {
+      const guestData = guestMatchData.find(item => item.guest.id === guestId);
 
       if (!guestData) {
         return [];
@@ -624,78 +624,78 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
   });
 
   return (
-    <div className="ozen-modal-backdrop">
-      <div role="dialog" aria-modal="true" aria-labelledby="import-rides-title" className="ozen-import-rides-modal">
-        <div className="ozen-form-modal-header">
+    <div className="project-modal-backdrop">
+      <div role="dialog" aria-modal="true" aria-labelledby="import-rides-title" className="project-import-rides-modal">
+        <div className="project-form-modal-header">
           <h3 id="import-rides-title">{strTitle}</h3>
         </div>
         {!isPreview ? (
-          <div className="ozen-import-rides-body">
-            {hasExistingRides ? <p className="ozen-import-warning">{strExistingWarning}</p> : null}
-            {!isCheckingCapabilities && isImageImportAvailable ? (
-              <div className="ozen-import-input-tabs" role="tablist">
-                <button type="button" role="tab" aria-selected={inputTab === "image"} onClick={onImageTabClick} className={inputTab === "image" ? "ozen-import-input-tab ozen-import-input-tab-active" : "ozen-import-input-tab"}>{strImageTab}</button>
-                <button type="button" role="tab" aria-selected={inputTab === "text"} onClick={onTextTabClick} className={inputTab === "text" ? "ozen-import-input-tab ozen-import-input-tab-active" : "ozen-import-input-tab"}>{strTextTab}</button>
+          <div className="project-import-rides-body">
+            {hasExistingRides && <p className="project-import-warning">{strExistingWarning}</p>}
+            {!isCheckingCapabilities && isImageImportAvailable && (
+              <div className="project-import-input-tabs" role="tablist">
+                <button type="button" role="tab" aria-selected={inputTab === "image"} onClick={onImageTabClick} className={inputTab === "image" ? "project-import-input-tab project-import-input-tab-active" : "project-import-input-tab"}>{strImageTab}</button>
+                <button type="button" role="tab" aria-selected={inputTab === "text"} onClick={onTextTabClick} className={inputTab === "text" ? "project-import-input-tab project-import-input-tab-active" : "project-import-input-tab"}>{strTextTab}</button>
               </div>
-            ) : null}
-            {!isCheckingCapabilities && isImageImportAvailable && inputTab === "image" ? (
-              <div className="ozen-import-image-section">
-                <span className="ozen-import-image-title">{strImageSection}</span>
+            )}
+            {!isCheckingCapabilities && isImageImportAvailable && inputTab === "image" && (
+              <div className="project-import-image-section">
+                <span className="project-import-image-title">{strImageSection}</span>
                 <div
                   tabIndex={0}
                   onPaste={onImagePaste}
                   onDrop={onImageDrop}
                   onDragOver={onImageDragOver}
-                  className="ozen-import-image-dropzone"
+                  className="project-import-image-dropzone"
                 >
                   <span>{strImageHint}</span>
-                  <div className="ozen-import-image-actions">
-                    <button type="button" onClick={onChooseImageClick} className="ozen-action-button ozen-action-button-secondary">{strChooseImage}</button>
-                    <button type="button" onClick={onExtractTextClick} disabled={!selectedImage || isExtractingText} className="ozen-action-button ozen-action-button-primary">{isExtractingText ? strExtractingText : strExtractText}</button>
-                    {selectedImage ? <button type="button" onClick={onRemoveImageClick} className="ozen-action-button ozen-action-button-secondary">{strRemoveImage}</button> : null}
-                    <button type="button" onClick={onSkipImageClick} className="ozen-action-button ozen-action-button-secondary">{strSkipImage}</button>
+                  <div className="project-import-image-actions">
+                    <button type="button" onClick={onChooseImageClick} className="project-action-button project-action-button-secondary">{strChooseImage}</button>
+                    <button type="button" onClick={onExtractTextClick} disabled={!selectedImage || isExtractingText} className="project-action-button project-action-button-primary">{isExtractingText ? strExtractingText : strExtractText}</button>
+                    {selectedImage && <button type="button" onClick={onRemoveImageClick} className="project-action-button project-action-button-secondary">{strRemoveImage}</button>}
+                    <button type="button" onClick={onSkipImageClick} className="project-action-button project-action-button-secondary">{strSkipImage}</button>
                   </div>
-                  <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/jpg" onChange={onFileInputChange} className="ozen-import-image-input" />
-                  {selectedImage ? <span className="ozen-import-image-name">{selectedImage.name}</span> : null}
+                  <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/jpg" onChange={onFileInputChange} className="project-import-image-input" />
+                  {selectedImage && <span className="project-import-image-name">{selectedImage.name}</span>}
                 </div>
-                {selectedImageUrl ? (
-                  <div className="ozen-import-image-preview-wrap">
-                    <span className="ozen-import-image-preview-label">{strSelectedImage}</span>
-                    <img src={selectedImageUrl} alt={strSelectedImage} className="ozen-import-image-preview" />
+                {selectedImageUrl && (
+                  <div className="project-import-image-preview-wrap">
+                    <span className="project-import-image-preview-label">{strSelectedImage}</span>
+                    <img src={selectedImageUrl} alt={strSelectedImage} className="project-import-image-preview" />
                   </div>
-                ) : null}
-                {error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
+                )}
+                {error && <pre role="alert" className="project-import-error">{error}</pre>}
               </div>
-            ) : null}
-            {!isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") ? (
-              <label className="ozen-form-field ozen-import-text-field">
+            )}
+            {!isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") && (
+              <label className="project-form-field project-import-text-field">
                 <span>{strInputHelp}</span>
                 <textarea value={text} onChange={onTextChange} rows={18} spellCheck={false} />
               </label>
-            ) : null}
-            {!isCheckingCapabilities && !isImageImportAvailable ? <p className="ozen-import-image-disabled-note">{strImageNotConfigured}</p> : null}
-            {!isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") && error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
+            )}
+            {!isCheckingCapabilities && !isImageImportAvailable && <p className="project-import-image-disabled-note">{strImageNotConfigured}</p>}
+            {!isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") && error && <pre role="alert" className="project-import-error">{error}</pre>}
           </div>
         ) : (
-          <div className="ozen-import-rides-body ozen-import-preview-body">
-            <div className="ozen-taxi-grid ozen-import-taxi-grid">
-              {groupCards.map((group) => (
+          <div className="project-import-rides-body project-import-preview-body">
+            <div className="project-taxi-grid project-import-taxi-grid">
+              {groupCards.map(group => (
                 <button
                   key={group.group}
                   type="button"
                   onClick={group.onSelect}
-                  className={group.isSelected ? "ozen-taxi-card ozen-taxi-card-selected ozen-import-taxi-card" : "ozen-taxi-card ozen-import-taxi-card"}
+                  className={group.isSelected ? "project-taxi-card project-taxi-card-selected project-import-taxi-card" : "project-taxi-card project-import-taxi-card"}
                 >
-                  <span className="ozen-taxi-number">{group.number}</span>
+                  <span className="project-taxi-number">{group.number}</span>
                   <strong>{group.time}</strong>
-                  <span className="ozen-taxi-date">{group.date}</span>
-                  <span className="ozen-taxi-passenger-count">{group.guestCount}</span>
+                  <span className="project-taxi-date">{group.date}</span>
+                  <span className="project-taxi-passenger-count">{group.guestCount}</span>
                 </button>
               ))}
             </div>
-            {selectedGroup ? (
-              <div className="ozen-import-table-wrap">
-                <table className="ozen-data-table ozen-import-table">
+            {selectedGroup && (
+              <div className="project-import-table-wrap">
+                <table className="project-data-table project-import-table">
                   <thead>
                     <tr>
                       <th>{strImportedName}</th>
@@ -705,27 +705,27 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {previewRows.map((row) => (
+                    {previewRows.map(row => (
                       <tr key={row.id}>
                         <td>{row.name}</td>
                         <td>{row.roomLabel}</td>
                         <td>
                           {row.matchedGuest ? (
-                            <span className="ozen-import-guest-badge">
+                            <span className="project-import-guest-badge">
                               <strong>{row.matchedGuest.guest.name}</strong>
                               <small>{row.matchedGuest.roomLabel}</small>
                             </span>
-                          ) : <span className="ozen-import-empty-match">{strNoMatch}</span>}
+                          ) : <span className="project-import-empty-match">{strNoMatch}</span>}
                         </td>
                         <td>
-                          <div className="ozen-import-suggestions">
-                            {row.suggestions.map((guest) => (
-                              <button key={guest.id} type="button" onClick={guest.onSelect} className="ozen-import-guest-badge ozen-import-guest-suggestion">
+                          <div className="project-import-suggestions">
+                            {row.suggestions.map(guest => (
+                              <button key={guest.id} type="button" onClick={guest.onSelect} className="project-import-guest-badge project-import-guest-suggestion">
                                 <strong>{guest.name}</strong>
                                 <small>{guest.roomLabel}</small>
                               </button>
                             ))}
-                            {row.suggestions.length === 0 ? <span className="ozen-import-empty-match">{strNoSuggestions}</span> : null}
+                            {row.suggestions.length === 0 && <span className="project-import-empty-match">{strNoSuggestions}</span>}
                           </div>
                         </td>
                       </tr>
@@ -733,19 +733,19 @@ export default function ImportRides({ onCloseActionClick }: ImportRidesProps) {
                   </tbody>
                 </table>
               </div>
-            ) : null}
-            {error ? <pre role="alert" className="ozen-import-error">{error}</pre> : null}
+            )}
+            {error && <pre role="alert" className="project-import-error">{error}</pre>}
           </div>
         )}
-        <div className="ozen-form-footer">
-          <div className="ozen-form-footer-actions">
-            <button type="button" onClick={onCloseActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button>
-            {isPreview ? <button type="button" onClick={onBackClick} className="ozen-action-button ozen-action-button-secondary">{strBack}</button> : null}
+        <div className="project-form-footer">
+          <div className="project-form-footer-actions">
+            <button type="button" onClick={onCloseActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button>
+            {isPreview && <button type="button" onClick={onBackClick} className="project-action-button project-action-button-secondary">{strBack}</button>}
             {isPreview ? (
-              <button type="button" onClick={onSaveClick} disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{isSaving ? strSaving : strSave}</button>
-            ) : !isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") ? (
-              <button type="button" onClick={onNextClick} className="ozen-action-button ozen-action-button-primary">{strNext}</button>
-            ) : null}
+              <button type="button" onClick={onSaveClick} disabled={isSaving} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button>
+            ) : !isCheckingCapabilities && (!isImageImportAvailable || inputTab === "text") && (
+              <button type="button" onClick={onNextClick} className="project-action-button project-action-button-primary">{strNext}</button>
+            )}
           </div>
         </div>
       </div>

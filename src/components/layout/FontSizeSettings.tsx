@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 
-const storageKey = "ozen-ui-font-level";
+const storageKey = "project-ui-font-level";
 export const minFontLevel = 0;
 export const maxFontLevel = 6;
 

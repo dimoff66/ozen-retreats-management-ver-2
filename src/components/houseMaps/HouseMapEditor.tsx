@@ -167,7 +167,7 @@ export default function HouseMapEditor({
     roomPositions
   );
 
-  const availableRoomItems = availableRooms.map((room) => {
+  const availableRoomItems = availableRooms.map(room => {
     const label = houseMapsService.getRoomLabel(room, house, houses);
 
     const onDragStart = () => {
@@ -182,8 +182,8 @@ export default function HouseMapEditor({
   });
 
   const placedRoomItems = roomPositions
-    .map((position) => {
-      const room = rooms.find((item) => item.id === position.room_id);
+    .map(position => {
+      const room = rooms.find(item => item.id === position.room_id);
 
       if (!room) {
         return null;
@@ -207,7 +207,7 @@ export default function HouseMapEditor({
         onDragStart,
       };
     })
-    .filter((item) => item !== null);
+    .filter(item => item !== null);
 
   useEffect(() => {
     loadRooms();
@@ -222,38 +222,38 @@ export default function HouseMapEditor({
   }, [previewUrl]);
 
   return (
-    <div className="ozen-map-editor-backdrop">
-      <div className="ozen-map-editor-modal">
-        <header className="ozen-map-editor-header">
+    <div className="project-map-editor-backdrop">
+      <div className="project-map-editor-modal">
+        <header className="project-map-editor-header">
           <div><span>{strRooms}</span><h2>{formTitle}: {house.name}</h2></div>
-          <div className="ozen-form-footer-actions"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="button" onClick={onSaveHandler} disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
+          <div className="project-form-footer-actions"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="button" onClick={onSaveHandler} disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
         </header>
-        {isLoading ? <div className="ozen-state-message ozen-map-editor-message">{strLoading}</div> : null}
-        {isLoadError ? <div className="ozen-state-message ozen-state-error ozen-map-editor-message">{strLoadError}</div> : null}
-        {!isLoading && !isLoadError ? (
-          <div className="ozen-map-editor-body">
-            <aside className="ozen-map-editor-sidebar">
+        {isLoading && <div className="project-state-message project-map-editor-message">{strLoading}</div>}
+        {isLoadError && <div className="project-state-message project-state-error project-map-editor-message">{strLoadError}</div>}
+        {!isLoading && !isLoadError && (
+          <div className="project-map-editor-body">
+            <aside className="project-map-editor-sidebar">
               <h3>{strRooms}</h3>
-              <div className="ozen-map-room-list">
-                {availableRoomItems.map((room) => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} className="ozen-map-room-chip">{room.label}</button>)}
-                {availableRoomItems.length === 0 ? <div className="ozen-map-room-empty">{strNoUnplacedRooms}</div> : null}
+              <div className="project-map-room-list">
+                {availableRoomItems.map(room => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} className="project-map-room-chip">{room.label}</button>)}
+                {availableRoomItems.length === 0 && <div className="project-map-room-empty">{strNoUnplacedRooms}</div>}
               </div>
             </aside>
-            <div className="ozen-map-editor-workspace">
-              <div className="ozen-map-editor-toolbar">
+            <div className="project-map-editor-workspace">
+              <div className="project-map-editor-toolbar">
                 <span>{strBackgroundImage}</span>
-                <label className="ozen-inline-button ozen-file-button">{strChooseImage}<input type="file" accept="image/*" onChange={onBackgroundChange} className="sr-only" /></label>
+                <label className="project-inline-button project-file-button">{strChooseImage}<input type="file" accept="image/*" onChange={onBackgroundChange} className="sr-only" /></label>
               </div>
-              <div className="ozen-map-canvas-wrap">
-                <div ref={mapRef} onDragOver={onDragOverHandler} onDrop={onDropHandler} className="ozen-map-canvas">
-                  {hasImage ? <img src={imageUrl} alt={house.name} className="ozen-map-background" draggable={false} /> : null}
-                  {!hasImage ? <div className="ozen-map-no-image">{strNoImage}</div> : null}
-                  {placedRoomItems.map((room) => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} style={room.style} className="ozen-map-room-marker">{room.label}</button>)}
+              <div className="project-map-canvas-wrap">
+                <div ref={mapRef} onDragOver={onDragOverHandler} onDrop={onDropHandler} className="project-map-canvas">
+                  {hasImage && <img src={imageUrl} alt={house.name} className="project-map-background" draggable={false} />}
+                  {!hasImage && <div className="project-map-no-image">{strNoImage}</div>}
+                  {placedRoomItems.map(room => <button key={room.id} type="button" draggable onDragStart={room.onDragStart} style={room.style} className="project-map-room-marker">{room.label}</button>)}
                 </div>
               </div>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

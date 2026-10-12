@@ -69,14 +69,14 @@ export default function RoomForm({
   };
 
   return (
-    <div className="ozen-modal-backdrop">
-      <div className="ozen-form-modal">
-        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
-        <form onSubmit={onSubmitHandler} className="ozen-form-body">
-          <label className="ozen-form-field"><span>{strRoomNumber}</span><input value={roomNumber} onChange={onRoomNumberChange} maxLength={3} required /></label>
-          <label className="ozen-form-field"><span>{strHouse}</span><select value={houseId} onChange={onHouseChange} required><option value="">{strSelectHouse}</option>{houses.map((house) => <option key={house.id} value={house.id}>{house.name}</option>)}</select></label>
-          <label className="ozen-checkbox-field"><input type="checkbox" checked={isAvailable} onChange={onAvailableChange} /><span>{strAvailable}</span></label>
-          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
+    <div className="project-modal-backdrop">
+      <div className="project-form-modal">
+        <div className="project-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="project-form-body">
+          <label className="project-form-field"><span>{strRoomNumber}</span><input value={roomNumber} onChange={onRoomNumberChange} maxLength={3} required /></label>
+          <label className="project-form-field"><span>{strHouse}</span><select value={houseId} onChange={onHouseChange} required><option value="">{strSelectHouse}</option>{houses.map(house => <option key={house.id} value={house.id}>{house.name}</option>)}</select></label>
+          <label className="project-checkbox-field"><input type="checkbox" checked={isAvailable} onChange={onAvailableChange} /><span>{strAvailable}</span></label>
+          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

@@ -32,7 +32,7 @@ export default function HouseForm({
   const [parentId, setParentId] = useState(house?.parent_id?.toString() ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
-  const availableParents = houses.filter((item) => {
+  const availableParents = houses.filter(item => {
     const isRootHouse = item.parent_id === null;
     const isCurrentHouse = item.id === house?.id;
 
@@ -65,13 +65,13 @@ export default function HouseForm({
   };
 
   return (
-    <div className="ozen-modal-backdrop">
-      <div className="ozen-form-modal">
-        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
-        <form onSubmit={onSubmitHandler} className="ozen-form-body">
-          <label className="ozen-form-field"><span>{strName}</span><input value={name} onChange={onNameChange} required /></label>
-          <label className="ozen-form-field"><span>{strParent}</span><select value={parentId} onChange={onParentChange}><option value="">{strNoParent}</option>{availableParents.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
+    <div className="project-modal-backdrop">
+      <div className="project-form-modal">
+        <div className="project-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="project-form-body">
+          <label className="project-form-field"><span>{strName}</span><input value={name} onChange={onNameChange} required /></label>
+          <label className="project-form-field"><span>{strParent}</span><select value={parentId} onChange={onParentChange}><option value="">{strNoParent}</option>{availableParents.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

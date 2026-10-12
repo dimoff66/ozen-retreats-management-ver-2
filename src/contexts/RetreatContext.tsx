@@ -257,7 +257,7 @@ export function RetreatProvider({
       return;
     }
 
-    if (!retreats.some((item) => item.id === nextRetreatId)) {
+    if (!retreats.some(item => item.id === nextRetreatId)) {
       setError("The selected retreat is not available.");
       return;
     }

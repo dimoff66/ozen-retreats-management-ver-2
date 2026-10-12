@@ -36,9 +36,9 @@ export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
 
   const previousStatuses = getPreviousGuestStatuses(statuses);
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
-  const historyRows = statuses.map((status) => {
-    const guest = guests.find((item) => item.id === status.guest_id);
-    const user = users.find((item) => item.id === status.updated_by);
+  const historyRows = statuses.map(status => {
+    const guest = guests.find(item => item.id === status.guest_id);
+    const user = users.find(item => item.id === status.updated_by);
     const activityParts = getGuestStatusHistoryMessage(
       status,
       previousStatuses.get(status.id),
@@ -46,7 +46,7 @@ export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
       user?.name ?? strUnknown
     );
     const date = dateService.formatDateTime(status.changed_at);
-    const searchableText = `${date} ${activityParts.map((part) => part.text).join("")}`;
+    const searchableText = `${date} ${activityParts.map(part => part.text).join("")}`;
 
     return {
       id: status.id,
@@ -54,30 +54,30 @@ export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
       activityParts,
       searchableText,
     };
-  }).filter((row) => row.searchableText.toLocaleLowerCase().includes(normalizedSearch));
+  }).filter(row => row.searchableText.toLocaleLowerCase().includes(normalizedSearch));
   const isSnapshotLoading = isLoading || !snapshot;
   const isEmpty = !isSnapshotLoading && !error && historyRows.length === 0;
   const hasHistory = !isSnapshotLoading && !error && historyRows.length > 0;
 
   return (
-    <section className="ozen-history-screen">
-      <div className="ozen-section-toolbar">
+    <section className="project-history-screen">
+      <div className="project-section-toolbar">
         {showTitle ? <div><h2>{strTitle}</h2></div> : <span />}
-        <label className="ozen-search-field ozen-history-search">
+        <label className="project-search-field project-history-search">
           <span className="sr-only">Search history</span>
           <input type="search" value={searchQuery} onChange={onSearchChange} aria-label="Search history" />
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="ozen-search-icon">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="project-search-icon">
             <circle cx="10.8" cy="10.8" r="6.3" />
             <path d="m15.5 15.5 4.2 4.2" strokeLinecap="round" />
           </svg>
         </label>
       </div>
-      {error ? <p role="alert" className="ozen-state-message ozen-state-error">{error}</p> : null}
-      {isSnapshotLoading ? <p className="ozen-state-message">{strLoading}</p> : null}
-      {isEmpty ? <p className="ozen-empty-message">{strNoHistory}</p> : null}
-      {hasHistory ? (
-        <div className="ozen-table-panel">
-          <table className="ozen-data-table ozen-history-table">
+      {error && <p role="alert" className="project-state-message project-state-error">{error}</p>}
+      {isSnapshotLoading && <p className="project-state-message">{strLoading}</p>}
+      {isEmpty && <p className="project-empty-message">{strNoHistory}</p>}
+      {hasHistory && (
+        <div className="project-table-panel">
+          <table className="project-data-table project-history-table">
             <thead>
               <tr>
                 <th>{strDate}</th>
@@ -85,16 +85,16 @@ export default function HistoryPanel({ showTitle = true }: HistoryPanelProps) {
               </tr>
             </thead>
             <tbody>
-              {historyRows.map((row) => (
+              {historyRows.map(row => (
                 <tr key={row.id}>
-                  <td className="ozen-history-date">{row.date}</td>
+                  <td className="project-history-date">{row.date}</td>
                   <td><HistoryActivity parts={row.activityParts} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

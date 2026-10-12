@@ -79,7 +79,7 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
   const rooms = snapshot?.rooms ?? [];
   const taxiGuests = snapshot?.taxiGuests ?? [];
   const [selectedRideId, setSelectedRideId] = useState<number | null>(null);
-  const selectedRide = rides.find((ride) => ride.id === selectedRideId)
+  const selectedRide = rides.find(ride => ride.id === selectedRideId)
     ?? (selectedRideId === null ? rides[0] ?? null : null);
   const isSnapshotLoading = isLoading || !snapshot;
   const [rideBeingEdited, setRideBeingEdited] = useState<TaxiRide | null>(null);
@@ -176,7 +176,7 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
 
     try {
       await deleteTaxiRide(rideBeingEdited.id);
-      setSelectedRideId((current) => current === rideBeingEdited.id ? null : current);
+      setSelectedRideId(current => current === rideBeingEdited.id ? null : current);
       setRideBeingEdited(null);
       setIsRideModalOpen(false);
       setArrivalDateTime("");
@@ -219,11 +219,11 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
       return;
     }
 
-    const existingAssignment = taxiGuests.find((passenger) => passenger.guest_id === guest.id);
+    const existingAssignment = taxiGuests.find(passenger => passenger.guest_id === guest.id);
 
     if (existingAssignment) {
-      const assignedRide = rides.find((ride) => ride.id === existingAssignment.ride_id);
-      const assignedRideNumber = rides.findIndex((ride) => ride.id === assignedRide?.id) + 1;
+      const assignedRide = rides.find(ride => ride.id === existingAssignment.ride_id);
+      const assignedRideNumber = rides.findIndex(ride => ride.id === assignedRide?.id) + 1;
 
       if (!window.confirm(strMoveGuestConfirm.replace("other taxi", `${strRideNumber} ${assignedRideNumber}`))) {
         return;
@@ -263,21 +263,21 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
   };
 
   const rideRows = rides.map((ride, index) => {
-    const assignedPassengers = taxiGuests.filter((passenger) => passenger.ride_id === ride.id);
+    const assignedPassengers = taxiGuests.filter(passenger => passenger.ride_id === ride.id);
     const passengerCount = assignedPassengers.length;
-    const assignedHouseIds = Array.from(new Set(assignedPassengers.flatMap((passenger) => {
+    const assignedHouseIds = Array.from(new Set(assignedPassengers.flatMap(passenger => {
       if (passenger.guest_id === null) {
         return [];
       }
 
-      const guest = guests.find((item) => item.id === passenger.guest_id);
-      const room = rooms.find((item) => item.id === guest?.room_id);
-      const house = houses.find((item) => item.id === room?.house_id);
+      const guest = guests.find(item => item.id === passenger.guest_id);
+      const room = rooms.find(item => item.id === guest?.room_id);
+      const house = houses.find(item => item.id === room?.house_id);
 
       return house ? [house.id] : [];
     }))).sort((left, right) => left - right);
-    const assignedHouseNames = assignedHouseIds.flatMap((houseId) => {
-      const house = houses.find((item) => item.id === houseId);
+    const assignedHouseNames = assignedHouseIds.flatMap(houseId => {
+      const house = houses.find(item => item.id === houseId);
 
       return house ? [house.name] : [];
     });
@@ -301,17 +301,17 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
       onEdit: () => onEditRideClick(ride),
     };
   });
-  const selectedRideRow = rideRows.find((ride) => ride.id === selectedRide?.id) ?? null;
+  const selectedRideRow = rideRows.find(ride => ride.id === selectedRide?.id) ?? null;
   const selectedTaxiGuests = selectedRide
-    ? taxiGuests.filter((passenger) => passenger.ride_id === selectedRide.id)
+    ? taxiGuests.filter(passenger => passenger.ride_id === selectedRide.id)
     : [];
-  const passengerRows = selectedTaxiGuests.map((passenger) => {
-    const matchedGuest = guests.find((guest) => guest.id === passenger.guest_id);
+  const passengerRows = selectedTaxiGuests.map(passenger => {
+    const matchedGuest = guests.find(guest => guest.id === passenger.guest_id);
     const name = matchedGuest?.name ?? passenger.unbooked_guest_name ?? strGuest;
     const room = matchedGuest?.room_id
-      ? rooms.find((item) => item.id === matchedGuest.room_id)
+      ? rooms.find(item => item.id === matchedGuest.room_id)
       : undefined;
-    const house = room ? houses.find((item) => item.id === room.house_id) : undefined;
+    const house = room ? houses.find(item => item.id === room.house_id) : undefined;
     const roomName = room && house
       ? roomsService.getRoomDisplayName(room, house)
       : strUnknown;
@@ -330,17 +330,17 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
   }).sort((left, right) => left.houseId - right.houseId
     || left.roomName.localeCompare(right.roomName)
     || left.name.localeCompare(right.name));
-  const selectedGuestIds = selectedTaxiGuests.flatMap((passenger) =>
+  const selectedGuestIds = selectedTaxiGuests.flatMap(passenger =>
     passenger.guest_id === null ? [] : [passenger.guest_id]
   );
   const normalizedGuestSearch = guestSearch.trim().toLocaleLowerCase();
   const availableGuestRows = guests
-    .filter((guest) => !selectedGuestIds.includes(guest.id))
-    .filter((guest) => guest.name.toLocaleLowerCase().includes(normalizedGuestSearch))
-    .map((guest) => {
-      const assignment = taxiGuests.find((passenger) => passenger.guest_id === guest.id);
+    .filter(guest => !selectedGuestIds.includes(guest.id))
+    .filter(guest => guest.name.toLocaleLowerCase().includes(normalizedGuestSearch))
+    .map(guest => {
+      const assignment = taxiGuests.find(passenger => passenger.guest_id === guest.id);
       const assignedRideIndex = assignment
-        ? rides.findIndex((ride) => ride.id === assignment.ride_id)
+        ? rides.findIndex(ride => ride.id === assignment.ride_id)
         : -1;
 
       return {
@@ -358,53 +358,53 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
   const hasAvailableGuestRows = availableGuestRows.length > 0;
 
   return (
-    <section className="ozen-taxi-screen">
-      {showTitle ? <div className="ozen-section-toolbar"><div><h2>{strTitle}</h2></div></div> : null}
-      {error ? <p role="alert" className="ozen-state-message ozen-state-error">{error}</p> : null}
-      {retreatError ? <p role="alert" className="ozen-state-message ozen-state-error">{retreatError}</p> : null}
-      {isSnapshotLoading ? <p className="ozen-state-message">{strLoading}</p> : null}
-      {!isSnapshotLoading ? (
+    <section className="project-taxi-screen">
+      {showTitle && <div className="project-section-toolbar"><div><h2>{strTitle}</h2></div></div>}
+      {error && <p role="alert" className="project-state-message project-state-error">{error}</p>}
+      {retreatError && <p role="alert" className="project-state-message project-state-error">{retreatError}</p>}
+      {isSnapshotLoading && <p className="project-state-message">{strLoading}</p>}
+      {!isSnapshotLoading && (
         <>
-          {canImport ? (
-            <div className="ozen-taxi-import-toolbar">
-              <button type="button" onClick={onImportRidesClick} className="ozen-action-button ozen-action-button-secondary">{strImportRides}</button>
+          {canImport && (
+            <div className="project-taxi-import-toolbar">
+              <button type="button" onClick={onImportRidesClick} className="project-action-button project-action-button-secondary">{strImportRides}</button>
             </div>
-          ) : null}
-          <div className="ozen-taxi-grid">
-            {rideRows.map((ride) => (
-              <article key={ride.id} className={ride.isSelected ? "ozen-taxi-card ozen-taxi-card-selected" : "ozen-taxi-card"}>
-                <button type="button" onClick={ride.onSelect} aria-pressed={ride.isSelected} className="ozen-taxi-card-main">
-                  <span className="ozen-taxi-number">{ride.number}</span>
+          )}
+          <div className="project-taxi-grid">
+            {rideRows.map(ride => (
+              <article key={ride.id} className={ride.isSelected ? "project-taxi-card project-taxi-card-selected" : "project-taxi-card"}>
+                <button type="button" onClick={ride.onSelect} aria-pressed={ride.isSelected} className="project-taxi-card-main">
+                  <span className="project-taxi-number">{ride.number}</span>
                   <strong>{ride.arrivalTime}</strong>
-                  <span className="ozen-taxi-date">{ride.arrivalDate}</span>
-                  {ride.driverName ? <span className="ozen-taxi-driver">{ride.driverName}</span> : null}
-                  <span className="ozen-taxi-passenger-count">{ride.passengerCount}</span>
+                  <span className="project-taxi-date">{ride.arrivalDate}</span>
+                  {ride.driverName && <span className="project-taxi-driver">{ride.driverName}</span>}
+                  <span className="project-taxi-passenger-count">{ride.passengerCount}</span>
                 </button>
-                {canManage ? <button type="button" onClick={ride.onEdit} className="ozen-taxi-edit">{strEditRide}</button> : null}
+                {canManage && <button type="button" onClick={ride.onEdit} className="project-taxi-edit">{strEditRide}</button>}
               </article>
             ))}
-            {canManage ? (
-              <button type="button" onClick={onNewRideClick} className="ozen-taxi-add-card">
-                <span className="ozen-taxi-add-icon">+</span>
+            {canManage && (
+              <button type="button" onClick={onNewRideClick} className="project-taxi-add-card">
+                <span className="project-taxi-add-icon">+</span>
                 <span>{strAddRide}</span>
               </button>
-            ) : null}
+            )}
           </div>
-          {selectedRideRow ? (
-            <div className="ozen-taxi-house-summary">
+          {selectedRideRow && (
+            <div className="project-taxi-house-summary">
               <span>{strHouses}</span>
               <strong>{selectedRideRow.houseNames.length > 0 ? selectedRideRow.houseNames.join(", ") : strNoAssignedHouses}</strong>
             </div>
-          ) : null}
-          {hasNoRides ? <p className="ozen-empty-message">{strNoRides}</p> : null}
+          )}
+          {hasNoRides && <p className="project-empty-message">{strNoRides}</p>}
           {selectedRide ? (
-            <section className="ozen-taxi-detail">
-              <div className="ozen-panel-heading-row">
+            <section className="project-taxi-detail">
+              <div className="project-panel-heading-row">
                 <h3>{strPassengers}</h3>
               </div>
-              <div className="ozen-taxi-detail-grid">
-                <div className="ozen-table-panel">
-                  <table className="ozen-data-table ozen-passenger-table">
+              <div className="project-taxi-detail-grid">
+                <div className="project-table-panel">
+                  <table className="project-data-table project-passenger-table">
                     <thead>
                       <tr>
                         <th>{strName}</th>
@@ -412,81 +412,81 @@ export default function TaxiRidesPanel({ canManage, canImport = false, showTitle
                       </tr>
                     </thead>
                     <tbody>
-                      {passengerRows.map((passenger) => (
+                      {passengerRows.map(passenger => (
                         <tr key={passenger.id}>
                           <td>
-                            <div className="ozen-passenger-name">
-                              {canManage ? (
-                                <button type="button" onClick={passenger.onRemoveClick} aria-label={`${strRemove} ${passenger.name}`} title={strRemove} className="ozen-remove-passenger">×</button>
-                              ) : null}
+                            <div className="project-passenger-name">
+                              {canManage && (
+                                <button type="button" onClick={passenger.onRemoveClick} aria-label={`${strRemove} ${passenger.name}`} title={strRemove} className="project-remove-passenger">×</button>
+                              )}
                               <span>{passenger.name}</span>
                             </div>
                           </td>
-                          <td className="ozen-passenger-room" title={passenger.roomName}>{passenger.roomName.slice(0, 8)}</td>
+                          <td className="project-passenger-room" title={passenger.roomName}>{passenger.roomName.slice(0, 8)}</td>
                         </tr>
                       ))}
-                      {!hasPassengerRows ? <tr><td colSpan={2} className="ozen-table-empty">{strNoPassengers}</td></tr> : null}
+                      {!hasPassengerRows && <tr><td colSpan={2} className="project-table-empty">{strNoPassengers}</td></tr>}
                     </tbody>
                   </table>
                 </div>
-                {canManage ? (
-                  <div className="ozen-taxi-passenger-editor">
-                    <label className="ozen-form-field">
+                {canManage && (
+                  <div className="project-taxi-passenger-editor">
+                    <label className="project-form-field">
                       <span>{strSearchGuests}</span>
                       <input type="search" value={guestSearch} onChange={onGuestSearchChange} />
                     </label>
-                    <div className="ozen-taxi-guest-results">
-                      {availableGuestRows.map((guest) => (
-                        <button key={guest.id} type="button" onClick={guest.onSelect} className="ozen-taxi-guest-result">
+                    <div className="project-taxi-guest-results">
+                      {availableGuestRows.map(guest => (
+                        <button key={guest.id} type="button" onClick={guest.onSelect} className="project-taxi-guest-result">
                           <span>{guest.name}</span>
-                          {guest.assignmentLabel ? <small>{guest.assignmentLabel}</small> : null}
+                          {guest.assignmentLabel && <small>{guest.assignmentLabel}</small>}
                         </button>
                       ))}
-                      {!hasAvailableGuestRows ? <p>{strNoMatchingGuests}</p> : null}
+                      {!hasAvailableGuestRows && <p>{strNoMatchingGuests}</p>}
                     </div>
-                    <form onSubmit={onPassengerSubmit} className="ozen-add-passenger-form">
-                      <label className="ozen-form-field">
+                    <form onSubmit={onPassengerSubmit} className="project-add-passenger-form">
+                      <label className="project-form-field">
                         <span>{strAdditionalPassenger}</span>
                         <input value={extraPassengerName} onChange={onExtraPassengerNameChange} />
                       </label>
-                      <button type="submit" className="ozen-secondary-button">{strAddPassenger}</button>
+                      <button type="submit" className="project-secondary-button">{strAddPassenger}</button>
                     </form>
                   </div>
-                ) : null}
+                )}
               </div>
             </section>
-          ) : !hasNoRides ? <p className="ozen-empty-message">{strSelectRide}</p> : null}
+          ) : !hasNoRides && <p className="project-empty-message">{strSelectRide}</p>}
         </>
-      ) : null}
-      {isImportOpen && canImport ? <ImportRides onCloseActionClick={onImportCloseActionClick} /> : null}
-      {isRideModalOpen && canManage ? (
-        <div className="ozen-modal-backdrop">
-          <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="ozen-form-modal">
-            <div className="ozen-form-modal-header">
+      )}
+      {isImportOpen && canImport && <ImportRides onCloseActionClick={onImportCloseActionClick} />}
+      {isRideModalOpen && canManage && (
+        <div className="project-modal-backdrop">
+          <div role="dialog" aria-modal="true" aria-labelledby="taxi-ride-dialog-title" className="project-form-modal">
+            <div className="project-form-modal-header">
               <h3 id="taxi-ride-dialog-title">{rideSubmitLabel}</h3>
             </div>
-            <form onSubmit={onRideSubmit} className="ozen-form-body">
-              <label className="ozen-form-field">
+            <form onSubmit={onRideSubmit} className="project-form-body">
+              <label className="project-form-field">
                 <span>{strArrival}</span>
                 <input type="datetime-local" value={arrivalDateTime} onChange={onArrivalChange} required />
               </label>
-              <label className="ozen-form-field">
+              <label className="project-form-field">
                 <span>{strDriverName}</span>
                 <input value={driverName} onChange={onDriverNameChange} />
               </label>
-              <div className="ozen-form-footer ozen-form-footer-split">
+              <div className="project-form-footer project-form-footer-split">
                 <div>
-                  {rideBeingEdited ? <button type="button" onClick={onDeleteRideClick} className="ozen-action-button ozen-action-button-danger">{strDeleteRide}</button> : null}
+                  {rideBeingEdited && <button type="button" onClick={onDeleteRideClick} className="project-action-button project-action-button-danger">{strDeleteRide}</button>}
                 </div>
-                <div className="ozen-form-footer-actions">
-                  <button type="button" onClick={() => setIsRideModalOpen(false)} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button>
-                  <button type="submit" className="ozen-action-button ozen-action-button-primary">{rideSubmitLabel}</button>
+                <div className="project-form-footer-actions">
+                  <button type="button" onClick={() => setIsRideModalOpen(false)} className="project-action-button project-action-button-secondary">{strCancel}</button>
+                  <button type="submit" className="project-action-button project-action-button-primary">{rideSubmitLabel}</button>
                 </div>
               </div>
             </form>
           </div>
         </div>
-      ) : null}
+      )}
     </section>
   );
 }

@@ -114,25 +114,25 @@ export default function UserForm({
   };
 
   return (
-    <div className="ozen-modal-backdrop">
-      <div className="ozen-form-modal">
-        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
-        <form onSubmit={onSubmitHandler} className="ozen-form-body">
-          <label htmlFor="user-name" className="ozen-form-field"><span>{strName}</span><input id="user-name" value={name} onChange={onNameChange} required /></label>
-          <label htmlFor="user-login" className="ozen-form-field"><span>{strLogin}</span><input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" /></label>
-          <div className="ozen-form-field">
+    <div className="project-modal-backdrop">
+      <div className="project-form-modal">
+        <div className="project-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="project-form-body">
+          <label htmlFor="user-name" className="project-form-field"><span>{strName}</span><input id="user-name" value={name} onChange={onNameChange} required /></label>
+          <label htmlFor="user-login" className="project-form-field"><span>{strLogin}</span><input id="user-login" value={login} onChange={onLoginChange} required autoComplete="username" /></label>
+          <div className="project-form-field">
             <label htmlFor="user-password">{strPassword}</label>
             <input id="user-password" type={isPasswordVisible ? "text" : "password"} value={password} onChange={onPasswordChange} required={!user} autoComplete="new-password" minLength={8} maxLength={256} />
-            <label className="ozen-checkbox-field ozen-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
-            {user ? <p className="ozen-field-note">{strPasswordOptional}</p> : null}
+            <label className="project-checkbox-field project-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
+            {user && <p className="project-field-note">{strPasswordOptional}</p>}
           </div>
-          <label htmlFor="user-link-code" className="ozen-form-field"><span>{strLinkCode}</span><input id="user-link-code" value={linkCode} onChange={onLinkCodeChange} maxLength={255} autoComplete="off" /><small className="ozen-field-note">{strLinkCodeNote}</small></label>
-          <label htmlFor="user-role" className="ozen-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{roles.map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
-          {role === "organizer" ? (
-            <label htmlFor="user-retreat" className="ozen-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{retreats.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-          ) : null}
-          {actionError ? <div role="alert" className="ozen-state-message ozen-state-error">{actionError}</div> : null}
-          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} disabled={isSaving} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving || roles.length === 0} className="ozen-action-button ozen-action-button-primary">{isSaving ? strSaving : strSave}</button></div>
+          <label htmlFor="user-link-code" className="project-form-field"><span>{strLinkCode}</span><input id="user-link-code" value={linkCode} onChange={onLinkCodeChange} maxLength={255} autoComplete="off" /><small className="project-field-note">{strLinkCodeNote}</small></label>
+          <label htmlFor="user-role" className="project-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{roles.map(item => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
+          {role === "organizer" && (
+            <label htmlFor="user-retreat" className="project-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{retreats.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+          )}
+          {actionError && <div role="alert" className="project-state-message project-state-error">{actionError}</div>}
+          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} disabled={isSaving} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving || roles.length === 0} className="project-action-button project-action-button-primary">{isSaving ? strSaving : strSave}</button></div>
         </form>
       </div>
     </div>

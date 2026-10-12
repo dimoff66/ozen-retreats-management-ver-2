@@ -129,7 +129,7 @@ const authUserStore = {
         `select ${PUBLIC_USER_COLUMNS} from \`users\` order by name`
       );
 
-      return rows.map((row) => toUser(getMariaRow(row)));
+      return rows.map(row => toUser(getMariaRow(row)));
     }
 
     const { data, error } = await getSupabaseServerClient()
@@ -141,7 +141,7 @@ const authUserStore = {
       throw new Error(`Failed to get users: ${error.message}`);
     }
 
-    return (data ?? []).map((row) => toUser(row));
+    return (data ?? []).map(row => toUser(row));
   },
 
   getAllForAdmin: async (): Promise<ManagedUser[]> => {
@@ -150,7 +150,7 @@ const authUserStore = {
         `select ${ADMIN_USER_COLUMNS} from \`users\` order by name`
       );
 
-      return rows.map((row) => toManagedUserRow(getMariaRow(row)));
+      return rows.map(row => toManagedUserRow(getMariaRow(row)));
     }
 
     const { data, error } = await getSupabaseServerClient()
@@ -162,7 +162,7 @@ const authUserStore = {
       throw new Error(`Failed to get managed users: ${error.message}`);
     }
 
-    return (data ?? []).map((row) => toManagedUserRow(row));
+    return (data ?? []).map(row => toManagedUserRow(row));
   },
 
   getById: async (id: number): Promise<StoredUser | null> => {

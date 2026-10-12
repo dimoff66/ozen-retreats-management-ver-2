@@ -48,8 +48,8 @@ export default function GuestForm({
   const [isRoomMapOpen, setIsRoomMapOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const selectedRoom = rooms.find((room) => room.id === Number(roomId));
-  const selectedHouse = houses.find((house) => house.id === selectedRoom?.house_id);
+  const selectedRoom = rooms.find(room => room.id === Number(roomId));
+  const selectedHouse = houses.find(house => house.id === selectedRoom?.house_id);
   const roomLabel = selectedRoom && selectedHouse
     ? roomsService.getRoomDisplayName(selectedRoom, selectedHouse)
     : strNoRoom;
@@ -158,11 +158,11 @@ export default function GuestForm({
                 <span className="block truncate">{roomLabel}</span>
                 <span className="block text-xs text-gray-500">{strChooseRoom}</span>
               </button>
-              {roomId ? (
+              {roomId && (
                 <button type="button" onClick={onClearRoomActionClick} className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold">
                   {strClearRoom}
                 </button>
-              ) : null}
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2">

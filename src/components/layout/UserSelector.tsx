@@ -26,7 +26,7 @@ export default function UserSelector() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const onMobileMenuToggle = () => {
-    setIsMobileMenuOpen((isOpen) => !isOpen);
+    setIsMobileMenuOpen(isOpen => !isOpen);
   };
 
   const onSettingsClick = () => {
@@ -81,69 +81,69 @@ export default function UserSelector() {
   });
   const initials = currentUser.name
     .split(" ")
-    .map((part) => part[0])
+    .map(part => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
 
   return (
     <>
-      <div className="ozen-mobile-user-menu">
+      <div className="project-mobile-user-menu">
         <button
           type="button"
-          className="ozen-mobile-user-trigger"
+          className="project-mobile-user-trigger"
           aria-label={strMobileMenu}
           aria-expanded={isMobileMenuOpen}
           onClick={onMobileMenuToggle}
         >
-          <span className="ozen-user-avatar">{initials}</span>
+          <span className="project-user-avatar">{initials}</span>
           <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7"><path d="m6 8 4 4 4-4" /></svg>
         </button>
-        {isMobileMenuOpen ? (
-          <div className="ozen-mobile-user-dropdown" role="group" aria-label={strMobileMenu}>
-            <div className="ozen-mobile-user-identity">
+        {isMobileMenuOpen && (
+          <div className="project-mobile-user-dropdown" role="group" aria-label={strMobileMenu}>
+            <div className="project-mobile-user-identity">
               <strong>{currentUser.name}</strong>
               <small>{currentUser.role}</small>
             </div>
-            <div className="ozen-mobile-user-menu-divider" />
-            <button type="button" className="ozen-mobile-user-option" onClick={onSettingsClick}>{strSettings}</button>
-            <button type="button" className="ozen-mobile-user-option" onClick={onLogoutClick} disabled={isLoggingOut}>{isLoggingOut ? strLoggingOut : strLogout}</button>
+            <div className="project-mobile-user-menu-divider" />
+            <button type="button" className="project-mobile-user-option" onClick={onSettingsClick}>{strSettings}</button>
+            <button type="button" className="project-mobile-user-option" onClick={onLogoutClick} disabled={isLoggingOut}>{isLoggingOut ? strLoggingOut : strLogout}</button>
           </div>
-        ) : null}
+        )}
       </div>
-      <div className="ozen-user-selector ozen-user-selector-static" aria-label={strCurrentUser}>
-        <span className="ozen-user-avatar">{initials}</span>
-        <span className="ozen-user-copy">
+      <div className="project-user-selector project-user-selector-static" aria-label={strCurrentUser}>
+        <span className="project-user-avatar">{initials}</span>
+        <span className="project-user-copy">
           <strong>{currentUser.name}</strong>
           <small>{currentUser.role}</small>
         </span>
-        <button type="button" onClick={onLogoutClick} disabled={isLoggingOut} className="ozen-user-logout-button">{isLoggingOut ? strLoggingOut : strLogout}</button>
+        <button type="button" onClick={onLogoutClick} disabled={isLoggingOut} className="project-user-logout-button">{isLoggingOut ? strLoggingOut : strLogout}</button>
       </div>
-      {isFontSettingsOpen ? (
-        <div className="ozen-modal-backdrop">
+      {isFontSettingsOpen && (
+        <div className="project-modal-backdrop">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="font-settings-title"
-            className="ozen-form-modal ozen-font-settings-modal"
+            className="project-form-modal project-font-settings-modal"
           >
-            <div className="ozen-form-modal-header"><h2 id="font-settings-title">{strFontSettings}</h2></div>
-            <div className="ozen-form-body">
-              <label htmlFor="font-size-level" className="ozen-form-field">
+            <div className="project-form-modal-header"><h2 id="font-settings-title">{strFontSettings}</h2></div>
+            <div className="project-form-body">
+              <label htmlFor="font-size-level" className="project-form-field">
                 <span>{strFontSize}</span>
                 <select id="font-size-level" value={fontLevel} onChange={onFontLevelChange}>
-                  {fontLevelOptions.map((option) => (
+                  {fontLevelOptions.map(option => (
                     <option key={option.level} value={option.level}>{option.label}</option>
                   ))}
                 </select>
               </label>
-              <div className="ozen-form-footer">
-                <button type="button" onClick={onSettingsClose} className="ozen-action-button ozen-action-button-secondary">{strClose}</button>
+              <div className="project-form-footer">
+                <button type="button" onClick={onSettingsClose} className="project-action-button project-action-button-secondary">{strClose}</button>
               </div>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </>
   );
 }

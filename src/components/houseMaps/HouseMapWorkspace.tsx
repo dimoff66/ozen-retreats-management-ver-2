@@ -72,7 +72,7 @@ export default function HouseMapWorkspace({
     setSelectedRetreatId(Number(event.target.value));
   };
 
-  const retreatOptions = retreats.map((retreat) => {
+  const retreatOptions = retreats.map(retreat => {
     return {
       id: retreat.id,
       title: retreat.title,
@@ -105,7 +105,7 @@ export default function HouseMapWorkspace({
           disabled={user.role === "organizer"}
           className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 disabled:bg-gray-100"
         >
-          {retreatOptions.map((retreat) => (
+          {retreatOptions.map(retreat => (
             <option key={retreat.id} value={retreat.id}>{retreat.title}</option>
           ))}
         </select>

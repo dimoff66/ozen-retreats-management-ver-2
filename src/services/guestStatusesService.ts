@@ -19,6 +19,38 @@ export type GuestStatusHistoryPart = {
   text: string;
 };
 
+// Выбирает последний статус каждого гостя независимо от порядка входного массива.
+export function getLatestGuestStatuses(statuses: GuestStatus[]): Map<number, LatestGuestStatus> {
+  const latestByGuest = new Map<number, GuestStatus>();
+
+  statuses.forEach(status => {
+    const current = latestByGuest.get(status.guest_id);
+
+    if (!current) {
+      latestByGuest.set(status.guest_id, status);
+      return;
+    }
+
+    const timeDifference = Date.parse(status.changed_at) - Date.parse(current.changed_at);
+
+    if (timeDifference > 0 || (timeDifference === 0 && status.id > current.id)) {
+      latestByGuest.set(status.guest_id, status);
+    }
+  });
+
+  return new Map(
+    [...latestByGuest.entries()].map(([guestId, status]) => [
+      guestId,
+      {
+        guestId,
+        status: status.status as GuestStatusValue,
+        room: status.room,
+        changedAt: status.changed_at,
+      },
+    ])
+  );
+}
+
 //  Ищет предыдущий статус гостя для формирования истории изменений.
 export function getPreviousGuestStatuses(statuses: GuestStatus[]): Map<number, GuestStatus> {
   const previousStatuses = new Map<number, GuestStatus>();
@@ -29,7 +61,7 @@ export function getPreviousGuestStatuses(statuses: GuestStatus[]): Map<number, G
     return timeDifference || left.id - right.id;
   });
 
-  chronologicalStatuses.forEach((status) => {
+  chronologicalStatuses.forEach(status => {
     const previousStatus = latestByGuest.get(status.guest_id);
 
     if (previousStatus) {
@@ -110,25 +142,10 @@ const guestStatusesService = {
     return db.guestStatuses.getByRetreatId(retreatId);
   },
 
-  // Возвращает по одному последнему статусу на гостя; адаптер уже отдаёт статусы от новых к старым.
+  // Загружает статусы ретрита и выбирает последний статус каждого гостя.
   getLatestForRetreat: async (retreatId: number): Promise<Map<number, LatestGuestStatus>> => {
     const statuses = await db.guestStatuses.getByRetreatId(retreatId);
-    const latestStatuses = new Map<number, LatestGuestStatus>();
-
-    statuses.forEach((status) => {
-      if (latestStatuses.has(status.guest_id)) {
-        return;
-      }
-
-      latestStatuses.set(status.guest_id, {
-        guestId: status.guest_id,
-        status: status.status as GuestStatusValue,
-        room: status.room,
-        changedAt: status.changed_at,
-      });
-    });
-
-    return latestStatuses;
+    return getLatestGuestStatuses(statuses);
   },
 
   createStatus: async (

@@ -106,9 +106,9 @@ export default function HousesList() {
     await loadData();
   };
 
-  const houseRows = houses.map((house) => {
-    const parentHouse = houses.find((item) => item.id === house.parent_id);
-    const houseMap = houseMaps.find((item) => item.house_id === house.id) ?? null;
+  const houseRows = houses.map(house => {
+    const parentHouse = houses.find(item => item.id === house.parent_id);
+    const houseMap = houseMaps.find(item => item.house_id === house.id) ?? null;
     const parentName = parentHouse?.name ?? strNoParent;
     const mapButtonText = houseMap ? strEditMap : strCreateMap;
     const isSelected = selectedHouse?.id === house.id;
@@ -140,29 +140,29 @@ export default function HousesList() {
   }, []);
 
   return (
-    <section className="ozen-admin-section">
-      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+    <section className="project-admin-section">
+      <div className="project-admin-section-heading"><h2>{strTitle}</h2></div>
       <ActionBar selectedItem={selectedHouse} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} />
-      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
-      {isLoadError ? <div className="ozen-state-message ozen-state-error">{strLoadError}</div> : null}
-      {!isLoading && !isLoadError ? (
-        <div className="ozen-table-panel">
-          <table className="ozen-data-table">
+      {isLoading && <div className="project-state-message">{strLoading}</div>}
+      {isLoadError && <div className="project-state-message project-state-error">{strLoadError}</div>}
+      {!isLoading && !isLoadError && (
+        <div className="project-table-panel">
+          <table className="project-data-table">
             <thead><tr><th>{strColumnName}</th><th>{strColumnParent}</th><th>{strColumnMap}</th></tr></thead>
             <tbody>
-              {houseRows.map((house) => (
-                <tr key={house.id} onClick={house.onRowClick} className={house.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
-                  <td className="ozen-admin-primary-cell">{house.name}</td>
+              {houseRows.map(house => (
+                <tr key={house.id} onClick={house.onRowClick} className={house.isSelected ? "project-data-row project-data-row-selected" : "project-data-row"}>
+                  <td className="project-admin-primary-cell">{house.name}</td>
                   <td>{house.parentName}</td>
-                  <td><button onClick={house.onMapClick} className="ozen-inline-button">{house.mapButtonText}</button></td>
+                  <td><button onClick={house.onMapClick} className="project-inline-button">{house.mapButtonText}</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : null}
-      {isFormOpen ? <HouseForm house={editingHouse} houses={houses} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
-      {isMapEditorOpen && mapHouse ? <HouseMapEditor house={mapHouse} houseMap={editingMap} houses={houses} onSaveActionClick={onMapSavedActionClick} onCancelActionClick={onMapEditorCloseActionClick} /> : null}
+      )}
+      {isFormOpen && <HouseForm house={editingHouse} houses={houses} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} />}
+      {isMapEditorOpen && mapHouse && <HouseMapEditor house={mapHouse} houseMap={editingMap} houses={houses} onSaveActionClick={onMapSavedActionClick} onCancelActionClick={onMapEditorCloseActionClick} />}
     </section>
   );
 }

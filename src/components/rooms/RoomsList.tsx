@@ -91,8 +91,8 @@ export default function RoomsList() {
     await loadData();
   };
 
-  const roomRows = rooms.map((room) => {
-    const house = houses.find((item) => item.id === room.house_id);
+  const roomRows = rooms.map(room => {
+    const house = houses.find(item => item.id === room.house_id);
     const houseName = house?.name ?? strUnknownHouse;
     const displayName = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
     const availableText = room.is_available ? strYes : strNo;
@@ -118,29 +118,29 @@ export default function RoomsList() {
   }, []);
 
   return (
-    <section className="ozen-admin-section">
-      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+    <section className="project-admin-section">
+      <div className="project-admin-section-heading"><h2>{strTitle}</h2></div>
       <ActionBar selectedItem={selectedRoom} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} />
-      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
-      {isLoadError ? <div className="ozen-state-message ozen-state-error">{strLoadError}</div> : null}
-      {!isLoading && !isLoadError ? (
-        <div className="ozen-table-panel">
-          <table className="ozen-data-table">
+      {isLoading && <div className="project-state-message">{strLoading}</div>}
+      {isLoadError && <div className="project-state-message project-state-error">{strLoadError}</div>}
+      {!isLoading && !isLoadError && (
+        <div className="project-table-panel">
+          <table className="project-data-table">
             <thead><tr><th>{strColumnRoom}</th><th>{strColumnHouse}</th><th>{strColumnNumber}</th><th>{strColumnAvailable}</th></tr></thead>
             <tbody>
-              {roomRows.map((room) => (
-                <tr key={room.id} onClick={room.onRowClick} className={room.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
-                  <td className="ozen-admin-primary-cell">{room.displayName}</td>
+              {roomRows.map(room => (
+                <tr key={room.id} onClick={room.onRowClick} className={room.isSelected ? "project-data-row project-data-row-selected" : "project-data-row"}>
+                  <td className="project-admin-primary-cell">{room.displayName}</td>
                   <td>{room.houseName}</td>
                   <td>{room.roomNumber}</td>
-                  <td><span className={room.availableText === strYes ? "ozen-admin-badge ozen-admin-badge-positive" : "ozen-admin-badge"}>{room.availableText}</span></td>
+                  <td><span className={room.availableText === strYes ? "project-admin-badge project-admin-badge-positive" : "project-admin-badge"}>{room.availableText}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : null}
-      {isFormOpen ? <RoomForm room={editingRoom} houses={houses} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
+      )}
+      {isFormOpen && <RoomForm room={editingRoom} houses={houses} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} />}
     </section>
   );
 }

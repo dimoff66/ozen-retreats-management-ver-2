@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ozen Retreats Management",
+  title: "Retreats Management",
   description: "Retreat guest, accommodation, arrival, and taxi management.",
 };
 

@@ -249,8 +249,8 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
     setActionError("");
 
     try {
-      const room = rooms.find((item) => item.id === guest.room_id);
-      const house = houses.find((item) => item.id === room?.house_id);
+      const room = rooms.find(item => item.id === guest.room_id);
+      const house = houses.find(item => item.id === room?.house_id);
       const roomName = room && house
         ? roomsService.getRoomDisplayName(room, house)
         : null;
@@ -261,9 +261,9 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
     }
   };
 
-  const guestRows = guests.map((guest) => {
-    const room = rooms.find((item) => item.id === guest.room_id);
-    const house = houses.find((item) => item.id === room?.house_id);
+  const guestRows = guests.map(guest => {
+    const room = rooms.find(item => item.id === guest.room_id);
+    const house = houses.find(item => item.id === room?.house_id);
 
     const roomName = room && house
       ? roomsService.getRoomDisplayName(room, house)
@@ -348,7 +348,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
     };
   });
   const normalizedSearchText = searchText.trim().toLocaleLowerCase();
-  const visibleGuestRows = guestRows.filter((guest) => (
+  const visibleGuestRows = guestRows.filter(guest => (
     `${guest.name} ${guest.arrivalText} ${guest.roomName} ${guest.statusText} ${guest.dietText}`
       .toLocaleLowerCase()
       .includes(normalizedSearchText)
@@ -372,8 +372,8 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
   }
 
   return (
-    <div className="ozen-guests-list">
-      {showTitle ? <div className="ozen-section-heading"><h2>{strTitle}</h2></div> : null}
+    <div className="project-guests-list">
+      {showTitle && <div className="project-section-heading"><h2>{strTitle}</h2></div>}
       <ActionBar
         selectedItem={selectedGuest}
         onAddActionClick={onAddActionClick}
@@ -381,10 +381,10 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
         onDeleteActionClick={onDeleteActionClick}
         disabled={!canManageGuestRecords}
         extraContent={
-          <label className="ozen-search-field ozen-guest-list-search">
+          <label className="project-search-field project-guest-list-search">
             <span className="sr-only">{strSearchGuests}</span>
             <input type="search" value={searchText} onChange={onSearchChange} aria-label={strSearchGuests} />
-            <svg aria-hidden="true" viewBox="0 0 24 24" className="ozen-search-icon">
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="project-search-icon">
               <circle cx="10.8" cy="10.8" r="6.3" />
               <path d="m15.5 15.5 4.2 4.2" strokeLinecap="round" />
             </svg>
@@ -392,51 +392,51 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
         }
         extraContentPosition="right"
       />
-      {actionError ? <div className="mb-4 text-red-600">{actionError}</div> : null}
-      {isSnapshotLoading ? <div>{strLoading}</div> : null}
-      {isLoadError ? <div>{strLoadError}</div> : null}
-      {!isSnapshotLoading && !isLoadError ? (
-        <div className="ozen-table-panel">
-          <table className="ozen-data-table">
+      {actionError && <div className="mb-4 text-red-600">{actionError}</div>}
+      {isSnapshotLoading && <div>{strLoading}</div>}
+      {isLoadError && <div>{strLoadError}</div>}
+      {!isSnapshotLoading && !isLoadError && (
+        <div className="project-table-panel">
+          <table className="project-data-table">
             <thead>
               <tr>
                 <th>{strColumnName}</th>
                 <th>{strColumnRoom}</th>
-                <th className="ozen-cell-center">{strColumnStatus}</th>
+                <th className="project-cell-center">{strColumnStatus}</th>
                 <th>{strColumnDiet}</th>
                 <th aria-label={strActions} />
               </tr>
             </thead>
             <tbody>
-              {visibleGuestRows.map((guest) => (
-                <tr key={guest.id} onClick={guest.onRowClick} className={guest.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
+              {visibleGuestRows.map(guest => (
+                <tr key={guest.id} onClick={guest.onRowClick} className={guest.isSelected ? "project-data-row project-data-row-selected" : "project-data-row"}>
                   <td>
-                    <div className="ozen-guest-name">{guest.name}</div>
-                    {guest.arrivalText ? (
-                      <div className="ozen-guest-arrival">{guest.arrivalText}</div>
-                    ) : null}
+                    <div className="project-guest-name">{guest.name}</div>
+                    {guest.arrivalText && (
+                      <div className="project-guest-arrival">{guest.arrivalText}</div>
+                    )}
                   </td>
                   <td>
                     {!canManageGuestRecords ? guest.roomName : (
-                      <button type="button" onClick={guest.onRoomClick} className="ozen-room-link">{guest.roomName}</button>
+                      <button type="button" onClick={guest.onRoomClick} className="project-room-link">{guest.roomName}</button>
                     )}
                   </td>
-                  <td className="ozen-cell-center">
-                    {guest.statusText ? (
-                      <span className={`ozen-table-status ${guest.statusBadgeClassName}`}>
+                  <td className="project-cell-center">
+                    {guest.statusText && (
+                      <span className={`project-table-status ${guest.statusBadgeClassName}`}>
                         {guest.statusText}
                       </span>
-                    ) : null}
+                    )}
                   </td>
                   <td>{guest.dietText}</td>
-                  <td className="ozen-actions-cell" onClick={guest.onActionsCellClick}>
+                  <td className="project-actions-cell" onClick={guest.onActionsCellClick}>
                     {guest.actionRows.length > 0 ? (
                       <details className="relative">
                         <summary
                           aria-label={strGuestActions}
                           title={strGuestActions}
                           onClick={guest.onActionsToggleClick}
-                          className="ozen-row-more"
+                          className="project-row-more"
                         >
                           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
                             <circle cx="12" cy="5" r="1.8" />
@@ -444,13 +444,13 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
                             <circle cx="12" cy="19" r="1.8" />
                           </svg>
                         </summary>
-                        <div className="ozen-row-menu">
-                          {guest.actionRows.map((action) => (
+                        <div className="project-row-menu">
+                          {guest.actionRows.map(action => (
                             <button
                               key={action.id}
                               type="button"
-                              onClick={(event) => guest.onActionClick(event, action)}
-                              className="ozen-row-menu-button"
+                              onClick={event => guest.onActionClick(event, action)}
+                              className="project-row-menu-button"
                             >
                               {action.caption}
                             </button>
@@ -461,16 +461,16 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
                   </td>
                 </tr>
               ))}
-              {visibleGuestRows.length === 0 ? (
+              {visibleGuestRows.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center">{strNoMatchingGuests}</td>
                 </tr>
-              ) : null}
+              )}
             </tbody>
           </table>
         </div>
-      ) : null}
-      {isFormOpen && selectedRetreatId ? (
+      )}
+      {isFormOpen && selectedRetreatId !== null && (
         <GuestForm
           guest={editingGuest}
           retreatId={selectedRetreatId}
@@ -479,7 +479,7 @@ export default function GuestsList({ showTitle = true }: GuestsListProps) {
           onSaveActionClick={onSaveActionClick}
           onCancelActionClick={onCancelActionClick}
         />
-      ) : null}
+      )}
     </div>
   );
 }

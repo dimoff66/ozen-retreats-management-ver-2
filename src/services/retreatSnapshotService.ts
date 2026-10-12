@@ -9,7 +9,7 @@ import type {
   TaxiGuest,
   TaxiRide,
 } from "./database";
-import guestStatusesService from "./guestStatusesService";
+import guestStatusesService, { getLatestGuestStatuses } from "./guestStatusesService";
 import guestsService from "./guestsService";
 import houseMapsService from "./houseMapsService";
 import housesService from "./housesService";
@@ -44,7 +44,6 @@ const retreatSnapshotService = {
     const [
       guests,
       statuses,
-      latestStatuses,
       taxiRides,
       retreatRooms,
       houses,
@@ -53,7 +52,6 @@ const retreatSnapshotService = {
     ] = await Promise.all([
       guestsService.getGuestsByRetreatId(retreatId),
       guestStatusesService.getGuestStatusesByRetreatId(retreatId),
-      guestStatusesService.getLatestForRetreat(retreatId),
       taxiRidesService.getByRetreatId(retreatId),
       retreatRoomsService.getRetreatRooms(retreatId),
       housesService.getHouses(),
@@ -61,8 +59,9 @@ const retreatSnapshotService = {
       houseMapsService.getHouseMaps(),
     ]);
 
+    const latestStatuses = getLatestGuestStatuses(statuses);
     const taxiGuests = await taxiRidesService.getGuestsByRideIds(
-      taxiRides.map((ride) => ride.id)
+      taxiRides.map(ride => ride.id)
     );
     const sortedHouseMaps = [...houseMaps].sort(
       (left, right) => left.house_id - right.house_id || left.id - right.id

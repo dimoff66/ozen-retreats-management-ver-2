@@ -34,7 +34,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   const users = await authUserStore.getAll();
-  const userDirectory = users.map((item) => ({ id: item.id, name: item.name }));
+  const userDirectory = users.map(item => ({ id: item.id, name: item.name }));
 
   return (
     <CurrentUserProvider initialUser={user} initialUsers={userDirectory}>

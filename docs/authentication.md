@@ -54,6 +54,10 @@ that list.
 Changing a user's password invalidates older session tokens because the session is
 bound to a fingerprint of the current stored password hash.
 
+Internal cookie/local-storage keys use the neutral `project` prefix. Deploying the
+identifier cleanup changes those keys once, so an already-open browser may need to
+sign in again and may lose previously saved local UI/login preferences.
+
 ## Permanent login links
 
 A user may have an optional unique `users.link_code`. Administrators set the code

@@ -51,8 +51,8 @@ function RetreatHeading({ fallbackRetreat }: { fallbackRetreat: Retreat }) {
   const dateRange = `${dateService.formatDate(displayedRetreat.start_date)} – ${dateService.formatDate(displayedRetreat.end_date)}`;
 
   return (
-    <div className="ozen-retreat-heading-copy">
-      <div className="ozen-retreat-title-line">
+    <div className="project-retreat-heading-copy">
+      <div className="project-retreat-title-line">
         <h1>{displayedRetreat.title}</h1>
       </div>
       <p>{dateRange}</p>
@@ -79,7 +79,7 @@ export default function RetreatWorkspace() {
   const [isLoadError, setIsLoadError] = useState(false);
 
   const tabs = user ? tabsByRole[user.role] ?? noTabs : noTabs;
-  const selectedRetreat = retreats.find((retreat) => retreat.id === selectedRetreatId) ?? null;
+  const selectedRetreat = retreats.find(retreat => retreat.id === selectedRetreatId) ?? null;
   const canChangeRetreat = user?.role !== strOrganizer;
   const canManageTaxiRides = user?.role === strAdmin
     || user?.role === strTaxi;
@@ -107,14 +107,14 @@ export default function RetreatWorkspace() {
     let isCancelled = false;
     const retreatDataPromise: Promise<Retreat[]> = user.role === "organizer"
       ? user.retreat_id
-        ? retreatsService.getRetreatById(user.retreat_id).then((retreat) => retreat ? [retreat] : [])
+        ? retreatsService.getRetreatById(user.retreat_id).then(retreat => retreat ? [retreat] : [])
         : Promise.resolve([])
       : user.role === "admin"
         ? retreatsService.getRetreats()
         : retreatsService.getActiveRetreats();
 
     void retreatDataPromise
-      .then((availableRetreats) => {
+      .then(availableRetreats => {
         if (isCancelled) {
           return;
         }
@@ -129,8 +129,8 @@ export default function RetreatWorkspace() {
 
         setIsLoadError(false);
         setRetreats(sortedRetreats);
-        setSelectedRetreatId((current) => (
-          sortedRetreats.some((retreat) => retreat.id === current)
+        setSelectedRetreatId(current => (
+          sortedRetreats.some(retreat => retreat.id === current)
             ? current
             : sortedRetreats[0]?.id ?? null
         ));
@@ -164,8 +164,8 @@ export default function RetreatWorkspace() {
   }
 
   const activeTabName = selectedTab || (selectedRetreat ? tabs[0]?.label ?? "" : "");
-  const activeTab = tabs.find((tab) => tab.label === activeTabName);
-  const tabRows = tabs.map((tab) => {
+  const activeTab = tabs.find(tab => tab.label === activeTabName);
+  const tabRows = tabs.map(tab => {
     const onClickHandler = () => {
       setSelectedTab(tab.label);
     };
@@ -176,7 +176,7 @@ export default function RetreatWorkspace() {
       onClickHandler,
     };
   });
-  const retreatCards = retreats.map((retreat) => {
+  const retreatCards = retreats.map(retreat => {
     const onClickHandler = () => {
       onRetreatSelect(retreat);
     };
@@ -199,27 +199,27 @@ export default function RetreatWorkspace() {
   const showAdminMap = activeTabName === "Map" && isAdmin;
   const showHistory = activeTabName === "History";
   return (
-    <div className="ozen-retreat-workspace">
+    <div className="project-retreat-workspace">
       {selectedRetreat ? (
         <RetreatProvider
           key={selectedRetreat.id}
           retreatId={selectedRetreat.id}
           retreats={retreats}
-          onChangeRetreat={(retreatId) => {
+          onChangeRetreat={retreatId => {
             setSelectedRetreatId(retreatId);
             setSelectedTab(tabs[0]?.label ?? "");
           }}
         >
           <>
-            <div className="ozen-retreat-heading">
+            <div className="project-retreat-heading">
               <RetreatHeading fallbackRetreat={selectedRetreat} />
-              {canChangeRetreat ? (
+              {canChangeRetreat && (
                 <button
                   type="button"
                   onClick={onChangeRetreatClick}
                   aria-label={strChooseAnotherRetreat}
                   title={strChooseAnotherRetreat}
-                  className="ozen-retreat-more-button"
+                  className="project-retreat-more-button"
                 >
                   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
                     <circle cx="5" cy="12" r="1.8" />
@@ -227,51 +227,51 @@ export default function RetreatWorkspace() {
                     <circle cx="19" cy="12" r="1.8" />
                   </svg>
                 </button>
-              ) : null}
+              )}
             </div>
-            <nav aria-label="Retreat sections" className="ozen-tabs">
-              {tabRows.map((tab) => (
+            <nav aria-label="Retreat sections" className="project-tabs">
+              {tabRows.map(tab => (
                 <button
                   key={tab.label}
                   type="button"
                   onClick={tab.onClickHandler}
                   aria-current={tab.isSelected ? "page" : undefined}
                   className={tab.isSelected
-                    ? "ozen-tab ozen-tab-active"
-                    : "ozen-tab"}
+                    ? "project-tab project-tab-active"
+                    : "project-tab"}
                 >
                   {tab.label}
                 </button>
               ))}
             </nav>
-            <div className="ozen-retreat-content">
-              {showGuests ? <GuestsList showTitle={false} /> : null}
-              {showMeeting ? <ManagerArrivalPanel mode="meeting" showTitle={false} /> : null}
-              {showCheckIn ? <ManagerArrivalPanel mode="check-in" showTitle={false} /> : null}
-              {showRooms ? <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} showTitle={false} /> : null}
-              {showTaxis ? <TaxiRidesPanel canManage={canManageTaxiRides} canImport={isAdmin} showTitle={false} /> : null}
-              {showMap && activeTab?.mapMode ? <HouseMapView openMode={activeTab.mapMode} showTitle={false} /> : null}
-              {showAdminMap ? <HouseMapView openMode="normal" showTitle={false} /> : null}
-              {showHistory ? <HistoryPanel showTitle={false} /> : null}
+            <div className="project-retreat-content">
+              {showGuests && <GuestsList showTitle={false} />}
+              {showMeeting && <ManagerArrivalPanel mode="meeting" showTitle={false} />}
+              {showCheckIn && <ManagerArrivalPanel mode="check-in" showTitle={false} />}
+              {showRooms && <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} showTitle={false} />}
+              {showTaxis && <TaxiRidesPanel canManage={canManageTaxiRides} canImport={isAdmin} showTitle={false} />}
+              {showMap && activeTab?.mapMode && <HouseMapView openMode={activeTab.mapMode} showTitle={false} />}
+              {showAdminMap && <HouseMapView openMode="normal" showTitle={false} />}
+              {showHistory && <HistoryPanel showTitle={false} />}
             </div>
           </>
         </RetreatProvider>
       ) : (
-        <section className="ozen-retreat-picker">
-          <div className="ozen-page-heading"><div><p className="ozen-eyebrow">{strWorkspace}</p><h1>{strChooseRetreat}</h1></div></div>
-          <div className="ozen-retreat-card-grid">
-            {retreatCards.map((retreat) => (
+        <section className="project-retreat-picker">
+          <div className="project-page-heading"><div><p className="project-eyebrow">{strWorkspace}</p><h1>{strChooseRetreat}</h1></div></div>
+          <div className="project-retreat-card-grid">
+            {retreatCards.map(retreat => (
               <button
                 key={retreat.id}
                 type="button"
                 onClick={retreat.onClickHandler}
-                className="ozen-retreat-card"
+                className="project-retreat-card"
               >
-                <span className="ozen-retreat-card-title">{retreat.title}</span>
-                <span className="ozen-retreat-card-date">{retreat.dateRange}</span>
-                {retreat.isInactive ? (
-                  <span className="ozen-retreat-inactive">{strInactive}</span>
-                ) : null}
+                <span className="project-retreat-card-title">{retreat.title}</span>
+                <span className="project-retreat-card-date">{retreat.dateRange}</span>
+                {retreat.isInactive && (
+                  <span className="project-retreat-inactive">{strInactive}</span>
+                )}
               </button>
             ))}
           </div>

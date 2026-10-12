@@ -104,7 +104,7 @@ export default function RetreatsList() {
     },
   ];
 
-  const retreatRows = retreats.map((retreat) => {
+  const retreatRows = retreats.map(retreat => {
     const isSelected = selectedRetreat?.id === retreat.id;
 
     const onRowClick = () => {
@@ -127,43 +127,43 @@ export default function RetreatsList() {
   }, []);
 
   return (
-    <section className="ozen-admin-section">
-      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+    <section className="project-admin-section">
+      <div className="project-admin-section-heading"><h2>{strTitle}</h2></div>
       <ActionBar selectedItem={selectedRetreat} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} extraActions={extraActions} />
-      {roomsRetreat ? (
-        <div className="ozen-admin-inline-editor">
+      {roomsRetreat && (
+        <div className="project-admin-inline-editor">
           <RetreatProvider
             key={roomsRetreat.id}
             retreatId={roomsRetreat.id}
             retreats={retreats}
-            onChangeRetreat={(retreatId) => {
-              setRoomsRetreat(retreats.find((retreat) => retreat.id === retreatId) ?? null);
+            onChangeRetreat={retreatId => {
+              setRoomsRetreat(retreats.find(retreat => retreat.id === retreatId) ?? null);
             }}
           >
             <RetreatRoomsForm onCloseActionClick={onRoomsCloseActionClick} />
           </RetreatProvider>
         </div>
-      ) : null}
-      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
-      {isLoadError ? <div className="ozen-state-message ozen-state-error">{strLoadError}</div> : null}
-      {!isLoading && !isLoadError ? (
-        <div className="ozen-table-panel">
-          <table className="ozen-data-table">
+      )}
+      {isLoading && <div className="project-state-message">{strLoading}</div>}
+      {isLoadError && <div className="project-state-message project-state-error">{strLoadError}</div>}
+      {!isLoading && !isLoadError && (
+        <div className="project-table-panel">
+          <table className="project-data-table">
             <thead><tr><th>{strColumnTitle}</th><th>{strColumnStartDate}</th><th>{strColumnEndDate}</th><th>{strColumnActive}</th></tr></thead>
             <tbody>
-              {retreatRows.map((retreat) => (
-                <tr key={retreat.id} onClick={retreat.onRowClick} className={retreat.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
-                  <td className="ozen-admin-primary-cell">{retreat.title}</td>
+              {retreatRows.map(retreat => (
+                <tr key={retreat.id} onClick={retreat.onRowClick} className={retreat.isSelected ? "project-data-row project-data-row-selected" : "project-data-row"}>
+                  <td className="project-admin-primary-cell">{retreat.title}</td>
                   <td>{retreat.startDate}</td>
                   <td>{retreat.endDate}</td>
-                  <td><span className={retreat.activeText === strYes ? "ozen-admin-badge ozen-admin-badge-positive" : "ozen-admin-badge"}>{retreat.activeText}</span></td>
+                  <td><span className={retreat.activeText === strYes ? "project-admin-badge project-admin-badge-positive" : "project-admin-badge"}>{retreat.activeText}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : null}
-      {isFormOpen ? <RetreatForm retreat={editingRetreat} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
+      )}
+      {isFormOpen && <RetreatForm retreat={editingRetreat} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} />}
     </section>
   );
 }

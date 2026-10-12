@@ -50,7 +50,7 @@ export default function UsersList() {
       ]);
 
       setLocalUsers(usersData);
-      setUsers(usersData.map((user) => ({ id: user.id, name: user.name })));
+      setUsers(usersData.map(user => ({ id: user.id, name: user.name })));
       setRoles(rolesData);
       setRetreats(retreatsData);
     } catch (error) {
@@ -152,8 +152,8 @@ export default function UsersList() {
     }
   };
 
-  const userRows = users.map((user) => {
-    const retreat = retreats.find((item) => item.id === user.retreat_id);
+  const userRows = users.map(user => {
+    const retreat = retreats.find(item => item.id === user.retreat_id);
     const isSelected = selectedUser?.id === user.id;
 
     const onRowClick = () => {
@@ -190,7 +190,7 @@ export default function UsersList() {
         }
 
         setLocalUsers(usersData);
-        setUsers(usersData.map((user) => ({ id: user.id, name: user.name })));
+        setUsers(usersData.map(user => ({ id: user.id, name: user.name })));
         setRoles(rolesData);
         setRetreats(retreatsData);
       } catch (error) {
@@ -212,30 +212,30 @@ export default function UsersList() {
   }, [setUsers]);
 
   return (
-    <section className="ozen-admin-section">
-      <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+    <section className="project-admin-section">
+      <div className="project-admin-section-heading"><h2>{strTitle}</h2></div>
       <ActionBar selectedItem={selectedUser} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} extraActions={extraActions} />
-      {actionError && !isFormOpen ? <div role="alert" className="ozen-state-message ozen-state-error">{actionError}</div> : null}
-      {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
-      {loadError ? <div role="alert" className="ozen-state-message ozen-state-error">{loadError}</div> : null}
-      {!isLoading && !loadError ? (
-        <div className="ozen-table-panel">
-          <table className="ozen-data-table">
+      {actionError && !isFormOpen && <div role="alert" className="project-state-message project-state-error">{actionError}</div>}
+      {isLoading && <div className="project-state-message">{strLoading}</div>}
+      {loadError && <div role="alert" className="project-state-message project-state-error">{loadError}</div>}
+      {!isLoading && !loadError && (
+        <div className="project-table-panel">
+          <table className="project-data-table">
             <thead><tr><th>{strColumnName}</th><th>{strColumnLogin}</th><th>{strColumnRole}</th><th>{strColumnRetreat}</th></tr></thead>
             <tbody>
-              {userRows.map((user) => (
-                <tr key={user.id} onClick={user.onRowClick} className={user.isSelected ? "ozen-data-row ozen-data-row-selected" : "ozen-data-row"}>
-                  <td className="ozen-admin-primary-cell">{user.name}</td>
+              {userRows.map(user => (
+                <tr key={user.id} onClick={user.onRowClick} className={user.isSelected ? "project-data-row project-data-row-selected" : "project-data-row"}>
+                  <td className="project-admin-primary-cell">{user.name}</td>
                   <td>{user.login}</td>
-                  <td><span className="ozen-role-badge">{user.role}</span></td>
+                  <td><span className="project-role-badge">{user.role}</span></td>
                   <td>{user.retreatTitle}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : null}
-      {isFormOpen ? <UserForm user={editingUser} roles={roles} retreats={retreats} actionError={actionError} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} /> : null}
+      )}
+      {isFormOpen && <UserForm user={editingUser} roles={roles} retreats={retreats} actionError={actionError} onSaveActionClick={onSaveActionClick} onCancelActionClick={onCancelActionClick} />}
     </section>
   );
 }

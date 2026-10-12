@@ -26,16 +26,16 @@ adding this adapter does not activate a second database backend by accident.
 MARIADB_API_ENABLED=true
 MARIADB_HOST=127.0.0.1
 MARIADB_PORT=3306
-MARIADB_USER=ozen_app
+MARIADB_USER=project_app
 MARIADB_PASSWORD=change-me
-MARIADB_DATABASE=ozen_retreats
+MARIADB_DATABASE=project_retreats
 MARIADB_CONNECTION_LIMIT=10
 ```
 
 For house-map image uploads on a self-hosted server:
 
 ```env
-HOUSE_MAP_UPLOAD_DIR=/var/www/ozen/uploads/house-maps
+HOUSE_MAP_UPLOAD_DIR=/var/www/project/uploads/house-maps
 HOUSE_MAP_UPLOAD_BASE_URL=https://example.com/uploads/house-maps
 ```
 

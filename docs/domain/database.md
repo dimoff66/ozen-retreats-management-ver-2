@@ -220,10 +220,11 @@ booked → arrived → checked_in
 
 ### Загрузка статусов
 
-Статусы загружаются сразу для всего ретрита через
-`guestStatusesService.getLatestForRetreat(retreatId)`. Метод возвращает
-`Map<number, LatestGuestStatus>`, где ключ — `guestId`; это исключает отдельный
-запрос к базе для каждого гостя.
+Статусы загружаются сразу для всего ретрита. Если вызывающему коду нужен только latest,
+`guestStatusesService.getLatestForRetreat(retreatId)` загружает набор один раз и возвращает
+`Map<number, LatestGuestStatus>`, где ключ — `guestId`. Если полный массив статусов уже загружен,
+`getLatestGuestStatuses(statuses)` вычисляет latest из него без повторного запроса к базе и без
+зависимости от порядка, в котором adapter вернул записи.
 
 История показывает только выбранный ретрит. `HistoryPanel` обязательно получает
 `retreatId` и может дополнительно фильтровать по `guestId` или отображаемому

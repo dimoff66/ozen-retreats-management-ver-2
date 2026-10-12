@@ -66,16 +66,16 @@ export default function StatusHistoryModal({
   };
 
   const previousStatuses = getPreviousGuestStatuses(statuses);
-  const filteredStatuses = statuses.filter((status) => {
+  const filteredStatuses = statuses.filter(status => {
     if (target.type === "guest") {
       return status.guest_id === target.guestId;
     }
 
     return status.room === target.roomName;
   });
-  const historyRows = filteredStatuses.map((status) => {
-    const guest = guests.find((item) => item.id === status.guest_id);
-    const updatedBy = users.find((item) => item.id === status.updated_by);
+  const historyRows = filteredStatuses.map(status => {
+    const guest = guests.find(item => item.id === status.guest_id);
+    const updatedBy = users.find(item => item.id === status.updated_by);
 
     return {
       id: status.id,
@@ -101,12 +101,12 @@ export default function StatusHistoryModal({
           <div className="mt-1 text-gray-600">{target.label}</div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {isLoading ? <div className="p-6">{strLoading}</div> : null}
-          {isLoadError ? <div className="p-6 text-red-600">{strLoadError}</div> : null}
-          {!isLoading && !isLoadError && historyRows.length === 0 ? (
+          {isLoading && <div className="p-6">{strLoading}</div>}
+          {isLoadError && <div className="p-6 text-red-600">{strLoadError}</div>}
+          {!isLoading && !isLoadError && historyRows.length === 0 && (
             <div className="p-6 text-gray-500">{strNoHistory}</div>
-          ) : null}
-          {!isLoading && !isLoadError && historyRows.length > 0 ? (
+          )}
+          {!isLoading && !isLoadError && historyRows.length > 0 && (
             <table className="w-full">
               <thead className="sticky top-0 bg-gray-50">
                 <tr>
@@ -115,7 +115,7 @@ export default function StatusHistoryModal({
                 </tr>
               </thead>
               <tbody>
-                {historyRows.map((row) => (
+                {historyRows.map(row => (
                   <tr key={row.id} className="border-t border-gray-200">
                     <td className="px-4 py-3">{row.date}</td>
                     <td className="px-4 py-3"><HistoryActivity parts={row.activityParts} /></td>
@@ -123,7 +123,7 @@ export default function StatusHistoryModal({
                 ))}
               </tbody>
             </table>
-          ) : null}
+          )}
         </div>
         <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
           <div className="flex justify-end">

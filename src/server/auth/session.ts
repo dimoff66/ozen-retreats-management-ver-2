@@ -5,7 +5,7 @@ import type { User } from "@/services/database";
 import authUserStore, { toPublicUser } from "@/server/auth/userStore";
 import type { StoredUser } from "@/server/auth/userStore";
 
-const SESSION_COOKIE_NAME = "ozen_session";
+const SESSION_COOKIE_NAME = "project_session";
 const SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60;
 
 type SessionPayload = {

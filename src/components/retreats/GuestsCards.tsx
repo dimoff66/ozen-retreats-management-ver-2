@@ -86,7 +86,7 @@ export default function GuestsCards<T extends GuestCardRow>({
     left.index - right.index || left.label.localeCompare(right.label)
   );
   let previousMainLabel = "";
-  const preparedGroups = sortedGroups.map((group) => {
+  const preparedGroups = sortedGroups.map(group => {
     const separatorIndex = group.label.indexOf("|");
     const hasCompositeLabel = separatorIndex >= 0;
     const mainLabel = hasCompositeLabel ? group.label.slice(0, separatorIndex).trim() : "";
@@ -98,11 +98,11 @@ export default function GuestsCards<T extends GuestCardRow>({
     const rows = group.rows.map(({ guest, actionButton }) => {
       const initials = guest.guest.name
         .split(" ")
-        .map((part) => part[0])
+        .map(part => part[0])
         .join("")
         .slice(0, 2)
         .toUpperCase();
-      const menuActions = guest.menuActions.map((menuAction) => {
+      const menuActions = guest.menuActions.map(menuAction => {
         const onClickHandler = (event: MouseEvent<HTMLButtonElement>) => {
           event.currentTarget.closest("details")?.removeAttribute("open");
           menuAction.action();
@@ -136,9 +136,9 @@ export default function GuestsCards<T extends GuestCardRow>({
   };
 
   return (
-    <div className="ozen-guest-cards-screen">
-      <div className="ozen-guest-cards-toolbar">
-        <label className="ozen-search-field">
+    <div className="project-guest-cards-screen">
+      <div className="project-guest-cards-toolbar">
+        <label className="project-search-field">
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8">
             <circle cx="11" cy="11" r="6.5" />
             <path d="m16 16 4 4" />
@@ -147,32 +147,32 @@ export default function GuestsCards<T extends GuestCardRow>({
           <input type="search" value={searchText} onChange={onSearchChange} placeholder={strSearch} />
         </label>
       </div>
-      {guests.length === 0 ? <p className="ozen-empty-message">{emptyMessage}</p> : (
-        <div className="ozen-card-groups">
-          {preparedGroups.map((group) => (
-            <section key={`${group.index}:${group.mainLabel}:${group.label}`} className="ozen-card-group">
-              {group.showMainLabel ? <h3 className="ozen-card-group-main-title">{group.mainLabel}</h3> : null}
-              {group.label ? <h4 className="ozen-card-group-title">{group.label}</h4> : null}
-              <div className="ozen-guest-card-grid">
+      {guests.length === 0 ? <p className="project-empty-message">{emptyMessage}</p> : (
+        <div className="project-card-groups">
+          {preparedGroups.map(group => (
+            <section key={`${group.index}:${group.mainLabel}:${group.label}`} className="project-card-group">
+              {group.showMainLabel && <h3 className="project-card-group-main-title">{group.mainLabel}</h3>}
+              {group.label && <h4 className="project-card-group-title">{group.label}</h4>}
+              <div className="project-guest-card-grid">
                 {group.rows.map(({ guest, actionButton, initials, menuActions }) => (
-                  <article key={guest.guest.id} className="ozen-guest-card">
-                    <span className="ozen-guest-avatar">{initials}</span>
-                    <div className="ozen-guest-card-copy">
-                      <div className="ozen-guest-card-title-row">
+                  <article key={guest.guest.id} className="project-guest-card">
+                    <span className="project-guest-avatar">{initials}</span>
+                    <div className="project-guest-card-copy">
+                      <div className="project-guest-card-title-row">
                         <strong>{guest.guest.name}</strong>
-                        {guest.showStatus ? (
-                          <span className={`ozen-card-status ${guest.statusBadgeClassName}`}><i />{guest.statusLabel}</span>
-                        ) : null}
+                        {guest.showStatus && (
+                          <span className={`project-card-status ${guest.statusBadgeClassName}`}><i />{guest.statusLabel}</span>
+                        )}
                       </div>
-                      <div className="ozen-guest-card-lower-row">
-                        <div className="ozen-guest-card-meta">
+                      <div className="project-guest-card-lower-row">
+                        <div className="project-guest-card-meta">
                           <span>
                             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7">
                               <path d="M4 12v7M20 12v7M4 16h16M6 12V8.5A2.5 2.5 0 0 1 8.5 6h7A2.5 2.5 0 0 1 18 8.5V12" />
                             </svg>
                             {guest.roomName}
                           </span>
-                          {guest.taxiNumber ? (
+                          {guest.taxiNumber && (
                             <span>
                               <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.7">
                                 <path d="M5 16h14l-1.2-5.2A2.4 2.4 0 0 0 15.5 9h-7a2.4 2.4 0 0 0-2.3 1.8L5 16Z" />
@@ -180,23 +180,23 @@ export default function GuestsCards<T extends GuestCardRow>({
                               </svg>
                               {guest.taxiNumber}
                             </span>
-                          ) : null}
+                          )}
                         </div>
-                        <div className="ozen-guest-card-actions">
+                        <div className="project-guest-card-actions">
                           {actionButton ? (
                             <button
                               type="button"
                               onClick={actionButton.action}
                               disabled={guest.isPending}
-                              className="ozen-primary-action"
+                              className="project-primary-action"
                             >
                               {actionButton.caption}
                             </button>
-                          ) : guest.fallbackCaption ? (
-                            <span className="ozen-fallback-caption">{guest.fallbackCaption}</span>
-                          ) : null}
-                          {menuActions.length > 0 ? (
-                            <details className="ozen-card-menu">
+                          ) : guest.fallbackCaption && (
+                            <span className="project-fallback-caption">{guest.fallbackCaption}</span>
+                          )}
+                          {menuActions.length > 0 && (
+                            <details className="project-card-menu">
                               <summary aria-label={strGuestActions} title={strGuestActions}>
                                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
                                   <circle cx="12" cy="5" r="1.8" />
@@ -204,8 +204,8 @@ export default function GuestsCards<T extends GuestCardRow>({
                                   <circle cx="12" cy="19" r="1.8" />
                                 </svg>
                               </summary>
-                              <div className="ozen-card-menu-popover">
-                                {menuActions.map((menuAction) => (
+                              <div className="project-card-menu-popover">
+                                {menuActions.map(menuAction => (
                                   <button
                                     key={menuAction.id}
                                     type="button"
@@ -217,7 +217,7 @@ export default function GuestsCards<T extends GuestCardRow>({
                                 ))}
                               </div>
                             </details>
-                          ) : null}
+                          )}
                         </div>
                       </div>
                     </div>

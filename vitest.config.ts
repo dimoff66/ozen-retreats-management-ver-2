@@ -19,7 +19,7 @@ export default defineConfig({
 });
 
 function loadTestEnv(): void {
-  [".env", ".env.local", ".env.test", ".env.test.local"].forEach((file) => {
+  [".env", ".env.local", ".env.test", ".env.test.local"].forEach(file => {
     try {
       process.loadEnvFile(file);
     } catch {

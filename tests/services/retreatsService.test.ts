@@ -44,7 +44,7 @@ describe("retreatsService", () => {
       end_date: "2099-02-05",
       is_active: false,
     });
-    const created = (await retreatsService.getRetreats()).find((retreat) => retreat.title === title);
+    const created = (await retreatsService.getRetreats()).find(retreat => retreat.title === title);
 
     if (created) {
       createdRetreatIds.add(created.id);

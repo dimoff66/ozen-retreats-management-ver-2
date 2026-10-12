@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent, SyntheticEvent } from "react";
 
-const KNOWN_LOGINS_STORAGE_KEY = "ozen-known-logins";
+const KNOWN_LOGINS_STORAGE_KEY = "project-known-logins";
 const MAX_SAVED_LOGINS = 8;
 
 type LoginResponse = {
@@ -26,7 +26,7 @@ function readKnownLogins(): string[] {
 }
 
 function saveKnownLogin(login: string): void {
-  const existing = readKnownLogins().filter((item) => item !== login);
+  const existing = readKnownLogins().filter(item => item !== login);
   const next = [login, ...existing].slice(0, MAX_SAVED_LOGINS);
   window.localStorage.setItem(KNOWN_LOGINS_STORAGE_KEY, JSON.stringify(next));
 }
@@ -102,18 +102,18 @@ export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
   };
 
   return (
-    <main className="ozen-login-screen">
-      <section className="ozen-login-card">
-        <div className="ozen-login-brand">
-          <span className="ozen-login-brand-mark">✦</span>
+    <main className="project-login-screen">
+      <section className="project-login-card">
+        <div className="project-login-brand">
+          <span className="project-login-brand-mark">✦</span>
           <strong>ozen</strong>
         </div>
-        <div className="ozen-login-heading">
+        <div className="project-login-heading">
           <h1>{strTitle}</h1>
           <p>{strCaption}</p>
         </div>
-        <form onSubmit={onSubmit} className="ozen-login-form">
-          <label htmlFor="login-name" className="ozen-form-field">
+        <form onSubmit={onSubmit} className="project-login-form">
+          <label htmlFor="login-name" className="project-form-field">
             <span>{strLogin}</span>
             <input
               id="login-name"
@@ -124,12 +124,12 @@ export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
               required
             />
           </label>
-          {knownLogins.length > 0 ? (
+          {knownLogins.length > 0 && (
             <datalist id="known-logins">
-              {knownLogins.map((knownLogin) => <option key={knownLogin} value={knownLogin} />)}
+              {knownLogins.map(knownLogin => <option key={knownLogin} value={knownLogin} />)}
             </datalist>
-          ) : null}
-          <label htmlFor="login-password" className="ozen-form-field">
+          )}
+          <label htmlFor="login-password" className="project-form-field">
             <span>{strPassword}</span>
             <input
               id="login-password"
@@ -141,8 +141,8 @@ export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
               required
             />
           </label>
-          {error ? <div role="alert" className="ozen-state-message ozen-state-error">{error}</div> : null}
-          <button type="submit" disabled={isSubmitting} className="ozen-action-button ozen-action-button-primary ozen-login-submit">
+          {error && <div role="alert" className="project-state-message project-state-error">{error}</div>}
+          <button type="submit" disabled={isSubmitting} className="project-action-button project-action-button-primary project-login-submit">
             {isSubmitting ? strSigningIn : strSignIn}
           </button>
         </form>

@@ -54,30 +54,30 @@ const houseMapsService = {
 
   // Для обычного house возвращает его комнаты, а для группы — комнаты всех непосредственных дочерних houses.
   getRoomsForHouseMap: (house: House, houses: House[], rooms: Room[]): Room[] => {
-    const childHouses = houses.filter((item) => item.parent_id === house.id);
+    const childHouses = houses.filter(item => item.parent_id === house.id);
     const isHouseGroup = childHouses.length > 0;
 
     if (!isHouseGroup) {
-      const houseRooms = rooms.filter((room) => room.house_id === house.id);
+      const houseRooms = rooms.filter(room => room.house_id === house.id);
       return roomsService.sortRooms(houseRooms, houses);
     }
 
-    const childHouseIds = childHouses.map((item) => item.id);
-    const groupRooms = rooms.filter((room) => childHouseIds.includes(room.house_id));
+    const childHouseIds = childHouses.map(item => item.id);
+    const groupRooms = rooms.filter(room => childHouseIds.includes(room.house_id));
 
     return roomsService.sortRooms(groupRooms, houses);
   },
 
   // На карте обычного house показывает только номер, а в группе — полное имя комнаты.
   getRoomLabel: (room: Room, mapHouse: House, houses: House[]): string => {
-    const childHouses = houses.filter((item) => item.parent_id === mapHouse.id);
+    const childHouses = houses.filter(item => item.parent_id === mapHouse.id);
     const isHouseGroup = childHouses.length > 0;
 
     if (!isHouseGroup) {
       return room.room_number;
     }
 
-    const roomHouse = houses.find((item) => item.id === room.house_id);
+    const roomHouse = houses.find(item => item.id === room.house_id);
 
     if (!roomHouse) {
       return room.room_number;
@@ -96,13 +96,13 @@ const houseMapsService = {
   },
 
   getUnplacedRooms: (rooms: Room[], roomPositions: RoomPosition[]): Room[] => {
-    const placedRoomIds = roomPositions.map((position) => position.room_id);
+    const placedRoomIds = roomPositions.map(position => position.room_id);
 
-    return rooms.filter((room) => !placedRoomIds.includes(room.id));
+    return rooms.filter(room => !placedRoomIds.includes(room.id));
   },
 
   getRoomPosition: (roomId: number, roomPositions: RoomPosition[]): RoomPosition | null => {
-    return roomPositions.find((position) => position.room_id === roomId) ?? null;
+    return roomPositions.find(position => position.room_id === roomId) ?? null;
   },
 
   // Возвращает новый список координат: обновляет существующий маркер или добавляет новый.
@@ -112,10 +112,10 @@ const houseMapsService = {
     y: number,
     roomPositions: RoomPosition[]
   ): RoomPosition[] => {
-    const existingPosition = roomPositions.find((position) => position.room_id === roomId);
+    const existingPosition = roomPositions.find(position => position.room_id === roomId);
 
     if (existingPosition) {
-      return roomPositions.map((position) => {
+      return roomPositions.map(position => {
         if (position.room_id !== roomId) {
           return position;
         }
@@ -139,7 +139,7 @@ const houseMapsService = {
   },
 
   removeRoomPosition: (roomId: number, roomPositions: RoomPosition[]): RoomPosition[] => {
-    return roomPositions.filter((position) => position.room_id !== roomId);
+    return roomPositions.filter(position => position.room_id !== roomId);
   },
 };
 

@@ -46,7 +46,7 @@ const roomsService = {
       const numericPart = match?.[2] ? Number(match[2]) : 0;
 
       return {
-        houseId: houses.find((item) => item.id === room.house_id)?.id ?? room.house_id,
+        houseId: houses.find(item => item.id === room.house_id)?.id ?? room.house_id,
         letterPrefix,
         numericPart,
         roomNumber: room.room_number,

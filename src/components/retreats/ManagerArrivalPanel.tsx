@@ -109,7 +109,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
       }).id
     : null;
   const selectedRideIsAvailable = selectedRideId !== null
-    && sortedRides.some((ride) => ride.id === selectedRideId);
+    && sortedRides.some(ride => ride.id === selectedRideId);
   const activeSelectedRideId = selectedRideIsAvailable ? selectedRideId : nearestRideId;
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
       return;
     }
 
-    setPendingGuestIds((current) => new Set(current).add(guestRow.guest.id));
+    setPendingGuestIds(current => new Set(current).add(guestRow.guest.id));
     setError("");
 
     try {
@@ -161,7 +161,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
     } catch {
       setError(strStatusError);
     } finally {
-      setPendingGuestIds((current) => {
+      setPendingGuestIds(current => {
         const next = new Set(current);
         next.delete(guestRow.guest.id);
         return next;
@@ -232,7 +232,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
   });
   const meetingTaxiGroups: MeetingTaxiGroup[] = [];
 
-  meetingTaxiRides.forEach((taxiRide) => {
+  meetingTaxiRides.forEach(taxiRide => {
     const currentGroup = meetingTaxiGroups[meetingTaxiGroups.length - 1];
     const belongsToCurrentGroup = currentGroup
       && taxiRide.arrivalTimestamp - currentGroup.firstArrivalTimestamp <= 15 * 60 * 1000;
@@ -254,19 +254,19 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
   meetingTaxiGroups.forEach((group, groupIndex) => {
     const firstRide = group.rides[0];
     const lastRide = group.rides[group.rides.length - 1];
-    const taxiNumbers = group.rides.map((taxiRide) => taxiRide.number).join(",");
+    const taxiNumbers = group.rides.map(taxiRide => taxiRide.number).join(",");
     const timeLabel = firstRide.arrivalTime === lastRide.arrivalTime
       ? firstRide.arrivalTime
       : `${firstRide.arrivalTime}-${lastRide.arrivalTime}`;
 
     group.label = `${strTaxi} ${taxiNumbers}: ${timeLabel}`;
-    group.rides.forEach((taxiRide) => {
+    group.rides.forEach(taxiRide => {
       meetingGroupColorByRideId.set(taxiRide.ride.id, groupIndex % 6);
     });
   });
 
-  const selectedMeetingGroupIndex = meetingTaxiGroups.findIndex((group) => (
-    group.rides.some((taxiRide) => taxiRide.ride.id === activeSelectedRideId)
+  const selectedMeetingGroupIndex = meetingTaxiGroups.findIndex(group => (
+    group.rides.some(taxiRide => taxiRide.ride.id === activeSelectedRideId)
   ));
   const orderedMeetingTaxiGroups = selectedMeetingGroupIndex > 0
     ? [
@@ -277,13 +277,13 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
   const meetingGroupByRideId = new Map<number, { label: string; order: number }>();
 
   orderedMeetingTaxiGroups.forEach((group, order) => {
-    group.rides.forEach((taxiRide) => {
+    group.rides.forEach(taxiRide => {
       meetingGroupByRideId.set(taxiRide.ride.id, { label: group.label, order });
     });
   });
 
-  const rideRows = meetingTaxiRides.map((taxiRide) => {
-    const rideGuestAssignments = taxiGuests.filter((taxiGuest) => taxiGuest.ride_id === taxiRide.ride.id);
+  const rideRows = meetingTaxiRides.map(taxiRide => {
+    const rideGuestAssignments = taxiGuests.filter(taxiGuest => taxiGuest.ride_id === taxiRide.ride.id);
     const passengerCount = rideGuestAssignments.length;
     const isSelected = taxiRide.ride.id === activeSelectedRideId;
     const onChange = () => {
@@ -291,10 +291,10 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
     };
 
     const groupColorIndex = meetingGroupColorByRideId.get(taxiRide.ride.id) ?? 0;
-    const groupClassName = `ozen-meeting-taxi-group-${groupColorIndex}`;
+    const groupClassName = `project-meeting-taxi-group-${groupColorIndex}`;
     const cardClassName = isSelected
-      ? `ozen-meeting-taxi-card ${groupClassName} ozen-meeting-taxi-card-selected`
-      : `ozen-meeting-taxi-card ${groupClassName}`;
+      ? `project-meeting-taxi-card ${groupClassName} project-meeting-taxi-card-selected`
+      : `project-meeting-taxi-card ${groupClassName}`;
 
     return {
       id: taxiRide.ride.id,
@@ -308,16 +308,16 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
       onChange,
     };
   });
-  const roomById = new Map(rooms.map((room) => [room.id, room]));
-  const houseById = new Map(houses.map((house) => [house.id, house]));
-  const taxiNumberById = new Map(meetingTaxiRides.map((taxiRide) => [
+  const roomById = new Map(rooms.map(room => [room.id, room]));
+  const houseById = new Map(houses.map(house => [house.id, house]));
+  const taxiNumberById = new Map(meetingTaxiRides.map(taxiRide => [
     taxiRide.ride.id,
     `${strTaxi} ${taxiRide.number}`,
   ]));
-  const taxiGuestByGuestId = new Map(taxiGuests.flatMap((taxiGuest) => (
+  const taxiGuestByGuestId = new Map(taxiGuests.flatMap(taxiGuest => (
     taxiGuest.guest_id === null ? [] : [[taxiGuest.guest_id, taxiGuest] as const]
   )));
-  const sortedHouseIds = [...houses].sort((left, right) => left.id - right.id).map((house) => house.id);
+  const sortedHouseIds = [...houses].sort((left, right) => left.id - right.id).map(house => house.id);
   const houseOrderById = new Map(sortedHouseIds.map((houseId, index) => [houseId, index]));
   const meetingGroupStride = houses.length + 1;
   const guestRows = guests.map((guest): GuestRow => {
@@ -342,7 +342,7 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
   }).sort((left, right) => (left.houseId ?? Number.MAX_SAFE_INTEGER) - (right.houseId ?? Number.MAX_SAFE_INTEGER)
     || left.roomName.localeCompare(right.roomName)
     || left.guest.name.localeCompare(right.guest.name));
-  const guestCardRows: ArrivalGuestCardRow[] = guestRows.map((guestRow) => {
+  const guestCardRows: ArrivalGuestCardRow[] = guestRows.map(guestRow => {
     const menuActions: GuestMenuAction[] = currentUser
       ? guestsService.getGuestMenuActions(
           guestRow.guest,
@@ -449,34 +449,34 @@ export default function ManagerArrivalPanel({ mode, showTitle = true }: ManagerA
 
   return (
     <section>
-      {showTitle ? <h2 className="mb-4 text-xl font-bold">{strTitle}</h2> : null}
-      {error ? <p role="alert" className="mb-4 text-red-600">{error}</p> : null}
-      {retreatError ? <p role="alert" className="mb-4 text-red-600">{strLoadError}</p> : null}
-      {isSnapshotLoading ? <p>{strLoading}</p> : null}
-      {!isSnapshotLoading && mode === "meeting" ? (
+      {showTitle && <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>}
+      {error && <p role="alert" className="mb-4 text-red-600">{error}</p>}
+      {retreatError && <p role="alert" className="mb-4 text-red-600">{strLoadError}</p>}
+      {isSnapshotLoading && <p>{strLoading}</p>}
+      {!isSnapshotLoading && mode === "meeting" && (
         <>
-          <div className="ozen-meeting-taxi-grid">
-            {rideRows.map((ride) => (
+          <div className="project-meeting-taxi-grid">
+            {rideRows.map(ride => (
               <label key={ride.id} className={ride.cardClassName}>
-                <input type="radio" name="meeting-taxi" checked={ride.isSelected} onChange={ride.onChange} className="ozen-meeting-taxi-checkbox" />
-                <span className="ozen-meeting-taxi-number">{ride.number}</span>
+                <input type="radio" name="meeting-taxi" checked={ride.isSelected} onChange={ride.onChange} className="project-meeting-taxi-checkbox" />
+                <span className="project-meeting-taxi-number">{ride.number}</span>
                 <strong>{ride.arrivalTime}</strong>
-                <span className="ozen-taxi-date">{ride.arrivalDate}</span>
+                <span className="project-taxi-date">{ride.arrivalDate}</span>
                 <span>{ride.driver}</span>
                 <small>{ride.passengerCount}</small>
               </label>
             ))}
           </div>
-          {!hasRideRows ? <p className="mt-4 text-gray-600">{strNoRides}</p> : null}
+          {!hasRideRows && <p className="mt-4 text-gray-600">{strNoRides}</p>}
         </>
-      ) : null}
-      {!isSnapshotLoading ? (
+      )}
+      {!isSnapshotLoading && (
         <GuestsCards
           guests={guestCardRows}
           getGuestCardGroup={getGuestCardGroup}
           emptyMessage={strNoGuests}
         />
-      ) : null}
+      )}
     </section>
   );
 }

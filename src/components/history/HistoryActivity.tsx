@@ -5,10 +5,10 @@ type HistoryActivityProps = {
 };
 
 const partClassNames = {
-  text: "ozen-history-text",
-  user: "ozen-history-user",
-  guest: "ozen-history-guest",
-  room: "ozen-history-room",
+  text: "project-history-text",
+  user: "project-history-user",
+  guest: "project-history-guest",
+  room: "project-history-room",
 };
 
 export default function HistoryActivity({ parts }: HistoryActivityProps) {
@@ -20,7 +20,7 @@ export default function HistoryActivity({ parts }: HistoryActivityProps) {
 
   return (
     <>
-      {renderedParts.map((part) => (
+      {renderedParts.map(part => (
         <span key={part.key} className={part.className}>{part.text}</span>
       ))}
     </>

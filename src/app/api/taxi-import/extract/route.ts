@@ -189,7 +189,7 @@ async function waitForPrediction(
       throw new Error("Replicate prediction polling URL is missing.");
     }
 
-    await new Promise((resolve) => {
+    await new Promise(resolve => {
       setTimeout(resolve, 2000);
     });
 
@@ -230,7 +230,7 @@ function convertExtractionToTsv(extractionSchemaJson: string | null | undefined)
   }
 
   const header = ["group", "approxTime", "name", "time", "houseCode"].join("\t");
-  const body = rows.map((row) => (
+  const body = rows.map(row => (
     [
       getStringCell(row.group),
       getStringCell(row.approxTime),

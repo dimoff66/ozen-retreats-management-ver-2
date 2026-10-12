@@ -25,14 +25,14 @@ const retreatRoomsService = {
     ]);
     const latestStatuses = new Map<number, string>();
 
-    statuses.forEach((status) => {
+    statuses.forEach(status => {
       if (!latestStatuses.has(status.guest_id)) {
         latestStatuses.set(status.guest_id, status.status);
       }
     });
 
     const occupiedRoomIds = new Set(
-      guests.flatMap((guest) => {
+      guests.flatMap(guest => {
         if (!guest.room_id) {
           return [];
         }
@@ -40,7 +40,7 @@ const retreatRoomsService = {
         return latestStatuses.get(guest.id) === "not_coming" ? [] : [guest.room_id];
       })
     );
-    const unavailableOccupiedRoom = settings.find((setting) => (
+    const unavailableOccupiedRoom = settings.find(setting => (
       !setting.isAvailable && occupiedRoomIds.has(setting.roomId)
     ));
 
@@ -48,9 +48,9 @@ const retreatRoomsService = {
       throw new Error("Occupied rooms cannot be made unavailable for the retreat.");
     }
 
-    const operations = settings.map(async (setting) => {
+    const operations = settings.map(async setting => {
       const current = currentRetreatRooms.find(
-        (item) => item.room_id === setting.roomId
+        item => item.room_id === setting.roomId
       );
 
       if (!setting.isAvailable) {
@@ -91,16 +91,16 @@ const retreatRoomsService = {
     latestStatuses: Map<number, LatestGuestStatus>,
     guestId: number | null
   ): Room[] => {
-    return rooms.filter((room) => {
+    return rooms.filter(room => {
       const retreatRoom = retreatRooms.find(
-        (item) => item.room_id === room.id
+        item => item.room_id === room.id
       );
 
       if (!room.is_available || !retreatRoom) {
         return false;
       }
 
-      const occupants = guests.filter((guest) => {
+      const occupants = guests.filter(guest => {
         if (guest.room_id !== room.id) {
           return false;
         }

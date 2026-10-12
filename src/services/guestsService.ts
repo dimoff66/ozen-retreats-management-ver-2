@@ -52,7 +52,7 @@ const guestsService = {
     status: GuestStatusValue,
     onAction: (guest: Guest, action: GuestAction) => void
   ): GuestMenuAction[] => {
-    return getAvailableGuestActions(role, status, guest.room_id !== null).map((id) => ({
+    return getAvailableGuestActions(role, status, guest.room_id !== null).map(id => ({
       id,
       caption: id === "move_room" && guest.room_id === null
         ? "Assign room"

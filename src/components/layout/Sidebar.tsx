@@ -36,10 +36,10 @@ export default function Sidebar({
   const strWorkspaceGroup = "WORKSPACE";
   const strManageGroup = "MANAGE";
   const strMainNavigation = "Main navigation";
-  const retreatItems = menuItems.filter((label) => label !== "Admin");
-  const manageItems = menuItems.filter((label) => label === "Admin");
+  const retreatItems = menuItems.filter(label => label !== "Admin");
+  const manageItems = menuItems.filter(label => label === "Admin");
 
-  const prepareItems = (items: string[]) => items.map((label) => {
+  const prepareItems = (items: string[]) => items.map(label => {
     const onClickHandler = () => {
       onMenuClick(label);
     };
@@ -55,44 +55,44 @@ export default function Sidebar({
   const adminItems = prepareItems(manageItems);
 
   return (
-    <aside className="ozen-sidebar">
-      <div className="ozen-brand" aria-label={strBrand}>
-        <span className="ozen-brand-mark">{strBrandMark}</span>
-        <span className="ozen-brand-copy"><strong>{strBrand}</strong><small>{strBrandCaption}</small></span>
+    <aside className="project-sidebar">
+      <div className="project-brand" aria-label={strBrand}>
+        <span className="project-brand-mark">{strBrandMark}</span>
+        <span className="project-brand-copy"><strong>{strBrand}</strong><small>{strBrandCaption}</small></span>
       </div>
-      <nav className="ozen-side-nav" aria-label={strMainNavigation}>
-        <div className="ozen-nav-group">
-          <span className="ozen-nav-label">{strWorkspaceGroup}</span>
-          {workspaceItems.map((item) => (
+      <nav className="project-side-nav" aria-label={strMainNavigation}>
+        <div className="project-nav-group">
+          <span className="project-nav-label">{strWorkspaceGroup}</span>
+          {workspaceItems.map(item => (
             <button
               key={item.label}
               type="button"
               onClick={item.onClickHandler}
               aria-current={item.isSelected ? "page" : undefined}
-              className={item.isSelected ? "ozen-nav-item ozen-nav-item-active" : "ozen-nav-item"}
+              className={item.isSelected ? "project-nav-item project-nav-item-active" : "project-nav-item"}
             >
               <NavIcon label={item.label} />
               <span>{item.label}</span>
             </button>
           ))}
         </div>
-        {adminItems.length > 0 ? (
-          <div className="ozen-nav-group">
-            <span className="ozen-nav-label">{strManageGroup}</span>
-            {adminItems.map((item) => (
+        {adminItems.length > 0 && (
+          <div className="project-nav-group">
+            <span className="project-nav-label">{strManageGroup}</span>
+            {adminItems.map(item => (
               <button
                 key={item.label}
                 type="button"
                 onClick={item.onClickHandler}
                 aria-current={item.isSelected ? "page" : undefined}
-                className={item.isSelected ? "ozen-nav-item ozen-nav-item-active" : "ozen-nav-item"}
+                className={item.isSelected ? "project-nav-item project-nav-item-active" : "project-nav-item"}
               >
                 <NavIcon label={item.label} />
                 <span>{item.label}</span>
               </button>
             ))}
           </div>
-        ) : null}
+        )}
       </nav>
     </aside>
   );

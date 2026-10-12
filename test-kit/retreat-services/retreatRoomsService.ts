@@ -14,8 +14,8 @@ export async function testSaveRetreatRooms(
     await retreatRoomsService.saveRetreatRooms(retreatId, settings);
     const saved = await retreatRoomsService.getRetreatRooms(retreatId);
 
-    settings.forEach((setting) => {
-      const row = saved.find((item) => item.room_id === setting.roomId);
+    settings.forEach(setting => {
+      const row = saved.find(item => item.room_id === setting.roomId);
 
       if (!setting.isAvailable) {
         assertTest(!row, `Room ${setting.roomId} is still available for the retreat.`);
@@ -69,7 +69,7 @@ export async function testRoomSelectableState(
       statuses,
       guestId
     );
-    const isSelectable = selectableRooms.some((room) => room.id === roomId);
+    const isSelectable = selectableRooms.some(room => room.id === roomId);
 
     assertTest(
       isSelectable === expectedSelectable,

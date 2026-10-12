@@ -30,7 +30,7 @@ export default function AppShell() {
     setSelectedMenu(menu);
   };
 
-  const adminSectionRows = adminSections.map((section) => {
+  const adminSectionRows = adminSections.map(section => {
     const onClickHandler = () => {
       setSelectedAdminSection(section);
     };
@@ -55,49 +55,49 @@ export default function AppShell() {
         : <RetreatsList />;
 
   return (
-    <div className="ozen-app-shell">
-      <div className="ozen-side-slot ozen-side-slot-left">
-        {isAdmin ? (
+    <div className="project-app-shell">
+      <div className="project-side-slot project-side-slot-left">
+        {isAdmin && (
           <Sidebar
             menuItems={menuItems}
             selectedMenu={selectedMenu}
             onMenuClick={onMenuClick}
           />
-        ) : null}
+        )}
       </div>
-      <div className="ozen-center-column">
-        <header className="ozen-topbar">
+      <div className="project-center-column">
+        <header className="project-topbar">
           <UserSelector />
         </header>
-        <main className="ozen-page-content">
+        <main className="project-page-content">
           {!isAdmin || selectedMenu === strRetreats ? <RetreatWorkspace key={user.id} /> : (
-            <section className="ozen-admin-screen">
-              <div className="ozen-page-heading">
+            <section className="project-admin-screen">
+              <div className="project-page-heading">
                 <div>
-                  <p className="ozen-eyebrow">{strAdmin}</p>
+                  <p className="project-eyebrow">{strAdmin}</p>
                   <h1>{strAdministration}</h1>
                   <p>{strAdministrationCaption}</p>
                 </div>
               </div>
-              <nav aria-label={strAdministrationSections} className="ozen-tabs">
-                {adminSectionRows.map((section) => (
+              <nav aria-label={strAdministrationSections} className="project-tabs">
+                {adminSectionRows.map(section => (
                   <button
                     key={section.label}
                     type="button"
                     onClick={section.onClickHandler}
                     aria-current={section.isSelected ? "page" : undefined}
-                    className={section.isSelected ? "ozen-tab ozen-tab-active" : "ozen-tab"}
+                    className={section.isSelected ? "project-tab project-tab-active" : "project-tab"}
                   >
                     {section.label}
                   </button>
                 ))}
               </nav>
-              <div className="ozen-admin-content">{adminSectionContent}</div>
+              <div className="project-admin-content">{adminSectionContent}</div>
             </section>
           )}
         </main>
       </div>
-      <div className="ozen-side-slot ozen-side-slot-right" aria-hidden="true" />
+      <div className="project-side-slot project-side-slot-right" aria-hidden="true" />
     </div>
   );
 }

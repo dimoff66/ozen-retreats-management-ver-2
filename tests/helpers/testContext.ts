@@ -33,7 +33,7 @@ export async function createServiceTestContext(): Promise<ServiceTestContext> {
     roomsService.getRooms(),
     db.users.getAll(),
   ]);
-  const admin = users.find((user) => user.role === "admin");
+  const admin = users.find(user => user.role === "admin");
 
   if (!admin) {
     throw new Error("Test setup: user with admin role was not found.");
@@ -103,7 +103,7 @@ export async function cleanupServiceTestContext(context: ServiceTestContext): Pr
 
   await retreatRoomsService.saveRetreatRooms(
     context.retreat.id,
-    retreatRooms.map((item) => ({
+    retreatRooms.map(item => ({
       roomId: item.room_id,
       isAvailable: false,
       maxGuests: item.max_guests,
@@ -127,7 +127,7 @@ export async function createTestGuest(
 
 export async function getStatusCount(retreatId: number, guestId: number): Promise<number> {
   const statuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
-  return statuses.filter((status) => status.guest_id === guestId).length;
+  return statuses.filter(status => status.guest_id === guestId).length;
 }
 
 function findRoom(
@@ -136,7 +136,7 @@ function findRoom(
   roomNumber: string,
   label: string
 ): Room {
-  const room = rooms.find((item) => (
+  const room = rooms.find(item => (
     item.house_id === houseId && item.room_number === roomNumber
   ));
 

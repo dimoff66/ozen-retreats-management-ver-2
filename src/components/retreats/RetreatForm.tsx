@@ -69,17 +69,17 @@ export default function RetreatForm({
   };
 
   return (
-    <div className="ozen-modal-backdrop">
-      <div className="ozen-form-modal">
-        <div className="ozen-form-modal-header"><h2>{formTitle}</h2></div>
-        <form onSubmit={onSubmitHandler} className="ozen-form-body">
-          <label className="ozen-form-field"><span>{strTitle}</span><input value={title} onChange={onTitleChange} required /></label>
-          <div className="ozen-form-grid-two">
-            <label className="ozen-form-field"><span>{strStartDate}</span><input type="date" value={startDate} onChange={onStartDateChange} required /></label>
-            <label className="ozen-form-field"><span>{strEndDate}</span><input type="date" value={endDate} onChange={onEndDateChange} required /></label>
+    <div className="project-modal-backdrop">
+      <div className="project-form-modal">
+        <div className="project-form-modal-header"><h2>{formTitle}</h2></div>
+        <form onSubmit={onSubmitHandler} className="project-form-body">
+          <label className="project-form-field"><span>{strTitle}</span><input value={title} onChange={onTitleChange} required /></label>
+          <div className="project-form-grid-two">
+            <label className="project-form-field"><span>{strStartDate}</span><input type="date" value={startDate} onChange={onStartDateChange} required /></label>
+            <label className="project-form-field"><span>{strEndDate}</span><input type="date" value={endDate} onChange={onEndDateChange} required /></label>
           </div>
-          <label className="ozen-checkbox-field"><input type="checkbox" checked={isActive} onChange={onActiveChange} /><span>{strActive}</span></label>
-          <div className="ozen-form-footer"><button type="button" onClick={onCancelActionClick} className="ozen-action-button ozen-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="ozen-action-button ozen-action-button-primary">{strSave}</button></div>
+          <label className="project-checkbox-field"><input type="checkbox" checked={isActive} onChange={onActiveChange} /><span>{strActive}</span></label>
+          <div className="project-form-footer"><button type="button" onClick={onCancelActionClick} className="project-action-button project-action-button-secondary">{strCancel}</button><button type="submit" disabled={isSaving} className="project-action-button project-action-button-primary">{strSave}</button></div>
         </form>
       </div>
     </div>

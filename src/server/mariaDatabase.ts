@@ -120,14 +120,14 @@ function getWriteEntries(
   const record = data as Record<string, unknown>;
 
   return allowedColumns
-    .filter((key) => Object.prototype.hasOwnProperty.call(record, key))
-    .filter((key) => record[key] !== undefined)
-    .map((key) => [key, normalizeWriteValue(key, record[key])]);
+    .filter(key => Object.prototype.hasOwnProperty.call(record, key))
+    .filter(key => record[key] !== undefined)
+    .map(key => [key, normalizeWriteValue(key, record[key])]);
 }
 
 async function selectMany<T>(sql: string, values: ExecuteValues = []): Promise<T[]> {
   const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(sql, values);
-  return rows.map((row) => normalizeRow<T>(row));
+  return rows.map(row => normalizeRow<T>(row));
 }
 
 async function selectOne<T>(sql: string, values: ExecuteValues = []): Promise<T | null> {

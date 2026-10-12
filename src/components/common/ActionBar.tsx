@@ -72,18 +72,18 @@ export default function ActionBar<T>({
   return (
     <div
       aria-disabled={disabled}
-      className={`ozen-action-bar ${extraContent ? "ozen-action-bar-with-content" : ""}`}
+      className={`project-action-bar ${extraContent ? "project-action-bar-with-content" : ""}`}
     >
-      {extraContent && extraContentPosition === "left" ? (
-        <div className="ozen-action-bar-content">{extraContent}</div>
-      ) : null}
-      <div className={`ozen-action-buttons ${disabled ? "opacity-50 grayscale" : ""}`}>
+      {extraContent && extraContentPosition === "left" && (
+        <div className="project-action-bar-content">{extraContent}</div>
+      )}
+      <div className={`project-action-buttons ${disabled ? "opacity-50 grayscale" : ""}`}>
         <button
           type="button"
           onClick={onAddActionClick}
           disabled={disabled}
           aria-disabled={disabled}
-          className="ozen-action-button ozen-action-button-primary"
+          className="project-action-button project-action-button-primary"
         >
           {strBtnAdd}
         </button>
@@ -92,7 +92,7 @@ export default function ActionBar<T>({
           type="button"
           onClick={onEditHandler}
           disabled={isActionDisabled}
-          className="ozen-action-button ozen-action-button-secondary"
+          className="project-action-button project-action-button-secondary"
         >
           {strBtnEdit}
         </button>
@@ -101,26 +101,26 @@ export default function ActionBar<T>({
           type="button"
           onClick={onDeleteHandler}
           disabled={isActionDisabled}
-          className="ozen-action-button ozen-action-button-danger"
+          className="project-action-button project-action-button-danger"
         >
           {strBtnDelete}
         </button>
 
-        {preparedExtraActions.map((action) => (
+        {preparedExtraActions.map(action => (
           <button
             type="button"
             key={action.key}
             onClick={action.onClickHandler}
             disabled={action.disabled}
-            className="ozen-action-button ozen-action-button-secondary"
+            className="project-action-button project-action-button-secondary"
           >
             {action.label}
           </button>
         ))}
       </div>
-      {extraContent && extraContentPosition === "right" ? (
-        <div className="ozen-action-bar-content ozen-action-bar-content-right">{extraContent}</div>
-      ) : null}
+      {extraContent && extraContentPosition === "right" && (
+        <div className="project-action-bar-content project-action-bar-content-right">{extraContent}</div>
+      )}
     </div>
   );
 }

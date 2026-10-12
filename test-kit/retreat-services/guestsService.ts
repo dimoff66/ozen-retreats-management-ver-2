@@ -19,7 +19,7 @@ export async function testCreateGuest(input: GuestWriteTestInput): Promise<Servi
     ]);
 
     assertTest(loaded !== null, "Created guest cannot be loaded.");
-    assertTest(retreatGuests.some((guest) => guest.id === created.id), "Created guest is missing from retreat guests.");
+    assertTest(retreatGuests.some(guest => guest.id === created.id), "Created guest is missing from retreat guests.");
     assertTest(loaded.name === input.guest.name.trim(), "Created guest name does not match.");
     assertTest(loaded.room_id === (input.guest.room_id ?? null), "Created guest room does not match.");
 
@@ -29,7 +29,7 @@ export async function testCreateGuest(input: GuestWriteTestInput): Promise<Servi
         guestsService.getGuestsByRoomId(input.guest.room_id),
       ]);
 
-      assertTest(roomGuests.some((guest) => guest.id === created.id), "Created guest is missing from assigned room.");
+      assertTest(roomGuests.some(guest => guest.id === created.id), "Created guest is missing from assigned room.");
       const status = latest.get(created.id);
 
       assertTest(status?.status === "booked", "Creating a guest with a room did not create booked status.");
@@ -144,7 +144,7 @@ export async function testCreateGuestWithoutBookedStatus(
     const statuses = await guestStatusesService.getGuestStatusesByRetreatId(guest.retreat_id);
 
     assertTest(
-      !statuses.some((status) => status.guest_id === created.id),
+      !statuses.some(status => status.guest_id === created.id),
       "Creating a guest without a room created an unexpected status."
     );
   });
@@ -155,12 +155,12 @@ export async function testUpdateGuestWithoutStatus(
 ): Promise<ServiceTestResult> {
   return runServiceTest(async () => {
     const beforeStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
-    const beforeCount = beforeStatuses.filter((status) => status.guest_id === guestId).length;
+    const beforeCount = beforeStatuses.filter(status => status.guest_id === guestId).length;
 
     await guestsService.updateGuest(guestId, changes, updatedBy);
 
     const afterStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
-    const afterCount = afterStatuses.filter((status) => status.guest_id === guestId).length;
+    const afterCount = afterStatuses.filter(status => status.guest_id === guestId).length;
 
     assertTest(afterCount === beforeCount, "Updating non-room guest data created an unexpected status.");
   });

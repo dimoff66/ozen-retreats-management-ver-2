@@ -20,8 +20,8 @@ type RoomSetting = {
 const prepareRoomSettings = (
   rooms: Room[],
   retreatRooms: { room_id: number; max_guests: number }[]
-): RoomSetting[] => rooms.map((room) => {
-  const retreatRoom = retreatRooms.find((item) => item.room_id === room.id);
+): RoomSetting[] => rooms.map(room => {
+  const retreatRoom = retreatRooms.find(item => item.room_id === room.id);
 
   return {
     roomId: room.id,
@@ -56,7 +56,7 @@ export default function RetreatRoomsForm({
   const guests = snapshot?.guests ?? [];
   const latestStatuses = snapshot?.latestStatuses ?? new Map();
   const occupiedRoomIds = new Set(
-    guests.flatMap((guest) => {
+    guests.flatMap(guest => {
       if (!guest.room_id) {
         return [];
       }
@@ -77,8 +77,8 @@ export default function RetreatRoomsForm({
     setError("");
 
     try {
-      const saveSettings = settings.map((setting) => {
-        const room = rooms.find((item) => item.id === setting.roomId);
+      const saveSettings = settings.map(setting => {
+        const room = rooms.find(item => item.id === setting.roomId);
         const isGloballyAvailable = room?.is_available ?? false;
 
         return {
@@ -98,18 +98,18 @@ export default function RetreatRoomsForm({
   };
 
   const houseGroups = houses
-    .map((house) => {
+    .map(house => {
       const houseRooms = rooms.filter(
-        (room) => room.house_id === house.id
+        room => room.house_id === house.id
       );
 
       if (houseRooms.length === 0) {
         return null;
       }
 
-      const roomRows = houseRooms.map((room) => {
+      const roomRows = houseRooms.map(room => {
         const setting = settings.find(
-          (item) => item.roomId === room.id
+          item => item.roomId === room.id
         );
 
         const isAvailable = setting?.isAvailable ?? false;
@@ -126,8 +126,8 @@ export default function RetreatRoomsForm({
             return;
           }
 
-          setSettingsOverride((current) =>
-            (current ?? settings).map((item) =>
+          setSettingsOverride(current =>
+            (current ?? settings).map(item =>
               item.roomId === room.id
                 ? {
                     ...item,
@@ -143,8 +143,8 @@ export default function RetreatRoomsForm({
         ) => {
           const value = Math.max(1, Number(event.target.value));
 
-          setSettingsOverride((current) =>
-            (current ?? settings).map((item) =>
+          setSettingsOverride(current =>
+            (current ?? settings).map(item =>
               item.roomId === room.id
                 ? {
                     ...item,
@@ -171,12 +171,12 @@ export default function RetreatRoomsForm({
       const onAllAvailableActionClick = () => {
         const roomIds = new Set(
           houseRooms
-            .filter((room) => room.is_available)
-            .map((room) => room.id)
+            .filter(room => room.is_available)
+            .map(room => room.id)
         );
 
-        setSettingsOverride((current) =>
-          (current ?? settings).map((item) =>
+        setSettingsOverride(current =>
+          (current ?? settings).map(item =>
             roomIds.has(item.roomId)
               ? {
                   ...item,
@@ -188,7 +188,7 @@ export default function RetreatRoomsForm({
       };
 
       const onAllUnavailableActionClick = () => {
-        const hasOccupiedRooms = houseRooms.some((room) => occupiedRoomIds.has(room.id));
+        const hasOccupiedRooms = houseRooms.some(room => occupiedRoomIds.has(room.id));
 
         if (hasOccupiedRooms) {
           window.alert(strOccupiedHouseWarning);
@@ -196,11 +196,11 @@ export default function RetreatRoomsForm({
         }
 
         const roomIds = new Set(
-          houseRooms.map((room) => room.id)
+          houseRooms.map(room => room.id)
         );
 
-        setSettingsOverride((current) =>
-          (current ?? settings).map((item) =>
+        setSettingsOverride(current =>
+          (current ?? settings).map(item =>
             roomIds.has(item.roomId)
               ? {
                   ...item,
@@ -216,7 +216,7 @@ export default function RetreatRoomsForm({
       ) => {
         const value = Math.max(1, Number(event.target.value));
 
-        setHouseMaxGuests((current) => ({
+        setHouseMaxGuests(current => ({
           ...current,
           [house.id]: value,
         }));
@@ -225,12 +225,12 @@ export default function RetreatRoomsForm({
       const onSetMaxActionClick = () => {
         const roomIds = new Set(
           houseRooms
-            .filter((room) => room.is_available)
-            .map((room) => room.id)
+            .filter(room => room.is_available)
+            .map(room => room.id)
         );
 
-        setSettingsOverride((current) =>
-          (current ?? settings).map((item) =>
+        setSettingsOverride(current =>
+          (current ?? settings).map(item =>
             roomIds.has(item.roomId)
               ? {
                   ...item,
@@ -252,64 +252,64 @@ export default function RetreatRoomsForm({
         onSetMaxActionClick,
       };
     })
-    .filter((house) => house !== null);
+    .filter(house => house !== null);
 
   return (
-    <section className="ozen-room-settings-screen">
-      {showTitle ? (
-        <div className="ozen-room-settings-header">
+    <section className="project-room-settings-screen">
+      {showTitle && (
+        <div className="project-room-settings-header">
           <div>
             <h2>{strTitle}</h2>
-            {retreat ? <p>{retreat.title}</p> : null}
+            {retreat && <p>{retreat.title}</p>}
           </div>
         </div>
-      ) : null}
+      )}
       <div>
-        {isLoading || !snapshot ? <div className="ozen-room-settings-message">{strLoading}</div> : null}
-        {error || retreatError ? <div className="ozen-room-settings-message ozen-room-settings-error">{error || strLoadError}</div> : null}
-        {!isLoading && snapshot ? (
-          <div className="ozen-room-house-list">
-            {houseGroups.map((house) => (
-              <section key={house.id} className="ozen-room-house">
-                <div className="ozen-room-house-header">
+        {(isLoading || !snapshot) && <div className="project-room-settings-message">{strLoading}</div>}
+        {(error || retreatError) && <div className="project-room-settings-message project-room-settings-error">{error || strLoadError}</div>}
+        {!isLoading && snapshot && (
+          <div className="project-room-house-list">
+            {houseGroups.map(house => (
+              <section key={house.id} className="project-room-house">
+                <div className="project-room-house-header">
                   <h3>{house.name}</h3>
-                  <div className="ozen-room-house-actions">
+                  <div className="project-room-house-actions">
                     <button
                       type="button"
                       onClick={house.onAllAvailableActionClick}
-                      className="ozen-room-small-button ozen-room-small-button-positive"
+                      className="project-room-small-button project-room-small-button-positive"
                     >
                       {strAllAvailable}
                     </button>
                     <button
                       type="button"
                       onClick={house.onAllUnavailableActionClick}
-                      className="ozen-room-small-button"
+                      className="project-room-small-button"
                     >
                       {strAllUnavailable}
                     </button>
-                    <label className="ozen-room-max-control">
+                    <label className="project-room-max-control">
                       <span>{strMaxGuests}</span>
                       <input
                         type="number"
                         min={1}
                         value={house.groupMaxGuests}
                         onChange={house.onHouseMaxGuestsChange}
-                        className="ozen-room-number-input"
+                        className="project-room-number-input"
                       />
                     </label>
                     <button
                       type="button"
                       onClick={house.onSetMaxActionClick}
-                      className="ozen-room-small-button ozen-room-small-button-positive"
+                      className="project-room-small-button project-room-small-button-positive"
                     >
                       {strSetMax}
                     </button>
                   </div>
                 </div>
-                <div className="ozen-room-grid">
-                  {house.roomRows.map((room) => (
-                    <div key={room.id} className="ozen-room-setting-row">
+                <div className="project-room-grid">
+                  {house.roomRows.map(room => (
+                    <div key={room.id} className="project-room-setting-row">
                       <label>
                         <input
                           type="checkbox"
@@ -317,14 +317,14 @@ export default function RetreatRoomsForm({
                           disabled={!room.isGloballyAvailable}
                           onChange={room.onAvailableChange}
                           aria-label={`${strAvailable}: ${room.roomName}`}
-                          className="ozen-room-checkbox"
+                          className="project-room-checkbox"
                         />
                       </label>
-                      <div className="ozen-room-setting-copy">
-                        <span className="ozen-room-setting-name">{room.roomName}</span>
-                        {!room.isGloballyAvailable ? <span className="ozen-room-unavailable-note">{strGloballyUnavailable}</span> : null}
+                      <div className="project-room-setting-copy">
+                        <span className="project-room-setting-name">{room.roomName}</span>
+                        {!room.isGloballyAvailable && <span className="project-room-unavailable-note">{strGloballyUnavailable}</span>}
                       </div>
-                      <label className="ozen-room-capacity">
+                      <label className="project-room-capacity">
                         <span>{strMaxGuests}</span>
                         <input
                           type="number"
@@ -334,7 +334,7 @@ export default function RetreatRoomsForm({
                           onChange={room.onMaxGuestsChange}
                           aria-label={`${strMaxGuests}: ${room.roomName}`}
                           title={strMaxGuests}
-                          className="ozen-room-number-input"
+                          className="project-room-number-input"
                         />
                       </label>
                     </div>
@@ -343,14 +343,14 @@ export default function RetreatRoomsForm({
               </section>
             ))}
           </div>
-        ) : null}
+        )}
       </div>
-      <div className="ozen-room-settings-footer">
+      <div className="project-room-settings-footer">
         <button
           type="button"
           onClick={onCloseActionClick}
           disabled={isSaving}
-          className="ozen-secondary-button"
+          className="project-secondary-button"
         >
           {strCancel}
         </button>
@@ -358,7 +358,7 @@ export default function RetreatRoomsForm({
           type="button"
           onClick={onSaveActionClick}
           disabled={isSaving}
-          className="ozen-primary-action"
+          className="project-primary-action"
         >
           {strSave}
         </button>

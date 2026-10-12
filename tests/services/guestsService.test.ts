@@ -38,7 +38,7 @@ describe("guestsService", () => {
     const result = await testCreateGuestWithoutBookedStatus({
       retreat_id: context.retreat.id,
       name: `__TEST__ ${context.runId} no room`,
-    });
+    }, context.adminUserId);
 
     expectServiceTest(result);
   });
@@ -51,6 +51,7 @@ describe("guestsService", () => {
         name: `  __TEST__ ${context.runId} booked  `,
         room_id: context.rooms.cubeA1.id,
       },
+      updatedBy: context.adminUserId,
       expectedRoomLabel: context.roomLabels.cubeA1,
     });
 
@@ -63,7 +64,8 @@ describe("guestsService", () => {
     const result = await testUpdateGuestWithoutStatus(
       guest.id,
       context.retreat.id,
-      { diet_notes: "Vegan test note" }
+      { diet_notes: "Vegan test note" },
+      context.adminUserId
     );
 
     expectServiceTest(result);
@@ -76,6 +78,7 @@ describe("guestsService", () => {
       guestId: guest.id,
       retreatId: context.retreat.id,
       changes: { room_id: context.rooms.cubeA2.id },
+      updatedBy: context.adminUserId,
       expectedRoomLabel: context.roomLabels.cubeA2,
     });
 
@@ -90,6 +93,7 @@ describe("guestsService", () => {
       firstGuestId: firstGuest.id,
       secondGuestId: secondGuest.id,
       retreatId: context.retreat.id,
+      updatedBy: context.adminUserId,
       expectedFirstRoomLabel: context.roomLabels.cubeB1,
       expectedSecondRoomLabel: context.roomLabels.cubeA2,
     });
@@ -99,7 +103,7 @@ describe("guestsService", () => {
 
   // Проверяем бизнес-валидацию имени: строка из пробелов не должна приводить к созданию гостя.
   it("rejects an empty guest name", async () => {
-    const result = await testRejectEmptyGuestName(context.retreat.id);
+    const result = await testRejectEmptyGuestName(context.retreat.id, context.adminUserId);
 
     expectServiceTest(result);
   });
@@ -109,7 +113,7 @@ describe("guestsService", () => {
     const guest = await guestsService.createGuest({
       retreat_id: context.retreat.id,
       name: `__TEST__ ${context.runId} delete`,
-    });
+    }, context.adminUserId);
     const result = await testDeleteGuest(guest.id);
 
     expectServiceTest(result);

@@ -1,0 +1,395 @@
+diff --git a/docs/architecture.md b/docs/architecture.md
+index 04524a7..30350d9 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -89,6 +89,10 @@ src/
+ const { currentUser } = useCurrentUser();
+ ```
+ 
++Если service-операция создаёт audit/status запись, `currentUser.id` передаётся в
++service явно как автор изменения. Service не должен сам искать пользователя с
++фиксированным login вроде `admin`.
++
+ Если удобно, значение можно переименовать:
+ 
+ ```ts
+diff --git a/docs/domain/database.md b/docs/domain/database.md
+index 0d08e67..0e5b2b4 100644
+--- a/docs/domain/database.md
++++ b/docs/domain/database.md
+@@ -164,8 +164,9 @@ created_at timestamptz
+ ### Атомарные записи гостя и статуса
+ 
+ Если новый гость сразу получает комнату, сервис заранее подготавливает status-запись
+-`booked`, а Database Adapter атомарно записывает гостя и status. `guest_id` для этой
+-status-записи подставляется адаптером после получения сгенерированного id гостя.
++`booked`, включая `updated_by` текущего пользователя, переданного вызывающим слоем.
++Database Adapter атомарно записывает гостя и status. `guest_id` для этой status-записи
++подставляется адаптером после получения сгенерированного id гостя.
+ 
+ При смене комнаты сервис определяет необходимость `booked`, формирует все значения
+ status-записи и передаёт их в `db.guests.update()`. UPDATE гостя и INSERT истории
+@@ -213,7 +214,9 @@ booked → arrived → checked_in
+ `room` хранит текстовое отображение комнаты на момент изменения статуса.
+ 
+ `updated_by` указывает пользователя, выполнившего действие, а `changed_at` —
+-время изменения. Текущий статус гостя определяется по последней записи.
++время изменения. Service получает id этого пользователя от вызывающего слоя и не
++ищет специального пользователя по login. Текущий статус гостя определяется по
++последней записи.
+ 
+ ### Загрузка статусов
+ 
+diff --git a/docs/transactions.md b/docs/transactions.md
+index 3368569..3b2ceff 100644
+--- a/docs/transactions.md
++++ b/docs/transactions.md
+@@ -12,9 +12,11 @@
+ - принимать решение, разрешён ли обмен комнатами.
+ 
+ Сервис выполняет проверки и передаёт адаптеру все значения в готовом виде.
+-Единственное техническое исключение — `guest_id` нового гостя: при совместном
+-создании гостя и status он неизвестен до INSERT и подставляется адаптером после
+-получения generated id.
++Если операция создаёт status history, вызывающий слой передаёт service id текущего
++пользователя, а service записывает его в `updated_by`; service не выбирает автора
++из таблицы `users` по фиксированному login. Единственное техническое исключение —
++`guest_id` нового гостя: при совместном создании гостя и status он неизвестен до
++INSERT и подставляется адаптером после получения generated id.
+ 
+ ## `db.guests.create()`
+ 
+diff --git a/src/contexts/RetreatContext.tsx b/src/contexts/RetreatContext.tsx
+index a360861..111bbae 100644
+--- a/src/contexts/RetreatContext.tsx
++++ b/src/contexts/RetreatContext.tsx
+@@ -186,16 +186,19 @@ export function RetreatProvider({
+   }, [refresh]);
+ 
+   const createGuest = useCallback(async (guest: Omit<CreateGuest, "retreat_id">) => {
+-    await runMutation(() => guestsService.createGuest({ ...guest, retreat_id: retreatId }));
+-  }, [retreatId, runMutation]);
++    await runMutation(() => guestsService.createGuest(
++      { ...guest, retreat_id: retreatId },
++      currentUser.id
++    ));
++  }, [currentUser.id, retreatId, runMutation]);
+ 
+   const updateGuest = useCallback(async (guestId: number, changes: UpdateGuest) => {
+-    await runMutation(() => guestsService.updateGuest(guestId, changes));
+-  }, [runMutation]);
++    await runMutation(() => guestsService.updateGuest(guestId, changes, currentUser.id));
++  }, [currentUser.id, runMutation]);
+ 
+   const swapRooms = useCallback(async (firstGuestId: number, secondGuestId: number) => {
+-    await runMutation(() => guestsService.swapRooms(firstGuestId, secondGuestId));
+-  }, [runMutation]);
++    await runMutation(() => guestsService.swapRooms(firstGuestId, secondGuestId, currentUser.id));
++  }, [currentUser.id, runMutation]);
+ 
+   const deleteGuest = useCallback(async (guestId: number) => {
+     await runMutation(() => guestsService.deleteGuest(guestId));
+diff --git a/src/services/guestsService.ts b/src/services/guestsService.ts
+index de5d423..df8ad00 100644
+--- a/src/services/guestsService.ts
++++ b/src/services/guestsService.ts
+@@ -60,16 +60,16 @@ const guestsService = {
+     }));
+   },
+ 
+-  createGuest: async (guest: CreateGuest): Promise<Guest> => {
++  createGuest: async (guest: CreateGuest, updatedBy: number): Promise<Guest> => {
+     const data = normalizeGuest(guest);
+     const status = data.room_id
+-      ? await prepareBookedStatus(data.retreat_id, data.room_id)
++      ? await prepareBookedStatus(data.retreat_id, data.room_id, updatedBy)
+       : undefined;
+ 
+     return db.guests.create(data, status);
+   },
+ 
+-  updateGuest: async (id: number, changes: UpdateGuest): Promise<Guest> => {
++  updateGuest: async (id: number, changes: UpdateGuest, updatedBy: number): Promise<Guest> => {
+     const currentGuest = await db.guests.getById(id);
+ 
+     if (!currentGuest) {
+@@ -87,7 +87,7 @@ const guestsService = {
+     const roomChanged = currentGuest.room_id !== data.room_id;
+     const status = roomChanged && data.room_id
+       ? {
+-          ...(await prepareBookedStatus(data.retreat_id, data.room_id)),
++          ...(await prepareBookedStatus(data.retreat_id, data.room_id, updatedBy)),
+           guest_id: id,
+         }
+       : undefined;
+@@ -95,7 +95,7 @@ const guestsService = {
+     return db.guests.update(id, data, status);
+   },
+ 
+-  swapRooms: async (firstGuestId: number, secondGuestId: number): Promise<SwapGuestRoomsResult> => {
++  swapRooms: async (firstGuestId: number, secondGuestId: number, updatedBy: number): Promise<SwapGuestRoomsResult> => {
+     if (firstGuestId === secondGuestId) {
+       throw new Error("Choose another guest for the room swap.");
+     }
+@@ -122,8 +122,8 @@ const guestsService = {
+     }
+ 
+     const [firstStatusData, secondStatusData] = await Promise.all([
+-      prepareBookedStatus(firstGuest.retreat_id, secondGuest.room_id),
+-      prepareBookedStatus(secondGuest.retreat_id, firstGuest.room_id),
++      prepareBookedStatus(firstGuest.retreat_id, secondGuest.room_id, updatedBy),
++      prepareBookedStatus(secondGuest.retreat_id, firstGuest.room_id, updatedBy),
+     ]);
+     const firstStatus: CreateGuestStatus = {
+       ...firstStatusData,
+@@ -150,8 +150,7 @@ const guestsService = {
+ };
+ 
+ async function prepareBookedStatus(
+-  retreatId: number,
+-  roomId: number
++  retreatId: number, roomId: number, updatedBy: number
+ ): Promise<CreateGuestStatusForNewGuest> {
+   const room = await db.rooms.getById(roomId);
+ 
+@@ -165,17 +164,11 @@ async function prepareBookedStatus(
+     throw new Error("House no longer exists.");
+   }
+ 
+-  const admin = await db.users.getByLogin("admin");
+-
+-  if (!admin) {
+-    throw new Error("Development admin user was not found.");
+-  }
+-
+   return {
+     retreat_id: retreatId,
+     status: "booked",
+     room: roomsService.getRoomDisplayName(room, house),
+-    updated_by: admin.id,
++    updated_by: updatedBy,
+   };
+ }
+ 
+diff --git a/test-kit/README.md b/test-kit/README.md
+index 512d046..1b83af1 100644
+--- a/test-kit/README.md
++++ b/test-kit/README.md
+@@ -43,6 +43,7 @@ const result = await testSwapGuestRooms({
+   firstGuestId: 101,
+   secondGuestId: 102,
+   retreatId: 5,
++  updatedBy: 7,
+   expectedFirstRoomLabel: "Buddha 2",
+   expectedSecondRoomLabel: "Buddha 1",
+ });
+@@ -100,10 +101,10 @@ Cones 1
+ Taxi records. После каждого теста очищаются изменяемые данные, а после suite
+ удаляется сам test-retreat.
+ 
+-Test fixture также только читает существующего пользователя `admin`, чтобы получить
+-`updated_by` для status-записей. Этот setup-read выполняется напрямую через DB
+-adapter; client `usersService` после auth-рефакторинга остаётся API-only и не
+-содержит `getUserByLogin`.
++Test fixture также только читает существующего пользователя с ролью `admin`, чтобы
++получить `updated_by` для status-записей. Fixture не зависит от конкретного login:
++setup читает пользователей через DB adapter и выбирает подходящую роль; client
++`usersService` после auth-рефакторинга остаётся API-only.
+ 
+ Если тестовый процесс будет аварийно остановлен до cleanup, в базе может остаться
+ retreat с префиксом `__TEST__`. Рабочие retreats при этом тестами не выбираются и
+diff --git a/test-kit/retreat-services/guestsService.ts b/test-kit/retreat-services/guestsService.ts
+index 1fa398e..3410e5f 100644
+--- a/test-kit/retreat-services/guestsService.ts
++++ b/test-kit/retreat-services/guestsService.ts
+@@ -6,12 +6,13 @@ import type { ServiceTestResult } from "./types";
+ 
+ export type GuestWriteTestInput = {
+   guest: CreateGuest;
++  updatedBy: number;
+   expectedRoomLabel?: string;
+ };
+ 
+ export async function testCreateGuest(input: GuestWriteTestInput): Promise<ServiceTestResult> {
+   return runServiceTest(async () => {
+-    const created = await guestsService.createGuest(input.guest);
++    const created = await guestsService.createGuest(input.guest, input.updatedBy);
+     const [loaded, retreatGuests] = await Promise.all([
+       guestsService.getGuestById(created.id),
+       guestsService.getGuestsByRetreatId(input.guest.retreat_id),
+@@ -44,6 +45,7 @@ export type UpdateGuestTestInput = {
+   guestId: number;
+   changes: UpdateGuest;
+   retreatId: number;
++  updatedBy: number;
+   expectedRoomLabel?: string;
+ };
+ 
+@@ -52,7 +54,7 @@ export async function testUpdateGuest(input: UpdateGuestTestInput): Promise<Serv
+     const before = await guestsService.getGuestById(input.guestId);
+     assertTest(before !== null, "Guest does not exist before update test.");
+ 
+-    const updated = await guestsService.updateGuest(input.guestId, input.changes);
++    const updated = await guestsService.updateGuest(input.guestId, input.changes, input.updatedBy);
+     const loaded = await guestsService.getGuestById(input.guestId);
+ 
+     assertTest(loaded !== null, "Updated guest cannot be loaded.");
+@@ -81,6 +83,7 @@ export type SwapRoomsTestInput = {
+   firstGuestId: number;
+   secondGuestId: number;
+   retreatId: number;
++  updatedBy: number;
+   expectedFirstRoomLabel?: string;
+   expectedSecondRoomLabel?: string;
+ };
+@@ -95,7 +98,7 @@ export async function testSwapGuestRooms(input: SwapRoomsTestInput): Promise<Ser
+     assertTest(beforeFirst !== null && beforeSecond !== null, "Both guests must exist before swap test.");
+     assertTest(beforeFirst.room_id !== null && beforeSecond.room_id !== null, "Both guests need rooms before swap test.");
+ 
+-    await guestsService.swapRooms(input.firstGuestId, input.secondGuestId);
++    await guestsService.swapRooms(input.firstGuestId, input.secondGuestId, input.updatedBy);
+ 
+     const [afterFirst, afterSecond, latest] = await Promise.all([
+       guestsService.getGuestById(input.firstGuestId),
+@@ -134,10 +137,10 @@ export async function testDeleteGuest(guestId: number): Promise<ServiceTestResul
+ }
+ 
+ export async function testCreateGuestWithoutBookedStatus(
+-  guest: CreateGuest
++  guest: CreateGuest, updatedBy: number
+ ): Promise<ServiceTestResult> {
+   return runServiceTest(async () => {
+-    const created = await guestsService.createGuest({ ...guest, room_id: null });
++    const created = await guestsService.createGuest({ ...guest, room_id: null }, updatedBy);
+     const statuses = await guestStatusesService.getGuestStatusesByRetreatId(guest.retreat_id);
+ 
+     assertTest(
+@@ -148,15 +151,13 @@ export async function testCreateGuestWithoutBookedStatus(
+ }
+ 
+ export async function testUpdateGuestWithoutStatus(
+-  guestId: number,
+-  retreatId: number,
+-  changes: UpdateGuest
++  guestId: number, retreatId: number, changes: UpdateGuest, updatedBy: number
+ ): Promise<ServiceTestResult> {
+   return runServiceTest(async () => {
+     const beforeStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
+     const beforeCount = beforeStatuses.filter((status) => status.guest_id === guestId).length;
+ 
+-    await guestsService.updateGuest(guestId, changes);
++    await guestsService.updateGuest(guestId, changes, updatedBy);
+ 
+     const afterStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
+     const afterCount = afterStatuses.filter((status) => status.guest_id === guestId).length;
+@@ -165,9 +166,11 @@ export async function testUpdateGuestWithoutStatus(
+   });
+ }
+ 
+-export async function testRejectEmptyGuestName(retreatId: number): Promise<ServiceTestResult> {
++export async function testRejectEmptyGuestName(
++  retreatId: number, updatedBy: number
++): Promise<ServiceTestResult> {
+   try {
+-    await guestsService.createGuest({ retreat_id: retreatId, name: "   " });
++    await guestsService.createGuest({ retreat_id: retreatId, name: "   " }, updatedBy);
+     return "Guest with an empty name was created instead of being rejected.";
+   } catch {
+     return true;
+diff --git a/tests/helpers/testContext.ts b/tests/helpers/testContext.ts
+index 5573929..df5e863 100644
+--- a/tests/helpers/testContext.ts
++++ b/tests/helpers/testContext.ts
+@@ -28,14 +28,15 @@ export type ServiceTestContext = {
+ 
+ export async function createServiceTestContext(): Promise<ServiceTestContext> {
+   const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+-  const [houses, rooms, admin] = await Promise.all([
++  const [houses, rooms, users] = await Promise.all([
+     housesService.getHouses(),
+     roomsService.getRooms(),
+-    db.users.getByLogin("admin"),
++    db.users.getAll(),
+   ]);
++  const admin = users.find((user) => user.role === "admin");
+ 
+   if (!admin) {
+-    throw new Error("Test setup: admin user was not found.");
++    throw new Error("Test setup: user with admin role was not found.");
+   }
+ 
+   const cubes = houses.find((house: House) => house.name.toLowerCase() === "cubes");
+@@ -121,7 +122,7 @@ export async function createTestGuest(
+     retreat_id: context.retreat.id,
+     name: `__TEST__ ${context.runId} ${suffix}`,
+     room_id: roomId,
+-  });
++  }, context.adminUserId);
+ }
+ 
+ export async function getStatusCount(retreatId: number, guestId: number): Promise<number> {
+diff --git a/tests/services/guestsService.test.ts b/tests/services/guestsService.test.ts
+index a47b528..750408c 100644
+--- a/tests/services/guestsService.test.ts
++++ b/tests/services/guestsService.test.ts
+@@ -38,7 +38,7 @@ describe("guestsService", () => {
+     const result = await testCreateGuestWithoutBookedStatus({
+       retreat_id: context.retreat.id,
+       name: `__TEST__ ${context.runId} no room`,
+-    });
++    }, context.adminUserId);
+ 
+     expectServiceTest(result);
+   });
+@@ -51,6 +51,7 @@ describe("guestsService", () => {
+         name: `  __TEST__ ${context.runId} booked  `,
+         room_id: context.rooms.cubeA1.id,
+       },
++      updatedBy: context.adminUserId,
+       expectedRoomLabel: context.roomLabels.cubeA1,
+     });
+ 
+@@ -63,7 +64,8 @@ describe("guestsService", () => {
+     const result = await testUpdateGuestWithoutStatus(
+       guest.id,
+       context.retreat.id,
+-      { diet_notes: "Vegan test note" }
++      { diet_notes: "Vegan test note" },
++      context.adminUserId
+     );
+ 
+     expectServiceTest(result);
+@@ -76,6 +78,7 @@ describe("guestsService", () => {
+       guestId: guest.id,
+       retreatId: context.retreat.id,
+       changes: { room_id: context.rooms.cubeA2.id },
++      updatedBy: context.adminUserId,
+       expectedRoomLabel: context.roomLabels.cubeA2,
+     });
+ 
+@@ -90,6 +93,7 @@ describe("guestsService", () => {
+       firstGuestId: firstGuest.id,
+       secondGuestId: secondGuest.id,
+       retreatId: context.retreat.id,
++      updatedBy: context.adminUserId,
+       expectedFirstRoomLabel: context.roomLabels.cubeB1,
+       expectedSecondRoomLabel: context.roomLabels.cubeA2,
+     });
+@@ -99,7 +103,7 @@ describe("guestsService", () => {
+ 
+   // Проверяем бизнес-валидацию имени: строка из пробелов не должна приводить к созданию гостя.
+   it("rejects an empty guest name", async () => {
+-    const result = await testRejectEmptyGuestName(context.retreat.id);
++    const result = await testRejectEmptyGuestName(context.retreat.id, context.adminUserId);
+ 
+     expectServiceTest(result);
+   });
+@@ -109,7 +113,7 @@ describe("guestsService", () => {
+     const guest = await guestsService.createGuest({
+       retreat_id: context.retreat.id,
+       name: `__TEST__ ${context.runId} delete`,
+-    });
++    }, context.adminUserId);
+     const result = await testDeleteGuest(guest.id);
+ 
+     expectServiceTest(result);

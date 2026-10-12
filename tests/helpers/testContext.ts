@@ -28,14 +28,15 @@ export type ServiceTestContext = {
 
 export async function createServiceTestContext(): Promise<ServiceTestContext> {
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const [houses, rooms, admin] = await Promise.all([
+  const [houses, rooms, users] = await Promise.all([
     housesService.getHouses(),
     roomsService.getRooms(),
-    db.users.getByLogin("admin"),
+    db.users.getAll(),
   ]);
+  const admin = users.find((user) => user.role === "admin");
 
   if (!admin) {
-    throw new Error("Test setup: admin user was not found.");
+    throw new Error("Test setup: user with admin role was not found.");
   }
 
   const cubes = houses.find((house: House) => house.name.toLowerCase() === "cubes");
@@ -121,7 +122,7 @@ export async function createTestGuest(
     retreat_id: context.retreat.id,
     name: `__TEST__ ${context.runId} ${suffix}`,
     room_id: roomId,
-  });
+  }, context.adminUserId);
 }
 
 export async function getStatusCount(retreatId: number, guestId: number): Promise<number> {

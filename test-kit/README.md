@@ -43,6 +43,7 @@ const result = await testSwapGuestRooms({
   firstGuestId: 101,
   secondGuestId: 102,
   retreatId: 5,
+  updatedBy: 7,
   expectedFirstRoomLabel: "Buddha 2",
   expectedSecondRoomLabel: "Buddha 1",
 });
@@ -100,10 +101,10 @@ Cones 1
 Taxi records. После каждого теста очищаются изменяемые данные, а после suite
 удаляется сам test-retreat.
 
-Test fixture также только читает существующего пользователя `admin`, чтобы получить
-`updated_by` для status-записей. Этот setup-read выполняется напрямую через DB
-adapter; client `usersService` после auth-рефакторинга остаётся API-only и не
-содержит `getUserByLogin`.
+Test fixture также только читает существующего пользователя с ролью `admin`, чтобы
+получить `updated_by` для status-записей. Fixture не зависит от конкретного login:
+setup читает пользователей через DB adapter и выбирает подходящую роль; client
+`usersService` после auth-рефакторинга остаётся API-only.
 
 Если тестовый процесс будет аварийно остановлен до cleanup, в базе может остаться
 retreat с префиксом `__TEST__`. Рабочие retreats при этом тестами не выбираются и

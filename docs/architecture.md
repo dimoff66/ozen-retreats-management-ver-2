@@ -89,6 +89,10 @@ src/
 const { currentUser } = useCurrentUser();
 ```
 
+Если service-операция создаёт audit/status запись, `currentUser.id` передаётся в
+service явно как автор изменения. Service не должен сам искать пользователя с
+фиксированным login вроде `admin`.
+
 Если удобно, значение можно переименовать:
 
 ```ts

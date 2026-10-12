@@ -60,16 +60,16 @@ const guestsService = {
     }));
   },
 
-  createGuest: async (guest: CreateGuest): Promise<Guest> => {
+  createGuest: async (guest: CreateGuest, updatedBy: number): Promise<Guest> => {
     const data = normalizeGuest(guest);
     const status = data.room_id
-      ? await prepareBookedStatus(data.retreat_id, data.room_id)
+      ? await prepareBookedStatus(data.retreat_id, data.room_id, updatedBy)
       : undefined;
 
     return db.guests.create(data, status);
   },
 
-  updateGuest: async (id: number, changes: UpdateGuest): Promise<Guest> => {
+  updateGuest: async (id: number, changes: UpdateGuest, updatedBy: number): Promise<Guest> => {
     const currentGuest = await db.guests.getById(id);
 
     if (!currentGuest) {
@@ -87,7 +87,7 @@ const guestsService = {
     const roomChanged = currentGuest.room_id !== data.room_id;
     const status = roomChanged && data.room_id
       ? {
-          ...(await prepareBookedStatus(data.retreat_id, data.room_id)),
+          ...(await prepareBookedStatus(data.retreat_id, data.room_id, updatedBy)),
           guest_id: id,
         }
       : undefined;
@@ -95,7 +95,7 @@ const guestsService = {
     return db.guests.update(id, data, status);
   },
 
-  swapRooms: async (firstGuestId: number, secondGuestId: number): Promise<SwapGuestRoomsResult> => {
+  swapRooms: async (firstGuestId: number, secondGuestId: number, updatedBy: number): Promise<SwapGuestRoomsResult> => {
     if (firstGuestId === secondGuestId) {
       throw new Error("Choose another guest for the room swap.");
     }
@@ -122,8 +122,8 @@ const guestsService = {
     }
 
     const [firstStatusData, secondStatusData] = await Promise.all([
-      prepareBookedStatus(firstGuest.retreat_id, secondGuest.room_id),
-      prepareBookedStatus(secondGuest.retreat_id, firstGuest.room_id),
+      prepareBookedStatus(firstGuest.retreat_id, secondGuest.room_id, updatedBy),
+      prepareBookedStatus(secondGuest.retreat_id, firstGuest.room_id, updatedBy),
     ]);
     const firstStatus: CreateGuestStatus = {
       ...firstStatusData,
@@ -150,8 +150,7 @@ const guestsService = {
 };
 
 async function prepareBookedStatus(
-  retreatId: number,
-  roomId: number
+  retreatId: number, roomId: number, updatedBy: number
 ): Promise<CreateGuestStatusForNewGuest> {
   const room = await db.rooms.getById(roomId);
 
@@ -165,17 +164,11 @@ async function prepareBookedStatus(
     throw new Error("House no longer exists.");
   }
 
-  const admin = await db.users.getByLogin("admin");
-
-  if (!admin) {
-    throw new Error("Development admin user was not found.");
-  }
-
   return {
     retreat_id: retreatId,
     status: "booked",
     room: roomsService.getRoomDisplayName(room, house),
-    updated_by: admin.id,
+    updated_by: updatedBy,
   };
 }
 

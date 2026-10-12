@@ -186,16 +186,19 @@ export function RetreatProvider({
   }, [refresh]);
 
   const createGuest = useCallback(async (guest: Omit<CreateGuest, "retreat_id">) => {
-    await runMutation(() => guestsService.createGuest({ ...guest, retreat_id: retreatId }));
-  }, [retreatId, runMutation]);
+    await runMutation(() => guestsService.createGuest(
+      { ...guest, retreat_id: retreatId },
+      currentUser.id
+    ));
+  }, [currentUser.id, retreatId, runMutation]);
 
   const updateGuest = useCallback(async (guestId: number, changes: UpdateGuest) => {
-    await runMutation(() => guestsService.updateGuest(guestId, changes));
-  }, [runMutation]);
+    await runMutation(() => guestsService.updateGuest(guestId, changes, currentUser.id));
+  }, [currentUser.id, runMutation]);
 
   const swapRooms = useCallback(async (firstGuestId: number, secondGuestId: number) => {
-    await runMutation(() => guestsService.swapRooms(firstGuestId, secondGuestId));
-  }, [runMutation]);
+    await runMutation(() => guestsService.swapRooms(firstGuestId, secondGuestId, currentUser.id));
+  }, [currentUser.id, runMutation]);
 
   const deleteGuest = useCallback(async (guestId: number) => {
     await runMutation(() => guestsService.deleteGuest(guestId));

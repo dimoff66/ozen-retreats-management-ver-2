@@ -6,12 +6,13 @@ import type { ServiceTestResult } from "./types";
 
 export type GuestWriteTestInput = {
   guest: CreateGuest;
+  updatedBy: number;
   expectedRoomLabel?: string;
 };
 
 export async function testCreateGuest(input: GuestWriteTestInput): Promise<ServiceTestResult> {
   return runServiceTest(async () => {
-    const created = await guestsService.createGuest(input.guest);
+    const created = await guestsService.createGuest(input.guest, input.updatedBy);
     const [loaded, retreatGuests] = await Promise.all([
       guestsService.getGuestById(created.id),
       guestsService.getGuestsByRetreatId(input.guest.retreat_id),
@@ -44,6 +45,7 @@ export type UpdateGuestTestInput = {
   guestId: number;
   changes: UpdateGuest;
   retreatId: number;
+  updatedBy: number;
   expectedRoomLabel?: string;
 };
 
@@ -52,7 +54,7 @@ export async function testUpdateGuest(input: UpdateGuestTestInput): Promise<Serv
     const before = await guestsService.getGuestById(input.guestId);
     assertTest(before !== null, "Guest does not exist before update test.");
 
-    const updated = await guestsService.updateGuest(input.guestId, input.changes);
+    const updated = await guestsService.updateGuest(input.guestId, input.changes, input.updatedBy);
     const loaded = await guestsService.getGuestById(input.guestId);
 
     assertTest(loaded !== null, "Updated guest cannot be loaded.");
@@ -81,6 +83,7 @@ export type SwapRoomsTestInput = {
   firstGuestId: number;
   secondGuestId: number;
   retreatId: number;
+  updatedBy: number;
   expectedFirstRoomLabel?: string;
   expectedSecondRoomLabel?: string;
 };
@@ -95,7 +98,7 @@ export async function testSwapGuestRooms(input: SwapRoomsTestInput): Promise<Ser
     assertTest(beforeFirst !== null && beforeSecond !== null, "Both guests must exist before swap test.");
     assertTest(beforeFirst.room_id !== null && beforeSecond.room_id !== null, "Both guests need rooms before swap test.");
 
-    await guestsService.swapRooms(input.firstGuestId, input.secondGuestId);
+    await guestsService.swapRooms(input.firstGuestId, input.secondGuestId, input.updatedBy);
 
     const [afterFirst, afterSecond, latest] = await Promise.all([
       guestsService.getGuestById(input.firstGuestId),
@@ -134,10 +137,10 @@ export async function testDeleteGuest(guestId: number): Promise<ServiceTestResul
 }
 
 export async function testCreateGuestWithoutBookedStatus(
-  guest: CreateGuest
+  guest: CreateGuest, updatedBy: number
 ): Promise<ServiceTestResult> {
   return runServiceTest(async () => {
-    const created = await guestsService.createGuest({ ...guest, room_id: null });
+    const created = await guestsService.createGuest({ ...guest, room_id: null }, updatedBy);
     const statuses = await guestStatusesService.getGuestStatusesByRetreatId(guest.retreat_id);
 
     assertTest(
@@ -148,15 +151,13 @@ export async function testCreateGuestWithoutBookedStatus(
 }
 
 export async function testUpdateGuestWithoutStatus(
-  guestId: number,
-  retreatId: number,
-  changes: UpdateGuest
+  guestId: number, retreatId: number, changes: UpdateGuest, updatedBy: number
 ): Promise<ServiceTestResult> {
   return runServiceTest(async () => {
     const beforeStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
     const beforeCount = beforeStatuses.filter((status) => status.guest_id === guestId).length;
 
-    await guestsService.updateGuest(guestId, changes);
+    await guestsService.updateGuest(guestId, changes, updatedBy);
 
     const afterStatuses = await guestStatusesService.getGuestStatusesByRetreatId(retreatId);
     const afterCount = afterStatuses.filter((status) => status.guest_id === guestId).length;
@@ -165,9 +166,11 @@ export async function testUpdateGuestWithoutStatus(
   });
 }
 
-export async function testRejectEmptyGuestName(retreatId: number): Promise<ServiceTestResult> {
+export async function testRejectEmptyGuestName(
+  retreatId: number, updatedBy: number
+): Promise<ServiceTestResult> {
   try {
-    await guestsService.createGuest({ retreat_id: retreatId, name: "   " });
+    await guestsService.createGuest({ retreat_id: retreatId, name: "   " }, updatedBy);
     return "Guest with an empty name was created instead of being rejected.";
   } catch {
     return true;

@@ -11,6 +11,7 @@ id bigint primary key
 name text
 login text
 password text
+link_code text nullable unique
 role text
 retreat_id bigint nullable
 created_at timestamptz
@@ -22,6 +23,8 @@ created_at timestamptz
 При редактировании пустое поле пароля означает, что текущий пароль не меняется.
 `password` хранит версионированный `scrypt`-хэш; пароль в открытом виде после
 успешной аутентификации не сохраняется и не возвращается клиенту.
+`link_code` — постоянный вручную заданный код для входа по ссылке. Он доступен
+только административному API и не входит в обычный `User` DTO.
 
 ## `roles`
 

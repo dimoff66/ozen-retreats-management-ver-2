@@ -53,3 +53,26 @@ that list.
 
 Changing a user's password invalidates older session tokens because the session is
 bound to a fingerprint of the current stored password hash.
+
+## Permanent login links
+
+A user may have an optional unique `users.link_code`. Administrators set the code
+manually in Admin → Users and can copy a URL in the form:
+
+```text
+https://app.example/?link=<link_code>
+```
+
+Opening the URL authenticates the matching user without a password and creates
+the same seven-day `HttpOnly` session as password login. The link code itself has
+no expiration. If a valid session already exists, that session always wins and
+the link code is ignored. Only when there is no valid session does the application
+read the link code. After the code is accepted, the application redirects to `/` so
+the code is removed from the browser address bar.
+
+The link code is a permanent bearer credential and should therefore be long and
+hard to guess. Clearing or changing `link_code` immediately disables the old
+login link, while an already-issued seven-day session remains valid.
+
+Apply `supabase/migrations/202610110001_add_user_link_code.sql` for Supabase or
+`mariadb/migrations/202610110001_add_user_link_code.sql` for MariaDB.

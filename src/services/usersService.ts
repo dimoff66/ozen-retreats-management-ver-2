@@ -1,4 +1,4 @@
-import type { CreateUser, UpdateUser, User } from "./database";
+import type { CreateUser, ManagedUser, UpdateUser } from "./database";
 
 type UsersApiResponse<T> = {
   data?: T;
@@ -24,16 +24,16 @@ async function requestUsersApi<T>(method: string, body?: unknown): Promise<T> {
 }
 
 const usersService = {
-  getUsers: async (): Promise<User[]> => {
-    return requestUsersApi<User[]>("GET");
+  getUsers: async (): Promise<ManagedUser[]> => {
+    return requestUsersApi<ManagedUser[]>("GET");
   },
 
-  createUser: async (user: CreateUser): Promise<User> => {
-    return requestUsersApi<User>("POST", user);
+  createUser: async (user: CreateUser): Promise<ManagedUser> => {
+    return requestUsersApi<ManagedUser>("POST", user);
   },
 
-  updateUser: async (id: number, changes: UpdateUser): Promise<User> => {
-    return requestUsersApi<User>("PATCH", { id, changes });
+  updateUser: async (id: number, changes: UpdateUser): Promise<ManagedUser> => {
+    return requestUsersApi<ManagedUser>("PATCH", { id, changes });
   },
 
   deleteUser: async (id: number): Promise<void> => {

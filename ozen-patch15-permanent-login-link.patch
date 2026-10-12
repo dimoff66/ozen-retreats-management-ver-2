@@ -1,0 +1,662 @@
+diff --git a/docs/authentication.md b/docs/authentication.md
+index 705e22d..1e4972b 100644
+--- a/docs/authentication.md
++++ b/docs/authentication.md
+@@ -53,3 +53,24 @@ that list.
+ 
+ Changing a user's password invalidates older session tokens because the session is
+ bound to a fingerprint of the current stored password hash.
++
++## Permanent login links
++
++A user may have an optional unique `users.link_code`. Administrators set the code
++manually in Admin → Users and can copy a URL in the form:
++
++```text
++https://app.example/?link=<link_code>
++```
++
++Opening the URL authenticates the matching user without a password and creates
++the same seven-day `HttpOnly` session as password login. The link code itself has
++no expiration. After the code is accepted, the application redirects to `/` so
++the code is removed from the browser address bar.
++
++The link code is a permanent bearer credential and should therefore be long and
++hard to guess. Clearing or changing `link_code` immediately disables the old
++login link, while an already-issued seven-day session remains valid.
++
++Apply `supabase/migrations/202610110001_add_user_link_code.sql` for Supabase or
++`mariadb/migrations/202610110001_add_user_link_code.sql` for MariaDB.
+diff --git a/docs/domain/database.md b/docs/domain/database.md
+index 5490084..0d08e67 100644
+--- a/docs/domain/database.md
++++ b/docs/domain/database.md
+@@ -11,6 +11,7 @@ id bigint primary key
+ name text
+ login text
+ password text
++link_code text nullable unique
+ role text
+ retreat_id bigint nullable
+ created_at timestamptz
+@@ -22,6 +23,8 @@ created_at timestamptz
+ При редактировании пустое поле пароля означает, что текущий пароль не меняется.
+ `password` хранит версионированный `scrypt`-хэш; пароль в открытом виде после
+ успешной аутентификации не сохраняется и не возвращается клиенту.
++`link_code` — постоянный вручную заданный код для входа по ссылке. Он доступен
++только административному API и не входит в обычный `User` DTO.
+ 
+ ## `roles`
+ 
+diff --git a/mariadb/migrations/202610110001_add_user_link_code.sql b/mariadb/migrations/202610110001_add_user_link_code.sql
+new file mode 100644
+index 0000000..a60417b
+--- /dev/null
++++ b/mariadb/migrations/202610110001_add_user_link_code.sql
+@@ -0,0 +1,5 @@
++alter table `users`
++  add column if not exists `link_code` varchar(255) binary null;
++
++create unique index if not exists `users_link_code_unique_idx`
++  on `users` (`link_code`);
+diff --git a/src/app/api/auth/link/route.ts b/src/app/api/auth/link/route.ts
+new file mode 100644
+index 0000000..1efae78
+--- /dev/null
++++ b/src/app/api/auth/link/route.ts
+@@ -0,0 +1,33 @@
++import { NextResponse } from "next/server";
++import { setSessionCookie } from "@/server/auth/session";
++import authUserStore from "@/server/auth/userStore";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++export async function GET(request: Request) {
++  const requestUrl = new URL(request.url);
++  const linkCode = requestUrl.searchParams.get("link")?.trim() ?? "";
++  const redirectUrl = new URL("/", requestUrl.origin);
++
++  try {
++    if (!linkCode) {
++      redirectUrl.searchParams.set("linkError", "1");
++      return NextResponse.redirect(redirectUrl);
++    }
++
++    const user = await authUserStore.getByLinkCode(linkCode);
++
++    if (!user) {
++      redirectUrl.searchParams.set("linkError", "1");
++      return NextResponse.redirect(redirectUrl);
++    }
++
++    const response = NextResponse.redirect(redirectUrl);
++    setSessionCookie(response, user);
++    return response;
++  } catch {
++    redirectUrl.searchParams.set("linkError", "1");
++    return NextResponse.redirect(redirectUrl);
++  }
++}
+diff --git a/src/app/api/users/route.ts b/src/app/api/users/route.ts
+index d059828..7a1ab33 100644
+--- a/src/app/api/users/route.ts
++++ b/src/app/api/users/route.ts
+@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
+ import type { CreateUser, UpdateUser } from "@/services/database";
+ import { hashPassword } from "@/server/auth/password";
+ import { getAuthenticatedStoredUser, setSessionCookie } from "@/server/auth/session";
+-import authUserStore, { toPublicUser } from "@/server/auth/userStore";
++import authUserStore, { toManagedUser } from "@/server/auth/userStore";
+ import type { StoredUser, StoredUserCreate, StoredUserUpdate } from "@/server/auth/userStore";
+ 
+ export const runtime = "nodejs";
+@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
+ 
+ const MIN_PASSWORD_LENGTH = 8;
+ const MAX_PASSWORD_LENGTH = 256;
++const MAX_LINK_CODE_LENGTH = 255;
+ 
+ type UpdateRequest = {
+   id?: unknown;
+@@ -52,8 +53,16 @@ function getUserFields(value: unknown): Omit<StoredUserCreate, "password"> | nul
+   const retreatId = record.retreat_id === null || record.retreat_id === undefined
+     ? null
+     : Number(record.retreat_id);
+-
+-  if (!name || !login || !role || (retreatId !== null && !Number.isInteger(retreatId))) {
++  const linkCodeValue = typeof record.link_code === "string" ? record.link_code.trim() : "";
++  const linkCode = linkCodeValue || null;
++
++  if (
++    !name ||
++    !login ||
++    !role ||
++    (retreatId !== null && !Number.isInteger(retreatId)) ||
++    (linkCode !== null && linkCode.length > MAX_LINK_CODE_LENGTH)
++  ) {
+     return null;
+   }
+ 
+@@ -62,6 +71,7 @@ function getUserFields(value: unknown): Omit<StoredUserCreate, "password"> | nul
+     login,
+     role,
+     retreat_id: retreatId,
++    link_code: linkCode,
+   };
+ }
+ 
+@@ -87,7 +97,7 @@ export async function GET() {
+       return auth.response;
+     }
+ 
+-    return NextResponse.json({ data: await authUserStore.getAll() });
++    return NextResponse.json({ data: await authUserStore.getAllForAdmin() });
+   } catch (error) {
+     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+   }
+@@ -118,7 +128,7 @@ export async function POST(request: Request) {
+       ...fields,
+       password: await hashPassword(password),
+     });
+-    return NextResponse.json({ data: toPublicUser(storedUser) });
++    return NextResponse.json({ data: toManagedUser(storedUser) });
+   } catch (error) {
+     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+   }
+@@ -182,6 +192,16 @@ export async function PATCH(request: Request) {
+       changes.retreat_id = retreatId;
+     }
+ 
++    if (input.link_code !== undefined) {
++      const linkCode = input.link_code?.trim() || null;
++
++      if (linkCode !== null && linkCode.length > MAX_LINK_CODE_LENGTH) {
++        return NextResponse.json({ error: `Link code must contain no more than ${MAX_LINK_CODE_LENGTH} characters.` }, { status: 400 });
++      }
++
++      changes.link_code = linkCode;
++    }
++
+     if (input.password !== undefined) {
+       const passwordError = validatePassword(input.password);
+ 
+@@ -193,7 +213,7 @@ export async function PATCH(request: Request) {
+     }
+ 
+     const storedUser = await authUserStore.update(id, changes);
+-    const response = NextResponse.json({ data: toPublicUser(storedUser) });
++    const response = NextResponse.json({ data: toManagedUser(storedUser) });
+ 
+     if (auth.user.id === storedUser.id) {
+       setSessionCookie(response, storedUser);
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 3395c5d..0745fb2 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,3 +1,4 @@
++import { redirect } from "next/navigation";
+ import AppShell from "@/components/layout/AppShell";
+ import LoginScreen from "@/components/layout/LoginScreen";
+ import { CurrentUserProvider } from "@/contexts/CurrentUserContext";
+@@ -6,11 +7,30 @@ import authUserStore from "@/server/auth/userStore";
+ 
+ export const dynamic = "force-dynamic";
+ 
+-export default async function HomePage() {
++type HomePageProps = {
++  searchParams: Promise<Record<string, string | string[] | undefined>>;
++};
++
++function getSearchParam(value: string | string[] | undefined): string {
++  if (Array.isArray(value)) {
++    return value[0] ?? "";
++  }
++
++  return value ?? "";
++}
++
++export default async function HomePage({ searchParams }: HomePageProps) {
++  const params = await searchParams;
++  const linkCode = getSearchParam(params.link).trim();
++
++  if (linkCode) {
++    redirect(`/api/auth/link?link=${encodeURIComponent(linkCode)}`);
++  }
++
+   const user = await getAuthenticatedUser();
+ 
+   if (!user) {
+-    return <LoginScreen />;
++    return <LoginScreen invalidLink={getSearchParam(params.linkError) === "1"} />;
+   }
+ 
+   const users = await authUserStore.getAll();
+diff --git a/src/components/layout/LoginScreen.tsx b/src/components/layout/LoginScreen.tsx
+index 3415b80..73e25e4 100644
+--- a/src/components/layout/LoginScreen.tsx
++++ b/src/components/layout/LoginScreen.tsx
+@@ -31,7 +31,11 @@ function saveKnownLogin(login: string): void {
+   window.localStorage.setItem(KNOWN_LOGINS_STORAGE_KEY, JSON.stringify(next));
+ }
+ 
+-export default function LoginScreen() {
++type LoginScreenProps = {
++  invalidLink?: boolean;
++};
++
++export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
+   const strTitle = "Sign in";
+   const strCaption = "Enter your login and password.";
+   const strLogin = "Login";
+@@ -39,10 +43,11 @@ export default function LoginScreen() {
+   const strSignIn = "Sign in";
+   const strSigningIn = "Signing in...";
+   const strLoginError = "Invalid login or password.";
++  const strInvalidLink = "Invalid login link.";
+   const [login, setLogin] = useState("");
+   const [password, setPassword] = useState("");
+   const [knownLogins, setKnownLogins] = useState<string[]>([]);
+-  const [error, setError] = useState("");
++  const [error, setError] = useState(invalidLink ? strInvalidLink : "");
+   const [isSubmitting, setIsSubmitting] = useState(false);
+ 
+   useEffect(() => {
+diff --git a/src/components/users/UserForm.tsx b/src/components/users/UserForm.tsx
+index 0a793f1..7dfd82e 100644
+--- a/src/components/users/UserForm.tsx
++++ b/src/components/users/UserForm.tsx
+@@ -2,7 +2,7 @@
+ 
+ import { useState } from "react";
+ import type { ChangeEvent, SyntheticEvent } from "react";
+-import type { Role, Retreat, User } from "@/services/database";
++import type { ManagedUser, Role, Retreat } from "@/services/database";
+ 
+ export type UserFormData = {
+   name: string;
+@@ -10,10 +10,11 @@ export type UserFormData = {
+   password?: string;
+   role: string;
+   retreat_id: number | null;
++  link_code: string | null;
+ };
+ 
+ type UserFormProps = {
+-  user: User | null;
++  user: ManagedUser | null;
+   roles: Role[];
+   retreats: Retreat[];
+   actionError: string;
+@@ -36,6 +37,8 @@ export default function UserForm({
+   const strPassword = "Password";
+   const strPasswordOptional = "Leave blank to keep the current password";
+   const strShowPassword = "Show password";
++  const strLinkCode = "Link code";
++  const strLinkCodeNote = "Permanent passwordless login code. Leave blank to disable the login link.";
+   const strRole = "Role";
+   const strRetreat = "Retreat";
+   const strNoRetreat = "No retreat";
+@@ -47,6 +50,7 @@ export default function UserForm({
+   const [login, setLogin] = useState(user?.login ?? "");
+   const [password, setPassword] = useState("");
+   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
++  const [linkCode, setLinkCode] = useState(user?.link_code ?? "");
+   const [role, setRole] = useState(user?.role ?? roles[0]?.role_name ?? "");
+   const [retreatId, setRetreatId] = useState(user?.retreat_id?.toString() ?? "");
+   const [isSaving, setIsSaving] = useState(false);
+@@ -68,6 +72,10 @@ export default function UserForm({
+     setIsPasswordVisible(event.target.checked);
+   };
+ 
++  const onLinkCodeChange = (event: ChangeEvent<HTMLInputElement>) => {
++    setLinkCode(event.target.value);
++  };
++
+   const onRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
+     const nextRole = event.target.value;
+     setRole(nextRole);
+@@ -89,6 +97,7 @@ export default function UserForm({
+       login: login.trim(),
+       role,
+       retreat_id: role === "organizer" && retreatId ? Number(retreatId) : null,
++      link_code: linkCode.trim() || null,
+     };
+ 
+     if (password) {
+@@ -117,6 +126,7 @@ export default function UserForm({
+             <label className="ozen-checkbox-field ozen-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
+             {user ? <p className="ozen-field-note">{strPasswordOptional}</p> : null}
+           </div>
++          <label htmlFor="user-link-code" className="ozen-form-field"><span>{strLinkCode}</span><input id="user-link-code" value={linkCode} onChange={onLinkCodeChange} maxLength={255} autoComplete="off" /><small className="ozen-field-note">{strLinkCodeNote}</small></label>
+           <label htmlFor="user-role" className="ozen-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{roles.map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
+           {role === "organizer" ? (
+             <label htmlFor="user-retreat" className="ozen-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{retreats.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+diff --git a/src/components/users/UsersList.tsx b/src/components/users/UsersList.tsx
+index 9ef3ba9..4e81626 100644
+--- a/src/components/users/UsersList.tsx
++++ b/src/components/users/UsersList.tsx
+@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
+ import ActionBar from "@/components/common/ActionBar";
+ import UserForm from "@/components/users/UserForm";
+ import type { UserFormData } from "@/components/users/UserForm";
+-import type { CreateUser, Retreat, Role, User } from "@/services/database";
++import type { CreateUser, ManagedUser, Retreat, Role } from "@/services/database";
+ import retreatsService from "@/services/retreatsService";
+ import rolesService from "@/services/rolesService";
+ import usersService from "@/services/usersService";
+@@ -23,13 +23,16 @@ export default function UsersList() {
+   const strDeleteError = "Failed to delete user.";
+   const strDeleteConfirm = "Delete selected user?";
+   const strCannotDeleteCurrentUser = "You cannot delete the currently selected user.";
++  const strCopyLoginLink = "Copy login link";
++  const strMissingLinkCode = "Set and save a link code for this user first.";
++  const strCopyLinkError = "Failed to copy the login link.";
+ 
+   const { currentUser, setCurrentUser, setUsers } = useCurrentUser();
+-  const [users, setLocalUsers] = useState<User[]>([]);
++  const [users, setLocalUsers] = useState<ManagedUser[]>([]);
+   const [roles, setRoles] = useState<Role[]>([]);
+   const [retreats, setRetreats] = useState<Retreat[]>([]);
+-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+-  const [editingUser, setEditingUser] = useState<User | null>(null);
++  const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
++  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+   const [isFormOpen, setIsFormOpen] = useState(false);
+   const [isLoading, setIsLoading] = useState(true);
+   const [loadError, setLoadError] = useState("");
+@@ -63,13 +66,13 @@ export default function UsersList() {
+     setIsFormOpen(true);
+   };
+ 
+-  const onEditActionClick = (user: User) => {
++  const onEditActionClick = (user: ManagedUser) => {
+     setActionError("");
+     setEditingUser(user);
+     setIsFormOpen(true);
+   };
+ 
+-  const onDeleteActionClick = async (user: User) => {
++  const onDeleteActionClick = async (user: ManagedUser) => {
+     if (user.id === currentUser?.id) {
+       setActionError(strCannotDeleteCurrentUser);
+       return;
+@@ -90,6 +93,22 @@ export default function UsersList() {
+     }
+   };
+ 
++  const onCopyLoginLinkClick = async (user: ManagedUser) => {
++    if (!user.link_code) {
++      setActionError(strMissingLinkCode);
++      return;
++    }
++
++    try {
++      const loginUrl = new URL(window.location.origin);
++      loginUrl.searchParams.set("link", user.link_code);
++      await navigator.clipboard.writeText(loginUrl.toString());
++      setActionError("");
++    } catch {
++      setActionError(strCopyLinkError);
++    }
++  };
++
+   const onCancelActionClick = () => {
+     setIsFormOpen(false);
+     setEditingUser(null);
+@@ -100,7 +119,7 @@ export default function UsersList() {
+     setActionError("");
+ 
+     try {
+-      let savedUser: User;
++      let savedUser: ManagedUser;
+ 
+       if (editingUser) {
+         savedUser = await usersService.updateUser(editingUser.id, data);
+@@ -119,6 +138,7 @@ export default function UsersList() {
+           password: data.password,
+           role: data.role,
+           retreat_id: data.retreat_id,
++          link_code: data.link_code,
+         };
+         savedUser = await usersService.createUser(createData);
+       }
+@@ -149,6 +169,11 @@ export default function UsersList() {
+     };
+   });
+ 
++  const extraActions = [{
++    label: strCopyLoginLink,
++    onClickHandler: onCopyLoginLinkClick,
++  }];
++
+   useEffect(() => {
+     let isCancelled = false;
+ 
+@@ -189,7 +214,7 @@ export default function UsersList() {
+   return (
+     <section className="ozen-admin-section">
+       <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
+-      <ActionBar selectedItem={selectedUser} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} />
++      <ActionBar selectedItem={selectedUser} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} extraActions={extraActions} />
+       {actionError && !isFormOpen ? <div role="alert" className="ozen-state-message ozen-state-error">{actionError}</div> : null}
+       {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
+       {loadError ? <div role="alert" className="ozen-state-message ozen-state-error">{loadError}</div> : null}
+diff --git a/src/server/auth/userStore.ts b/src/server/auth/userStore.ts
+index 300debf..df6b571 100644
+--- a/src/server/auth/userStore.ts
++++ b/src/server/auth/userStore.ts
+@@ -1,10 +1,11 @@
+ import { createClient } from "@supabase/supabase-js";
+ import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
+-import type { User } from "@/services/database";
++import type { ManagedUser, User } from "@/services/database";
+ import { getMariaDbPool } from "@/server/mariaDbPool";
+ 
+ export type StoredUser = User & {
+   password: string;
++  link_code: string | null;
+ };
+ 
+ export type StoredUserCreate = {
+@@ -13,6 +14,7 @@ export type StoredUserCreate = {
+   password: string;
+   role: string;
+   retreat_id: number | null;
++  link_code: string | null;
+ };
+ 
+ export type StoredUserUpdate = Partial<StoredUserCreate>;
+@@ -28,8 +30,16 @@ export function toPublicUser(user: StoredUser): User {
+   };
+ }
+ 
++export function toManagedUser(user: StoredUser): ManagedUser {
++  return {
++    ...toPublicUser(user),
++    link_code: user.link_code,
++  };
++}
++
+ const PUBLIC_USER_COLUMNS = "id,name,login,role,retreat_id,created_at";
+-const PRIVATE_USER_COLUMNS = "id,name,login,password,role,retreat_id,created_at";
++const ADMIN_USER_COLUMNS = "id,name,login,role,retreat_id,created_at,link_code";
++const PRIVATE_USER_COLUMNS = "id,name,login,password,role,retreat_id,created_at,link_code";
+ 
+ function useMariaDb(): boolean {
+   return process.env.MARIADB_API_ENABLED === "true";
+@@ -70,6 +80,14 @@ function toStoredUser(row: Record<string, unknown>): StoredUser {
+   return {
+     ...toUser(row),
+     password: String(row.password),
++    link_code: row.link_code === null || row.link_code === undefined ? null : String(row.link_code),
++  };
++}
++
++function toManagedUserRow(row: Record<string, unknown>): ManagedUser {
++  return {
++    ...toUser(row),
++    link_code: row.link_code === null || row.link_code === undefined ? null : String(row.link_code),
+   };
+ }
+ 
+@@ -95,6 +113,15 @@ async function getMariaStoredUserByLogin(login: string): Promise<StoredUser | nu
+   return rows[0] ? toStoredUser(getMariaRow(rows[0])) : null;
+ }
+ 
++async function getMariaStoredUserByLinkCode(linkCode: string): Promise<StoredUser | null> {
++  const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(
++    `select ${PRIVATE_USER_COLUMNS} from \`users\` where binary link_code = ? limit 1`,
++    [linkCode]
++  );
++
++  return rows[0] ? toStoredUser(getMariaRow(rows[0])) : null;
++}
++
+ const authUserStore = {
+   getAll: async (): Promise<User[]> => {
+     if (useMariaDb()) {
+@@ -117,6 +144,27 @@ const authUserStore = {
+     return (data ?? []).map((row) => toUser(row));
+   },
+ 
++  getAllForAdmin: async (): Promise<ManagedUser[]> => {
++    if (useMariaDb()) {
++      const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(
++        `select ${ADMIN_USER_COLUMNS} from \`users\` order by name`
++      );
++
++      return rows.map((row) => toManagedUserRow(getMariaRow(row)));
++    }
++
++    const { data, error } = await getSupabaseServerClient()
++      .from("users")
++      .select(ADMIN_USER_COLUMNS)
++      .order("name");
++
++    if (error) {
++      throw new Error(`Failed to get managed users: ${error.message}`);
++    }
++
++    return (data ?? []).map((row) => toManagedUserRow(row));
++  },
++
+   getById: async (id: number): Promise<StoredUser | null> => {
+     if (useMariaDb()) {
+       return getMariaStoredUserById(id);
+@@ -153,11 +201,29 @@ const authUserStore = {
+     return data ? toStoredUser(data) : null;
+   },
+ 
++  getByLinkCode: async (linkCode: string): Promise<StoredUser | null> => {
++    if (useMariaDb()) {
++      return getMariaStoredUserByLinkCode(linkCode);
++    }
++
++    const { data, error } = await getSupabaseServerClient()
++      .from("users")
++      .select(PRIVATE_USER_COLUMNS)
++      .eq("link_code", linkCode)
++      .maybeSingle();
++
++    if (error) {
++      throw new Error(`Failed to get user by link code: ${error.message}`);
++    }
++
++    return data ? toStoredUser(data) : null;
++  },
++
+   create: async (user: StoredUserCreate): Promise<StoredUser> => {
+     if (useMariaDb()) {
+       const [result] = await getMariaDbPool().execute<ResultSetHeader>(
+-        "insert into `users` (name, login, password, role, retreat_id) values (?, ?, ?, ?, ?)",
+-        [user.name, user.login, user.password, user.role, user.retreat_id]
++        "insert into `users` (name, login, password, role, retreat_id, link_code) values (?, ?, ?, ?, ?, ?)",
++        [user.name, user.login, user.password, user.role, user.retreat_id, user.link_code]
+       );
+       const storedUser = await getMariaStoredUserById(result.insertId);
+ 
+@@ -186,7 +252,7 @@ const authUserStore = {
+       const entries = Object.entries(changes).filter(([, value]) => value !== undefined);
+ 
+       if (entries.length > 0) {
+-        const allowedColumns = new Set(["name", "login", "password", "role", "retreat_id"]);
++        const allowedColumns = new Set(["name", "login", "password", "role", "retreat_id", "link_code"]);
+         const filteredEntries = entries.filter(([key]) => allowedColumns.has(key));
+         const assignments = filteredEntries.map(([key]) => `\`${key}\` = ?`).join(", ");
+         const values = filteredEntries.map(([, value]) => value);
+diff --git a/src/services/database.ts b/src/services/database.ts
+index 24f94a9..e423f60 100644
+--- a/src/services/database.ts
++++ b/src/services/database.ts
+@@ -16,6 +16,10 @@ export type User = {
+   created_at: string;
+ };
+ 
++export type ManagedUser = User & {
++  link_code: string | null;
++};
++
+ export type Role = {
+   role_name: string;
+ };
+@@ -108,6 +112,7 @@ export type CreateUser = {
+   password: string;
+   role: string;
+   retreat_id?: number | null;
++  link_code?: string | null;
+ };
+ 
+ export type UpdateUser = Partial<CreateUser>;
+diff --git a/src/services/usersService.ts b/src/services/usersService.ts
+index 99fbd45..214a398 100644
+--- a/src/services/usersService.ts
++++ b/src/services/usersService.ts
+@@ -1,4 +1,4 @@
+-import type { CreateUser, UpdateUser, User } from "./database";
++import type { CreateUser, ManagedUser, UpdateUser } from "./database";
+ 
+ type UsersApiResponse<T> = {
+   data?: T;
+@@ -24,16 +24,16 @@ async function requestUsersApi<T>(method: string, body?: unknown): Promise<T> {
+ }
+ 
+ const usersService = {
+-  getUsers: async (): Promise<User[]> => {
+-    return requestUsersApi<User[]>("GET");
++  getUsers: async (): Promise<ManagedUser[]> => {
++    return requestUsersApi<ManagedUser[]>("GET");
+   },
+ 
+-  createUser: async (user: CreateUser): Promise<User> => {
+-    return requestUsersApi<User>("POST", user);
++  createUser: async (user: CreateUser): Promise<ManagedUser> => {
++    return requestUsersApi<ManagedUser>("POST", user);
+   },
+ 
+-  updateUser: async (id: number, changes: UpdateUser): Promise<User> => {
+-    return requestUsersApi<User>("PATCH", { id, changes });
++  updateUser: async (id: number, changes: UpdateUser): Promise<ManagedUser> => {
++    return requestUsersApi<ManagedUser>("PATCH", { id, changes });
+   },
+ 
+   deleteUser: async (id: number): Promise<void> => {
+diff --git a/supabase/migrations/202610110001_add_user_link_code.sql b/supabase/migrations/202610110001_add_user_link_code.sql
+new file mode 100644
+index 0000000..9ee477e
+--- /dev/null
++++ b/supabase/migrations/202610110001_add_user_link_code.sql
+@@ -0,0 +1,13 @@
++alter table public.users
++  add column if not exists link_code text;
++
++create unique index if not exists users_link_code_unique_idx
++  on public.users (link_code)
++  where link_code is not null;
++
++alter table public.users
++  drop constraint if exists users_link_code_length_check;
++
++alter table public.users
++  add constraint users_link_code_length_check
++  check (link_code is null or (char_length(link_code) between 1 and 255));

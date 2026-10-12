@@ -31,7 +31,11 @@ function saveKnownLogin(login: string): void {
   window.localStorage.setItem(KNOWN_LOGINS_STORAGE_KEY, JSON.stringify(next));
 }
 
-export default function LoginScreen() {
+type LoginScreenProps = {
+  invalidLink?: boolean;
+};
+
+export default function LoginScreen({ invalidLink = false }: LoginScreenProps) {
   const strTitle = "Sign in";
   const strCaption = "Enter your login and password.";
   const strLogin = "Login";
@@ -39,10 +43,11 @@ export default function LoginScreen() {
   const strSignIn = "Sign in";
   const strSigningIn = "Signing in...";
   const strLoginError = "Invalid login or password.";
+  const strInvalidLink = "Invalid login link.";
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [knownLogins, setKnownLogins] = useState<string[]>([]);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(invalidLink ? strInvalidLink : "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {

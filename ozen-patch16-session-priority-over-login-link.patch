@@ -1,0 +1,71 @@
+diff --git a/docs/authentication.md b/docs/authentication.md
+index 1e4972b..b70ad99 100644
+--- a/docs/authentication.md
++++ b/docs/authentication.md
+@@ -65,7 +65,9 @@ https://app.example/?link=<link_code>
+ 
+ Opening the URL authenticates the matching user without a password and creates
+ the same seven-day `HttpOnly` session as password login. The link code itself has
+-no expiration. After the code is accepted, the application redirects to `/` so
++no expiration. If a valid session already exists, that session always wins and
++the link code is ignored. Only when there is no valid session does the application
++read the link code. After the code is accepted, the application redirects to `/` so
+ the code is removed from the browser address bar.
+ 
+ The link code is a permanent bearer credential and should therefore be long and
+diff --git a/src/app/api/auth/link/route.ts b/src/app/api/auth/link/route.ts
+index 1efae78..14f5ff6 100644
+--- a/src/app/api/auth/link/route.ts
++++ b/src/app/api/auth/link/route.ts
+@@ -1,5 +1,5 @@
+ import { NextResponse } from "next/server";
+-import { setSessionCookie } from "@/server/auth/session";
++import { getAuthenticatedStoredUser, setSessionCookie } from "@/server/auth/session";
+ import authUserStore from "@/server/auth/userStore";
+ 
+ export const runtime = "nodejs";
+@@ -7,10 +7,17 @@ export const dynamic = "force-dynamic";
+ 
+ export async function GET(request: Request) {
+   const requestUrl = new URL(request.url);
+-  const linkCode = requestUrl.searchParams.get("link")?.trim() ?? "";
+   const redirectUrl = new URL("/", requestUrl.origin);
+ 
+   try {
++    const currentUser = await getAuthenticatedStoredUser();
++
++    if (currentUser) {
++      return NextResponse.redirect(redirectUrl);
++    }
++
++    const linkCode = requestUrl.searchParams.get("link")?.trim() ?? "";
++
+     if (!linkCode) {
+       redirectUrl.searchParams.set("linkError", "1");
+       return NextResponse.redirect(redirectUrl);
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 0745fb2..81e6991 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -21,15 +21,15 @@ function getSearchParam(value: string | string[] | undefined): string {
+ 
+ export default async function HomePage({ searchParams }: HomePageProps) {
+   const params = await searchParams;
+-  const linkCode = getSearchParam(params.link).trim();
+-
+-  if (linkCode) {
+-    redirect(`/api/auth/link?link=${encodeURIComponent(linkCode)}`);
+-  }
+-
+   const user = await getAuthenticatedUser();
+ 
+   if (!user) {
++    const linkCode = getSearchParam(params.link).trim();
++
++    if (linkCode) {
++      redirect(`/api/auth/link?link=${encodeURIComponent(linkCode)}`);
++    }
++
+     return <LoginScreen invalidLink={getSearchParam(params.linkError) === "1"} />;
+   }
+ 

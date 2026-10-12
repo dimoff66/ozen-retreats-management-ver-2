@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ChangeEvent, SyntheticEvent } from "react";
-import type { Role, Retreat, User } from "@/services/database";
+import type { ManagedUser, Role, Retreat } from "@/services/database";
 
 export type UserFormData = {
   name: string;
@@ -10,10 +10,11 @@ export type UserFormData = {
   password?: string;
   role: string;
   retreat_id: number | null;
+  link_code: string | null;
 };
 
 type UserFormProps = {
-  user: User | null;
+  user: ManagedUser | null;
   roles: Role[];
   retreats: Retreat[];
   actionError: string;
@@ -36,6 +37,8 @@ export default function UserForm({
   const strPassword = "Password";
   const strPasswordOptional = "Leave blank to keep the current password";
   const strShowPassword = "Show password";
+  const strLinkCode = "Link code";
+  const strLinkCodeNote = "Permanent passwordless login code. Leave blank to disable the login link.";
   const strRole = "Role";
   const strRetreat = "Retreat";
   const strNoRetreat = "No retreat";
@@ -47,6 +50,7 @@ export default function UserForm({
   const [login, setLogin] = useState(user?.login ?? "");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [linkCode, setLinkCode] = useState(user?.link_code ?? "");
   const [role, setRole] = useState(user?.role ?? roles[0]?.role_name ?? "");
   const [retreatId, setRetreatId] = useState(user?.retreat_id?.toString() ?? "");
   const [isSaving, setIsSaving] = useState(false);
@@ -66,6 +70,10 @@ export default function UserForm({
 
   const onPasswordVisibilityChange = (event: ChangeEvent<HTMLInputElement>) => {
     setIsPasswordVisible(event.target.checked);
+  };
+
+  const onLinkCodeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setLinkCode(event.target.value);
   };
 
   const onRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -89,6 +97,7 @@ export default function UserForm({
       login: login.trim(),
       role,
       retreat_id: role === "organizer" && retreatId ? Number(retreatId) : null,
+      link_code: linkCode.trim() || null,
     };
 
     if (password) {
@@ -117,6 +126,7 @@ export default function UserForm({
             <label className="ozen-checkbox-field ozen-checkbox-field-compact"><input type="checkbox" checked={isPasswordVisible} onChange={onPasswordVisibilityChange} /><span>{strShowPassword}</span></label>
             {user ? <p className="ozen-field-note">{strPasswordOptional}</p> : null}
           </div>
+          <label htmlFor="user-link-code" className="ozen-form-field"><span>{strLinkCode}</span><input id="user-link-code" value={linkCode} onChange={onLinkCodeChange} maxLength={255} autoComplete="off" /><small className="ozen-field-note">{strLinkCodeNote}</small></label>
           <label htmlFor="user-role" className="ozen-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{roles.map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
           {role === "organizer" ? (
             <label htmlFor="user-retreat" className="ozen-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{retreats.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>

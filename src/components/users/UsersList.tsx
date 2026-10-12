@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import ActionBar from "@/components/common/ActionBar";
 import UserForm from "@/components/users/UserForm";
 import type { UserFormData } from "@/components/users/UserForm";
-import type { CreateUser, Retreat, Role, User } from "@/services/database";
+import type { CreateUser, ManagedUser, Retreat, Role } from "@/services/database";
 import retreatsService from "@/services/retreatsService";
 import rolesService from "@/services/rolesService";
 import usersService from "@/services/usersService";
@@ -23,13 +23,16 @@ export default function UsersList() {
   const strDeleteError = "Failed to delete user.";
   const strDeleteConfirm = "Delete selected user?";
   const strCannotDeleteCurrentUser = "You cannot delete the currently selected user.";
+  const strCopyLoginLink = "Copy login link";
+  const strMissingLinkCode = "Set and save a link code for this user first.";
+  const strCopyLinkError = "Failed to copy the login link.";
 
   const { currentUser, setCurrentUser, setUsers } = useCurrentUser();
-  const [users, setLocalUsers] = useState<User[]>([]);
+  const [users, setLocalUsers] = useState<ManagedUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [retreats, setRetreats] = useState<Retreat[]>([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -63,13 +66,13 @@ export default function UsersList() {
     setIsFormOpen(true);
   };
 
-  const onEditActionClick = (user: User) => {
+  const onEditActionClick = (user: ManagedUser) => {
     setActionError("");
     setEditingUser(user);
     setIsFormOpen(true);
   };
 
-  const onDeleteActionClick = async (user: User) => {
+  const onDeleteActionClick = async (user: ManagedUser) => {
     if (user.id === currentUser?.id) {
       setActionError(strCannotDeleteCurrentUser);
       return;
@@ -90,6 +93,22 @@ export default function UsersList() {
     }
   };
 
+  const onCopyLoginLinkClick = async (user: ManagedUser) => {
+    if (!user.link_code) {
+      setActionError(strMissingLinkCode);
+      return;
+    }
+
+    try {
+      const loginUrl = new URL(window.location.origin);
+      loginUrl.searchParams.set("link", user.link_code);
+      await navigator.clipboard.writeText(loginUrl.toString());
+      setActionError("");
+    } catch {
+      setActionError(strCopyLinkError);
+    }
+  };
+
   const onCancelActionClick = () => {
     setIsFormOpen(false);
     setEditingUser(null);
@@ -100,7 +119,7 @@ export default function UsersList() {
     setActionError("");
 
     try {
-      let savedUser: User;
+      let savedUser: ManagedUser;
 
       if (editingUser) {
         savedUser = await usersService.updateUser(editingUser.id, data);
@@ -119,6 +138,7 @@ export default function UsersList() {
           password: data.password,
           role: data.role,
           retreat_id: data.retreat_id,
+          link_code: data.link_code,
         };
         savedUser = await usersService.createUser(createData);
       }
@@ -148,6 +168,11 @@ export default function UsersList() {
       onRowClick,
     };
   });
+
+  const extraActions = [{
+    label: strCopyLoginLink,
+    onClickHandler: onCopyLoginLinkClick,
+  }];
 
   useEffect(() => {
     let isCancelled = false;
@@ -189,7 +214,7 @@ export default function UsersList() {
   return (
     <section className="ozen-admin-section">
       <div className="ozen-admin-section-heading"><h2>{strTitle}</h2></div>
-      <ActionBar selectedItem={selectedUser} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} />
+      <ActionBar selectedItem={selectedUser} onAddActionClick={onAddActionClick} onEditActionClick={onEditActionClick} onDeleteActionClick={onDeleteActionClick} extraActions={extraActions} />
       {actionError && !isFormOpen ? <div role="alert" className="ozen-state-message ozen-state-error">{actionError}</div> : null}
       {isLoading ? <div className="ozen-state-message">{strLoading}</div> : null}
       {loadError ? <div role="alert" className="ozen-state-message ozen-state-error">{loadError}</div> : null}

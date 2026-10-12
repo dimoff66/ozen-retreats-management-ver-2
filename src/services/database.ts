@@ -16,6 +16,10 @@ export type User = {
   created_at: string;
 };
 
+export type ManagedUser = User & {
+  link_code: string | null;
+};
+
 export type Role = {
   role_name: string;
 };
@@ -108,6 +112,7 @@ export type CreateUser = {
   password: string;
   role: string;
   retreat_id?: number | null;
+  link_code?: string | null;
 };
 
 export type UpdateUser = Partial<CreateUser>;

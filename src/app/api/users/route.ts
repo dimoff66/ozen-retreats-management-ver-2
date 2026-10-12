@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { CreateUser, UpdateUser } from "@/services/database";
 import { hashPassword } from "@/server/auth/password";
 import { getAuthenticatedStoredUser, setSessionCookie } from "@/server/auth/session";
-import authUserStore, { toPublicUser } from "@/server/auth/userStore";
+import authUserStore, { toManagedUser } from "@/server/auth/userStore";
 import type { StoredUser, StoredUserCreate, StoredUserUpdate } from "@/server/auth/userStore";
 
 export const runtime = "nodejs";
@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 256;
+const MAX_LINK_CODE_LENGTH = 255;
 
 type UpdateRequest = {
   id?: unknown;
@@ -52,8 +53,16 @@ function getUserFields(value: unknown): Omit<StoredUserCreate, "password"> | nul
   const retreatId = record.retreat_id === null || record.retreat_id === undefined
     ? null
     : Number(record.retreat_id);
+  const linkCodeValue = typeof record.link_code === "string" ? record.link_code.trim() : "";
+  const linkCode = linkCodeValue || null;
 
-  if (!name || !login || !role || (retreatId !== null && !Number.isInteger(retreatId))) {
+  if (
+    !name ||
+    !login ||
+    !role ||
+    (retreatId !== null && !Number.isInteger(retreatId)) ||
+    (linkCode !== null && linkCode.length > MAX_LINK_CODE_LENGTH)
+  ) {
     return null;
   }
 
@@ -62,6 +71,7 @@ function getUserFields(value: unknown): Omit<StoredUserCreate, "password"> | nul
     login,
     role,
     retreat_id: retreatId,
+    link_code: linkCode,
   };
 }
 
@@ -87,7 +97,7 @@ export async function GET() {
       return auth.response;
     }
 
-    return NextResponse.json({ data: await authUserStore.getAll() });
+    return NextResponse.json({ data: await authUserStore.getAllForAdmin() });
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
@@ -118,7 +128,7 @@ export async function POST(request: Request) {
       ...fields,
       password: await hashPassword(password),
     });
-    return NextResponse.json({ data: toPublicUser(storedUser) });
+    return NextResponse.json({ data: toManagedUser(storedUser) });
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
@@ -182,6 +192,16 @@ export async function PATCH(request: Request) {
       changes.retreat_id = retreatId;
     }
 
+    if (input.link_code !== undefined) {
+      const linkCode = input.link_code?.trim() || null;
+
+      if (linkCode !== null && linkCode.length > MAX_LINK_CODE_LENGTH) {
+        return NextResponse.json({ error: `Link code must contain no more than ${MAX_LINK_CODE_LENGTH} characters.` }, { status: 400 });
+      }
+
+      changes.link_code = linkCode;
+    }
+
     if (input.password !== undefined) {
       const passwordError = validatePassword(input.password);
 
@@ -193,7 +213,7 @@ export async function PATCH(request: Request) {
     }
 
     const storedUser = await authUserStore.update(id, changes);
-    const response = NextResponse.json({ data: toPublicUser(storedUser) });
+    const response = NextResponse.json({ data: toManagedUser(storedUser) });
 
     if (auth.user.id === storedUser.id) {
       setSessionCookie(response, storedUser);

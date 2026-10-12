@@ -1,10 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
-import type { User } from "@/services/database";
+import type { ManagedUser, User } from "@/services/database";
 import { getMariaDbPool } from "@/server/mariaDbPool";
 
 export type StoredUser = User & {
   password: string;
+  link_code: string | null;
 };
 
 export type StoredUserCreate = {
@@ -13,6 +14,7 @@ export type StoredUserCreate = {
   password: string;
   role: string;
   retreat_id: number | null;
+  link_code: string | null;
 };
 
 export type StoredUserUpdate = Partial<StoredUserCreate>;
@@ -28,8 +30,16 @@ export function toPublicUser(user: StoredUser): User {
   };
 }
 
+export function toManagedUser(user: StoredUser): ManagedUser {
+  return {
+    ...toPublicUser(user),
+    link_code: user.link_code,
+  };
+}
+
 const PUBLIC_USER_COLUMNS = "id,name,login,role,retreat_id,created_at";
-const PRIVATE_USER_COLUMNS = "id,name,login,password,role,retreat_id,created_at";
+const ADMIN_USER_COLUMNS = "id,name,login,role,retreat_id,created_at,link_code";
+const PRIVATE_USER_COLUMNS = "id,name,login,password,role,retreat_id,created_at,link_code";
 
 function useMariaDb(): boolean {
   return process.env.MARIADB_API_ENABLED === "true";
@@ -70,6 +80,14 @@ function toStoredUser(row: Record<string, unknown>): StoredUser {
   return {
     ...toUser(row),
     password: String(row.password),
+    link_code: row.link_code === null || row.link_code === undefined ? null : String(row.link_code),
+  };
+}
+
+function toManagedUserRow(row: Record<string, unknown>): ManagedUser {
+  return {
+    ...toUser(row),
+    link_code: row.link_code === null || row.link_code === undefined ? null : String(row.link_code),
   };
 }
 
@@ -95,6 +113,15 @@ async function getMariaStoredUserByLogin(login: string): Promise<StoredUser | nu
   return rows[0] ? toStoredUser(getMariaRow(rows[0])) : null;
 }
 
+async function getMariaStoredUserByLinkCode(linkCode: string): Promise<StoredUser | null> {
+  const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(
+    `select ${PRIVATE_USER_COLUMNS} from \`users\` where binary link_code = ? limit 1`,
+    [linkCode]
+  );
+
+  return rows[0] ? toStoredUser(getMariaRow(rows[0])) : null;
+}
+
 const authUserStore = {
   getAll: async (): Promise<User[]> => {
     if (useMariaDb()) {
@@ -115,6 +142,27 @@ const authUserStore = {
     }
 
     return (data ?? []).map((row) => toUser(row));
+  },
+
+  getAllForAdmin: async (): Promise<ManagedUser[]> => {
+    if (useMariaDb()) {
+      const [rows] = await getMariaDbPool().execute<RowDataPacket[]>(
+        `select ${ADMIN_USER_COLUMNS} from \`users\` order by name`
+      );
+
+      return rows.map((row) => toManagedUserRow(getMariaRow(row)));
+    }
+
+    const { data, error } = await getSupabaseServerClient()
+      .from("users")
+      .select(ADMIN_USER_COLUMNS)
+      .order("name");
+
+    if (error) {
+      throw new Error(`Failed to get managed users: ${error.message}`);
+    }
+
+    return (data ?? []).map((row) => toManagedUserRow(row));
   },
 
   getById: async (id: number): Promise<StoredUser | null> => {
@@ -153,11 +201,29 @@ const authUserStore = {
     return data ? toStoredUser(data) : null;
   },
 
+  getByLinkCode: async (linkCode: string): Promise<StoredUser | null> => {
+    if (useMariaDb()) {
+      return getMariaStoredUserByLinkCode(linkCode);
+    }
+
+    const { data, error } = await getSupabaseServerClient()
+      .from("users")
+      .select(PRIVATE_USER_COLUMNS)
+      .eq("link_code", linkCode)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to get user by link code: ${error.message}`);
+    }
+
+    return data ? toStoredUser(data) : null;
+  },
+
   create: async (user: StoredUserCreate): Promise<StoredUser> => {
     if (useMariaDb()) {
       const [result] = await getMariaDbPool().execute<ResultSetHeader>(
-        "insert into `users` (name, login, password, role, retreat_id) values (?, ?, ?, ?, ?)",
-        [user.name, user.login, user.password, user.role, user.retreat_id]
+        "insert into `users` (name, login, password, role, retreat_id, link_code) values (?, ?, ?, ?, ?, ?)",
+        [user.name, user.login, user.password, user.role, user.retreat_id, user.link_code]
       );
       const storedUser = await getMariaStoredUserById(result.insertId);
 
@@ -186,7 +252,7 @@ const authUserStore = {
       const entries = Object.entries(changes).filter(([, value]) => value !== undefined);
 
       if (entries.length > 0) {
-        const allowedColumns = new Set(["name", "login", "password", "role", "retreat_id"]);
+        const allowedColumns = new Set(["name", "login", "password", "role", "retreat_id", "link_code"]);
         const filteredEntries = entries.filter(([key]) => allowedColumns.has(key));
         const assignments = filteredEntries.map(([key]) => `\`${key}\` = ?`).join(", ");
         const values = filteredEntries.map(([, value]) => value);

@@ -1,0 +1,50 @@
+diff --git a/tests/helpers/testContext.ts b/tests/helpers/testContext.ts
+index 5f743c9..5573929 100644
+--- a/tests/helpers/testContext.ts
++++ b/tests/helpers/testContext.ts
+@@ -5,8 +5,8 @@ import retreatRoomsService from "@/services/retreatRoomsService";
+ import retreatsService from "@/services/retreatsService";
+ import roomsService from "@/services/roomsService";
+ import taxiRidesService from "@/services/taxiRidesService";
+-import usersService from "@/services/usersService";
+-import type { Retreat, Room } from "@/services/database";
++import db from "@/services/database";
++import type { House, Retreat, Room } from "@/services/database";
+ 
+ export type ServiceTestContext = {
+   runId: string;
+@@ -31,15 +31,15 @@ export async function createServiceTestContext(): Promise<ServiceTestContext> {
+   const [houses, rooms, admin] = await Promise.all([
+     housesService.getHouses(),
+     roomsService.getRooms(),
+-    usersService.getUserByLogin("admin"),
++    db.users.getByLogin("admin"),
+   ]);
+ 
+   if (!admin) {
+     throw new Error("Test setup: admin user was not found.");
+   }
+ 
+-  const cubes = houses.find((house) => house.name.toLowerCase() === "cubes");
+-  const cones = houses.find((house) => house.name.toLowerCase() === "cones");
++  const cubes = houses.find((house: House) => house.name.toLowerCase() === "cubes");
++  const cones = houses.find((house: House) => house.name.toLowerCase() === "cones");
+ 
+   if (!cubes || !cones) {
+     throw new Error("Test setup: houses Cubes and Cones must exist.");
+diff --git a/test-kit/README.md b/test-kit/README.md
+index 1a8e5a9..512d046 100644
+--- a/test-kit/README.md
++++ b/test-kit/README.md
+@@ -100,6 +100,11 @@ Cones 1
+ Taxi records. После каждого теста очищаются изменяемые данные, а после suite
+ удаляется сам test-retreat.
+ 
++Test fixture также только читает существующего пользователя `admin`, чтобы получить
++`updated_by` для status-записей. Этот setup-read выполняется напрямую через DB
++adapter; client `usersService` после auth-рефакторинга остаётся API-only и не
++содержит `getUserByLogin`.
++
+ Если тестовый процесс будет аварийно остановлен до cleanup, в базе может остаться
+ retreat с префиксом `__TEST__`. Рабочие retreats при этом тестами не выбираются и
+ не изменяются.

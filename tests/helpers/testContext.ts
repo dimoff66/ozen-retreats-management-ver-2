@@ -5,8 +5,8 @@ import retreatRoomsService from "@/services/retreatRoomsService";
 import retreatsService from "@/services/retreatsService";
 import roomsService from "@/services/roomsService";
 import taxiRidesService from "@/services/taxiRidesService";
-import usersService from "@/services/usersService";
-import type { Retreat, Room } from "@/services/database";
+import db from "@/services/database";
+import type { House, Retreat, Room } from "@/services/database";
 
 export type ServiceTestContext = {
   runId: string;
@@ -31,15 +31,15 @@ export async function createServiceTestContext(): Promise<ServiceTestContext> {
   const [houses, rooms, admin] = await Promise.all([
     housesService.getHouses(),
     roomsService.getRooms(),
-    usersService.getUserByLogin("admin"),
+    db.users.getByLogin("admin"),
   ]);
 
   if (!admin) {
     throw new Error("Test setup: admin user was not found.");
   }
 
-  const cubes = houses.find((house) => house.name.toLowerCase() === "cubes");
-  const cones = houses.find((house) => house.name.toLowerCase() === "cones");
+  const cubes = houses.find((house: House) => house.name.toLowerCase() === "cubes");
+  const cones = houses.find((house: House) => house.name.toLowerCase() === "cones");
 
   if (!cubes || !cones) {
     throw new Error("Test setup: houses Cubes and Cones must exist.");

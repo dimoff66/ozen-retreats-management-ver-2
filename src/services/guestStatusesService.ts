@@ -1,5 +1,6 @@
 import db from "./database";
 import type { GuestStatus } from "./database";
+import roomsService from "./roomsService";
 
 export type GuestStatusValue =
   | "booked"
@@ -7,6 +8,12 @@ export type GuestStatusValue =
   | "checked_in"
   | "not_coming";
 
+export type GuestStatusAction =
+  | "mark_arrived"
+  | "not_coming"
+  | "check_in"
+  | "cancel_check_in"
+  | "cancel_arrival";
 
 const guestStatusLabels: Record<GuestStatusValue, string> = {
   booked: "Booked",
@@ -21,6 +28,47 @@ const guestStatusBadgeClassNames: Record<GuestStatusValue, string> = {
   checked_in: "bg-blue-100 text-blue-800",
   not_coming: "bg-red-100 text-red-800",
 };
+
+const guestStatusTextClassNames: Record<GuestStatusValue, string> = {
+  booked: "text-gray-700",
+  arrived: "text-blue-700",
+  checked_in: "text-green-700",
+  not_coming: "text-black line-through",
+};
+
+const guestStatusActions: Record<
+  GuestStatusValue,
+  Partial<Record<GuestStatusAction, GuestStatusValue>>
+> = {
+  booked: {
+    mark_arrived: "arrived",
+    not_coming: "not_coming",
+  },
+  arrived: {
+    check_in: "checked_in",
+    cancel_arrival: "booked",
+  },
+  checked_in: {
+    cancel_check_in: "arrived",
+  },
+  not_coming: {},
+};
+
+const guestStatusActionNames = new Set<GuestStatusAction>(
+  Object.values(guestStatusActions).flatMap(actions => Object.keys(actions) as GuestStatusAction[])
+);
+
+// Возвращает status-action, доступные из текущего статуса, в порядке показа в UI.
+export function getAvailableGuestStatusActions(status: GuestStatusValue): GuestStatusAction[] {
+  return Object.keys(guestStatusActions[status]) as GuestStatusAction[];
+}
+
+// Определяет следующий статус по текущему статусу и действию; null означает недопустимый переход.
+export function getNextGuestStatus(
+  status: GuestStatusValue, action: GuestStatusAction
+): GuestStatusValue | null {
+  return guestStatusActions[status][action] ?? null;
+}
 
 export type LatestGuestStatus = {
   guestId: number;
@@ -163,6 +211,26 @@ const guestStatusesService = {
     return guestStatusBadgeClassNames[status];
   },
 
+  // Возвращает CSS-класс текста гостя на карте для каждого возможного статуса.
+  getStatusTextClassName: (status: GuestStatusValue): string => {
+    return guestStatusTextClassNames[status];
+  },
+
+  // Возвращает status-action, которые допустимы из текущего статуса.
+  getAvailableStatusActions: (status: GuestStatusValue): GuestStatusAction[] => {
+    return getAvailableGuestStatusActions(status);
+  },
+
+  // Проверяет, относится ли общее действие с гостем к изменению статуса.
+  isStatusAction: (action: string): action is GuestStatusAction => {
+    return guestStatusActionNames.has(action as GuestStatusAction);
+  },
+
+  // Возвращает следующий статус только для допустимого перехода из текущего статуса.
+  getNextStatus: (status: GuestStatusValue, action: GuestStatusAction): GuestStatusValue | null => {
+    return getNextGuestStatus(status, action);
+  },
+
   getGuestStatusesByRetreatId: async (retreatId: number): Promise<GuestStatus[]> => {
     return db.guestStatuses.getByRetreatId(retreatId);
   },
@@ -177,16 +245,54 @@ const guestStatusesService = {
     retreatId: number,
     guestId: number,
     status: GuestStatusValue,
-    room: string | null,
+    roomId: number | null,
     updatedBy: number
   ): Promise<GuestStatus> => {
+    let roomName: string | null = null;
+
+    if (roomId !== null) {
+      const room = await db.rooms.getById(roomId);
+
+      if (!room) {
+        throw new Error("Room no longer exists.");
+      }
+
+      const house = await db.houses.getById(room.house_id);
+
+      if (!house) {
+        throw new Error("House no longer exists.");
+      }
+
+      roomName = roomsService.getRoomDisplayName(room, house);
+    }
+
     return db.guestStatuses.create({
       retreat_id: retreatId,
       guest_id: guestId,
       status,
-      room,
+      room: roomName,
       updated_by: updatedBy,
     });
+  },
+
+  // Применяет status-action только если оно допустимо из текущего статуса гостя.
+  applyStatusAction: async (
+    retreatId: number,
+    guestId: number,
+    currentStatus: GuestStatusValue,
+    action: GuestStatusAction,
+    roomId: number | null,
+    updatedBy: number
+  ): Promise<GuestStatus> => {
+    const nextStatus = getNextGuestStatus(currentStatus, action);
+
+    if (!nextStatus) {
+      throw new Error(`Action ${action} is not available for status ${currentStatus}.`);
+    }
+
+    return guestStatusesService.createStatus(
+      retreatId, guestId, nextStatus, roomId, updatedBy
+    );
   },
 };
 

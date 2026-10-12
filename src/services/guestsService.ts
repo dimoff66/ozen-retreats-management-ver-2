@@ -10,6 +10,7 @@ import type {
   SwapGuestRoomsResult,
   UpdateGuest,
 } from "./database";
+import { getLatestGuestStatuses } from "./guestStatusesService";
 import type { GuestStatusValue } from "./guestStatusesService";
 
 export type GuestMenuAction = {
@@ -28,6 +29,33 @@ const guestActionCaptions: Record<GuestAction, string> = {
   cancel_arrival: "Cancel arrival",
 };
 
+
+function canManageGuestRecords(role: string): boolean {
+  return role === "admin" || role === "organizer";
+}
+
+// Проверяет, можно ли выбрать второго гостя для обмена комнатами.
+function canSwapGuests(
+  firstGuest: Guest,
+  secondGuest: Guest,
+  firstStatus: GuestStatusValue,
+  secondStatus: GuestStatusValue
+): boolean {
+  if (firstGuest.id === secondGuest.id) {
+    return false;
+  }
+
+  if (!firstGuest.room_id || !secondGuest.room_id) {
+    return false;
+  }
+
+  if (firstGuest.room_id === secondGuest.room_id) {
+    return false;
+  }
+
+  return firstStatus !== "not_coming" && secondStatus !== "not_coming";
+}
+
 const guestsService = {
   getGuests: async (): Promise<Guest[]> => {
     return db.guests.getAll();
@@ -43,6 +71,19 @@ const guestsService = {
 
   getGuestsByRoomId: async (roomId: number): Promise<Guest[]> => {
     return db.guests.getByRoomId(roomId);
+  },
+
+  canManageGuestRecords: (role: string): boolean => {
+    return canManageGuestRecords(role);
+  },
+
+  canSwapGuests: (
+    firstGuest: Guest,
+    secondGuest: Guest,
+    firstStatus: GuestStatusValue,
+    secondStatus: GuestStatusValue
+  ): boolean => {
+    return canSwapGuests(firstGuest, secondGuest, firstStatus, secondStatus);
   },
 
   // Готовит пункты меню гостя из разрешённых действий и привязывает их к одному обработчику.
@@ -121,6 +162,15 @@ const guestsService = {
 
     if (firstGuest.room_id === secondGuest.room_id) {
       throw new Error("Guests already have the same room.");
+    }
+
+    const retreatStatuses = await db.guestStatuses.getByRetreatId(firstGuest.retreat_id);
+    const latestStatuses = getLatestGuestStatuses(retreatStatuses);
+    const firstCurrentStatus = latestStatuses.get(firstGuest.id)?.status ?? "booked";
+    const secondCurrentStatus = latestStatuses.get(secondGuest.id)?.status ?? "booked";
+
+    if (firstCurrentStatus === "not_coming" || secondCurrentStatus === "not_coming") {
+      throw new Error("Guests marked as not coming cannot swap rooms.");
     }
 
     const [firstStatusData, secondStatusData] = await Promise.all([

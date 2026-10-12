@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Guest, Room, TaxiRide } from "@/services/database";
 import guestStatusesService from "@/services/guestStatusesService";
-import type { GuestStatusValue } from "@/services/guestStatusesService";
+import type { GuestStatusAction, GuestStatusValue } from "@/services/guestStatusesService";
 import type { GuestAction } from "@/services/guestActionsService";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
 import GuestsCards from "@/components/retreats/GuestsCards";
@@ -66,7 +66,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
     snapshot,
     isLoading,
     error: retreatError,
-    createStatus,
+    applyStatusAction,
     updateGuest,
     swapRooms,
   } = useRetreat();
@@ -117,27 +117,9 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
 
   const onGuestStatusAction = async (
     guestRow: GuestRow,
-    nextStatus: GuestStatusValue
+    action: GuestStatusAction
   ) => {
     if (!currentUser || pendingGuestIds.has(guestRow.guest.id)) {
-      return;
-    }
-
-    const currentStatus = statuses.get(guestRow.guest.id) ?? "booked";
-
-    if (nextStatus === "arrived" && currentStatus !== "booked" && currentStatus !== "checked_in") {
-      return;
-    }
-
-    if (nextStatus === "checked_in" && currentStatus !== "arrived") {
-      return;
-    }
-
-    if (nextStatus === "not_coming" && currentStatus !== "booked") {
-      return;
-    }
-
-    if (nextStatus === "booked" && currentStatus !== "arrived") {
       return;
     }
 
@@ -145,11 +127,11 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
     setError("");
 
     try {
-      await createStatus(
+      await applyStatusAction(
         guestRow.guest.id,
-        nextStatus,
-        guestRow.roomName === strRoomUnknown ? null : guestRow.roomName,
-        currentUser.id
+        guestRow.status,
+        action,
+        guestRow.guest.room_id
       );
     } catch {
       setError(strStatusError);
@@ -172,17 +154,8 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
       return;
     }
 
-    const nextStatus: Partial<Record<GuestAction, GuestStatusValue>> = {
-      mark_arrived: "arrived",
-      not_coming: "not_coming",
-      check_in: "checked_in",
-      cancel_check_in: "arrived",
-      cancel_arrival: "booked",
-    };
-    const status = nextStatus[action];
-
-    if (status) {
-      void onGuestStatusAction(guestRow, status);
+    if (guestStatusesService.isStatusAction(action)) {
+      void onGuestStatusAction(guestRow, action);
     }
   };
 
@@ -374,11 +347,11 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
       return {
         groupLabel: `${mainGroupLabel} | ${guestRow.houseName}`,
         groupIndex: mainGroupOrder * meetingGroupStride + houseOrder,
-        actionButton: guestRow.status === "booked"
+        actionButton: guestStatusesService.getNextStatus(guestRow.status, "mark_arrived")
           ? {
               caption: strSetArrived,
               action: () => {
-                void onGuestStatusAction(guestRow, "arrived");
+                void onGuestStatusAction(guestRow, "mark_arrived");
               },
             }
           : null,
@@ -393,12 +366,14 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
       return {
         groupLabel: guestStatusesService.getStatusLabel("arrived"),
         groupIndex: 0,
-        actionButton: {
-          caption: strCheckIn,
-          action: () => {
-            void onGuestStatusAction(guestRow, "checked_in");
-          },
-        },
+        actionButton: guestStatusesService.getNextStatus(guestRow.status, "check_in")
+          ? {
+              caption: strCheckIn,
+              action: () => {
+                void onGuestStatusAction(guestRow, "check_in");
+              },
+            }
+          : null,
       };
     }
 

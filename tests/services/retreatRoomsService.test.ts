@@ -89,7 +89,7 @@ describe("retreatRoomsService", () => {
       context.retreat.id,
       notComingGuest.id,
       "not_coming",
-      context.roomLabels.cubeA1,
+      context.rooms.cubeA1.id,
       context.adminUserId
     );
 

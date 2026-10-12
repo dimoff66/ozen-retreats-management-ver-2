@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import guestsService from "@/services/guestsService";
 import {
   testCreateGuest,
@@ -33,6 +33,31 @@ afterAll(async () => {
 });
 
 describe("guestsService", () => {
+  it("keeps guest record permissions in the service", () => {
+    expect(guestsService.canManageGuestRecords("admin")).toBe(true);
+    expect(guestsService.canManageGuestRecords("organizer")).toBe(true);
+    expect(guestsService.canManageGuestRecords("manager")).toBe(false);
+    expect(guestsService.canManageGuestRecords("taxi")).toBe(false);
+  });
+
+  it("validates room-swap candidates", () => {
+    const firstGuest = {
+      id: 1,
+      retreat_id: 1,
+      name: "First",
+      is_organizer: false,
+      arrival_date: null,
+      diet_notes: null,
+      room_id: 10,
+      created_at: "",
+    };
+    const secondGuest = { ...firstGuest, id: 2, name: "Second", room_id: 11 };
+
+    expect(guestsService.canSwapGuests(firstGuest, secondGuest, "booked", "arrived")).toBe(true);
+    expect(guestsService.canSwapGuests(firstGuest, secondGuest, "booked", "not_coming")).toBe(false);
+    expect(guestsService.canSwapGuests(firstGuest, firstGuest, "booked", "booked")).toBe(false);
+  });
+
   // Проверяем, что гость без комнаты создаётся без автоматической записи booked в истории статусов.
   it("creates a guest without a booked status when room is not assigned", async () => {
     const result = await testCreateGuestWithoutBookedStatus({

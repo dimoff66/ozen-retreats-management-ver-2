@@ -15,7 +15,6 @@ import type {
 import dateService from "@/services/dateService";
 import type { GuestAction } from "@/services/guestActionsService";
 import guestStatusesService from "@/services/guestStatusesService";
-import type { GuestStatusValue } from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
 import roomsService from "@/services/roomsService";
 
@@ -51,7 +50,7 @@ export default function GuestsList(props: GuestsListProps) {
     updateGuest,
     swapRooms,
     deleteGuest,
-    createStatus,
+    applyStatusAction,
   } = useRetreat();
 
   const houses = snapshot?.houses ?? [];
@@ -73,7 +72,7 @@ export default function GuestsList(props: GuestsListProps) {
   const [actionError, setActionError] = useState("");
   const [searchText, setSearchText] = useState("");
 
-  const canManageGuestRecords = user?.role === "admin" || user?.role === "organizer";
+  const canManageGuestRecords = user ? guestsService.canManageGuestRecords(user.role) : false;
 
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchText(event.target.value);
@@ -194,29 +193,15 @@ export default function GuestsList(props: GuestsListProps) {
       return;
     }
 
-    const statusByAction: Partial<Record<GuestAction, GuestStatusValue>> = {
-      not_coming: "not_coming",
-      mark_arrived: "arrived",
-      check_in: "checked_in",
-      cancel_check_in: "arrived",
-      cancel_arrival: "booked",
-    };
-    const nextStatus = statusByAction[action];
-
-    if (!nextStatus) {
+    if (!guestStatusesService.isStatusAction(action)) {
       return;
     }
 
     setActionError("");
 
     try {
-      const room = rooms.find(item => item.id === guest.room_id);
-      const house = houses.find(item => item.id === room?.house_id);
-      const roomName = room && house
-        ? roomsService.getRoomDisplayName(room, house)
-        : null;
-
-      await createStatus(guest.id, nextStatus, roomName, user.id);
+      const currentStatus = guestStatuses.get(guest.id) ?? "booked";
+      await applyStatusAction(guest.id, currentStatus, action, guest.room_id);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strLoadError);
     }

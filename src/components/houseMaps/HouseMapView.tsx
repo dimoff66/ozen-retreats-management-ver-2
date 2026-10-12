@@ -8,6 +8,7 @@ import type {
 } from "@/services/database";
 import guestStatusesService from "@/services/guestStatusesService";
 import type {
+  GuestStatusAction,
   GuestStatusValue,
   LatestGuestStatus,
 } from "@/services/guestStatusesService";
@@ -76,8 +77,6 @@ export default function HouseMapView(props: HouseMapViewProps) {
   const strShowHistory = "Show history";
   const strCloseActions = "Close";
   const strBooked = "booked";
-  const strCheckedIn = "checked_in";
-  const strArrived = "arrived";
   const strNotComingStatus = "not_coming";
   const strConfirmNonBookedGuest = "This guest's status is {status}, not {bookedStatus}. Continue with the room swap?";
 
@@ -90,7 +89,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     snapshot,
     isLoading,
     error: retreatError,
-    createStatus: saveGuestStatus,
+    applyStatusAction,
     updateGuest,
     swapRooms,
   } = useRetreat();
@@ -131,26 +130,6 @@ export default function HouseMapView(props: HouseMapViewProps) {
     return roomsService.getRoomDisplayName(room, house);
   };
 
-  const getGuestRoomName = (targetGuest: Guest): string | null => {
-    if (!targetGuest.room_id) {
-      return null;
-    }
-
-    const room = rooms.find(item => item.id === targetGuest.room_id);
-
-    if (!room) {
-      return null;
-    }
-
-    return getRoomName(room);
-  };
-
-  const createStatus = async (targetGuest: Guest, status: GuestStatusValue) => {
-    const roomName = getGuestRoomName(targetGuest);
-
-    await saveGuestStatus(targetGuest.id, status, roomName, user.id);
-  };
-
   const clearActions = () => {
     setActions([]);
     setActionsTitle("");
@@ -179,56 +158,17 @@ export default function HouseMapView(props: HouseMapViewProps) {
     return;
   };
 
-  const onNotComingActionClick = async (targetGuest: Guest) => {
+  const onGuestStatusAction = async (
+    targetGuest: Guest, action: GuestStatusAction
+  ) => {
     clearActions();
     setActionError("");
 
     try {
-      await createStatus(targetGuest, strNotComingStatus);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : strActionError);
-    }
-  };
-
-  const onCheckInActionClick = async (targetGuest: Guest) => {
-    clearActions();
-    setActionError("");
-
-    try {
-      await createStatus(targetGuest, strCheckedIn);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : strActionError);
-    }
-  };
-
-  const onMarkArrivedActionClick = async (targetGuest: Guest) => {
-    clearActions();
-    setActionError("");
-
-    try {
-      await createStatus(targetGuest, strArrived);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : strActionError);
-    }
-  };
-
-  const onCancelCheckInActionClick = async (targetGuest: Guest) => {
-    clearActions();
-    setActionError("");
-
-    try {
-      await createStatus(targetGuest, strArrived);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : strActionError);
-    }
-  };
-
-  const onCancelArrivalActionClick = async (targetGuest: Guest) => {
-    clearActions();
-    setActionError("");
-
-    try {
-      await createStatus(targetGuest, strBooked);
+      const currentStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
+      await applyStatusAction(
+        targetGuest.id, currentStatus, action, targetGuest.room_id
+      );
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strActionError);
     }
@@ -290,16 +230,8 @@ export default function HouseMapView(props: HouseMapViewProps) {
       startRoomSelection(targetGuest);
     } else if (action === "swap_room") {
       startGuestSelection(targetGuest);
-    } else if (action === "not_coming") {
-      void onNotComingActionClick(targetGuest);
-    } else if (action === "mark_arrived") {
-      void onMarkArrivedActionClick(targetGuest);
-    } else if (action === "check_in") {
-      void onCheckInActionClick(targetGuest);
-    } else if (action === "cancel_check_in") {
-      void onCancelCheckInActionClick(targetGuest);
-    } else if (action === "cancel_arrival") {
-      void onCancelArrivalActionClick(targetGuest);
+    } else if (guestStatusesService.isStatusAction(action)) {
+      void onGuestStatusAction(targetGuest, action);
     }
   };
 
@@ -334,25 +266,12 @@ export default function HouseMapView(props: HouseMapViewProps) {
       return false;
     }
 
-    if (targetGuest.id === actionGuest.id) {
-      return false;
-    }
+    const actionGuestStatus = statuses.get(actionGuest.id)?.status ?? strBooked;
+    const targetGuestStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
 
-    if (!targetGuest.room_id || !actionGuest.room_id) {
-      return false;
-    }
-
-    if (targetGuest.room_id === actionGuest.room_id) {
-      return false;
-    }
-
-    const targetStatus = statuses.get(targetGuest.id);
-
-    if (targetStatus?.status === strNotComingStatus) {
-      return false;
-    }
-
-    return true;
+    return guestsService.canSwapGuests(
+      actionGuest, targetGuest, actionGuestStatus, targetGuestStatus
+    );
   };
 
   const onRoomSelected = async (room: Room) => {
@@ -435,20 +354,8 @@ export default function HouseMapView(props: HouseMapViewProps) {
     finishSelection();
   };
 
-  const getGuestClassName = (status: string): string => {
-    if (status === strCheckedIn) {
-      return "text-green-700";
-    }
-
-    if (status === strArrived) {
-      return "text-blue-700";
-    }
-
-    if (status === strNotComingStatus) {
-      return "text-black line-through";
-    }
-
-    return "text-gray-700";
+  const getGuestClassName = (status: GuestStatusValue): string => {
+    return guestStatusesService.getStatusTextClassName(status);
   };
 
   const selectedMap =

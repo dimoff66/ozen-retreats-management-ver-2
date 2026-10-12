@@ -7,7 +7,8 @@ export type CreateStatusTestInput = {
   retreatId: number;
   guestId: number;
   status: GuestStatusValue;
-  room: string | null;
+  roomId: number | null;
+  expectedRoom: string | null;
   updatedBy: number;
 };
 
@@ -19,7 +20,7 @@ export async function testCreateGuestStatus(
       input.retreatId,
       input.guestId,
       input.status,
-      input.room,
+      input.roomId,
       input.updatedBy
     );
     const latest = await guestStatusesService.getLatestForRetreat(input.retreatId);
@@ -27,22 +28,22 @@ export async function testCreateGuestStatus(
 
     assertTest(created.guest_id === input.guestId, "Created status has the wrong guest_id.");
     assertTest(created.status === input.status, "Created status value does not match.");
-    assertTest(created.room === input.room, "Created status room does not match.");
+    assertTest(created.room === input.expectedRoom, "Created status room does not match.");
     assertTest(latestForGuest?.status === input.status, "Latest guest status was not updated.");
-    assertTest(latestForGuest?.room === input.room, "Latest guest status room does not match.");
+    assertTest(latestForGuest?.room === input.expectedRoom, "Latest guest status room does not match.");
   });
 }
 
 export async function testGuestStatusSequence(
   retreatId: number,
   guestId: number,
-  room: string | null,
+  roomId: number | null,
   updatedBy: number,
   statuses: GuestStatusValue[]
 ): Promise<ServiceTestResult> {
   return runServiceTest(async () => {
     for (const status of statuses) {
-      await guestStatusesService.createStatus(retreatId, guestId, status, room, updatedBy);
+      await guestStatusesService.createStatus(retreatId, guestId, status, roomId, updatedBy);
     }
 
     const latest = await guestStatusesService.getLatestForRetreat(retreatId);

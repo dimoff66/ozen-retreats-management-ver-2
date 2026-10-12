@@ -19,7 +19,7 @@ import type {
   UpdateGuest,
   UpdateTaxiRide,
 } from "@/services/database";
-import type { GuestStatusValue } from "@/services/guestStatusesService";
+import type { GuestStatusAction, GuestStatusValue } from "@/services/guestStatusesService";
 import type { RetreatRoomSetting } from "@/services/retreatRoomsService";
 import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
@@ -51,11 +51,11 @@ type RetreatContextValue = {
   updateGuest: (guestId: number, changes: UpdateGuest) => Promise<void>;
   swapRooms: (firstGuestId: number, secondGuestId: number) => Promise<void>;
   deleteGuest: (guestId: number) => Promise<void>;
-  createStatus: (
+  applyStatusAction: (
     guestId: number,
-    status: GuestStatusValue,
-    room: string | null,
-    updatedBy: number
+    currentStatus: GuestStatusValue,
+    action: GuestStatusAction,
+    roomId: number | null
   ) => Promise<void>;
   saveRooms: (settings: RetreatRoomSetting[]) => Promise<void>;
   createTaxiRide: (ride: Omit<CreateTaxiRide, "retreat_id">) => Promise<TaxiRide>;
@@ -199,20 +199,21 @@ export function RetreatProvider(props: RetreatProviderProps) {
     await runMutation(() => guestsService.deleteGuest(guestId));
   }, [runMutation]);
 
-  const createStatus = useCallback(async (
+  const applyStatusAction = useCallback(async (
     guestId: number,
-    status: GuestStatusValue,
-    room: string | null,
-    updatedBy: number
+    currentStatus: GuestStatusValue,
+    action: GuestStatusAction,
+    roomId: number | null
   ) => {
-    await runMutation(() => guestStatusesService.createStatus(
+    await runMutation(() => guestStatusesService.applyStatusAction(
       props.retreatId,
       guestId,
-      status,
-      room,
-      updatedBy
+      currentStatus,
+      action,
+      roomId,
+      currentUser.id
     ));
-  }, [props.retreatId, runMutation]);
+  }, [currentUser.id, props.retreatId, runMutation]);
 
   const saveRooms = useCallback(async (settings: RetreatRoomSetting[]) => {
     await runMutation(() => retreatRoomsService.saveRetreatRooms(props.retreatId, settings));
@@ -317,7 +318,7 @@ export function RetreatProvider(props: RetreatProviderProps) {
     updateGuest,
     swapRooms,
     deleteGuest,
-    createStatus,
+    applyStatusAction,
     saveRooms,
     createTaxiRide,
     updateTaxiRide,
@@ -336,7 +337,7 @@ export function RetreatProvider(props: RetreatProviderProps) {
     updateGuest,
     swapRooms,
     deleteGuest,
-    createStatus,
+    applyStatusAction,
     saveRooms,
     createTaxiRide,
     updateTaxiRide,

@@ -173,8 +173,8 @@ status-записи и передаёт их в `db.guests.update()`. UPDATE г�
 выполняются в одной транзакции.
 
 Обмен комнатами выполняется только через `guestsService.swapRooms()`. Сервис делает
-проверки и формирует две новые `room_id` и две записи `booked`; адаптер выполняет
-два UPDATE и два INSERT атомарно через `db.guests.swapRooms()`.
+проверки, не допускает `not_coming`, формирует две новые `room_id` и две записи `booked`;
+адаптер выполняет два UPDATE и два INSERT атомарно через `db.guests.swapRooms()`.
 
 Подробности: [Атомарные записи гостей](../transactions.md).
 
@@ -212,9 +212,32 @@ not_coming
 ```text
 booked → arrived → checked_in
 ```
-Но возможен откат: отмена регистрации, отмена заселения
 
-`room` хранит текстовое отображение комнаты на момент изменения статуса.
+Допустимые status-action и переходы определяются централизованно в
+`guestStatusesService` от текущего статуса:
+
+```text
+booked:
+  mark_arrived   → arrived
+  not_coming     → not_coming
+
+arrived:
+  check_in       → checked_in
+  cancel_arrival → booked
+
+checked_in:
+  cancel_check_in → arrived
+
+not_coming:
+  нет status-action
+```
+
+Компоненты не держат собственные таблицы переходов и получают допустимые действия и
+следующий статус через `guestStatusesService`.
+
+`room` хранит текстовое отображение комнаты на момент изменения статуса. Компонент передаёт
+в `createStatus`/`applyStatusAction` только `roomId`; service сам загружает room/house и формирует
+отображаемое имя комнаты перед записью истории.
 
 `updated_by` указывает пользователя, выполнившего действие, а `changed_at` —
 время изменения. Service получает id этого пользователя от вызывающего слоя и не

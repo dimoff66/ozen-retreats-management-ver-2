@@ -75,22 +75,6 @@ export default function GuestsList(props: GuestsListProps) {
 
   const canManageGuestRecords = user?.role === "admin" || user?.role === "organizer";
 
-  const getStatusBadgeClassName = (status: GuestStatusValue): string => {
-    if (status === "checked_in") {
-      return "bg-blue-100 text-blue-800";
-    }
-
-    if (status === "arrived") {
-      return "bg-green-100 text-green-800";
-    }
-
-    if (status === "not_coming") {
-      return "bg-red-100 text-red-800";
-    }
-
-    return "bg-gray-100 text-gray-700";
-  };
-
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchText(event.target.value);
   };
@@ -256,7 +240,7 @@ export default function GuestsList(props: GuestsListProps) {
     const dietText = guest.diet_notes ?? strNoDiet;
     const status = guestStatuses.get(guest.id) ?? "booked";
     const statusText = guest.room_id === null ? "" : guestStatusesService.getStatusLabel(status);
-    const statusBadgeClassName = getStatusBadgeClassName(status);
+    const statusBadgeClassName = guestStatusesService.getStatusBadgeClassName(status);
     const isSelected = selectedGuest?.id === guest.id;
     const actionRows = user
       ? guestsService.getGuestMenuActions(

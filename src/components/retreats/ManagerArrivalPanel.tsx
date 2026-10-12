@@ -348,13 +348,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
     return {
       ...guestRow,
       statusLabel: guestStatusesService.getStatusLabel(guestRow.status),
-      statusBadgeClassName: guestRow.status === "checked_in"
-        ? "bg-blue-100 text-blue-800"
-        : guestRow.status === "arrived"
-          ? "bg-green-100 text-green-800"
-          : guestRow.status === "not_coming"
-            ? "bg-red-100 text-red-800"
-            : "bg-gray-100 text-gray-700",
+      statusBadgeClassName: guestStatusesService.getStatusBadgeClassName(guestRow.status),
       isPending: pendingGuestIds.has(guestRow.guest.id),
       showStatus: true,
       fallbackCaption: props.mode === "check-in"

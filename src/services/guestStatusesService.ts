@@ -15,6 +15,13 @@ const guestStatusLabels: Record<GuestStatusValue, string> = {
   not_coming: "Not coming",
 };
 
+const guestStatusBadgeClassNames: Record<GuestStatusValue, string> = {
+  booked: "bg-gray-100 text-gray-700",
+  arrived: "bg-green-100 text-green-800",
+  checked_in: "bg-blue-100 text-blue-800",
+  not_coming: "bg-red-100 text-red-800",
+};
+
 export type LatestGuestStatus = {
   guestId: number;
   status: GuestStatusValue;
@@ -149,6 +156,11 @@ const guestStatusesService = {
   // Возвращает единое отображаемое название статуса для всех компонентов.
   getStatusLabel: (status: GuestStatusValue): string => {
     return guestStatusLabels[status];
+  },
+
+  // Возвращает единый CSS-класс badge для каждого возможного статуса гостя.
+  getStatusBadgeClassName: (status: GuestStatusValue): string => {
+    return guestStatusBadgeClassNames[status];
   },
 
   getGuestStatusesByRetreatId: async (retreatId: number): Promise<GuestStatus[]> => {

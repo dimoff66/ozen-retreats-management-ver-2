@@ -36,6 +36,13 @@ describe("guestStatusesService", () => {
     expect(guestStatusesService.getStatusLabel("not_coming")).toBe("Not coming");
   });
 
+  it("returns shared status badge classes", () => {
+    expect(guestStatusesService.getStatusBadgeClassName("booked")).toBe("bg-gray-100 text-gray-700");
+    expect(guestStatusesService.getStatusBadgeClassName("arrived")).toBe("bg-green-100 text-green-800");
+    expect(guestStatusesService.getStatusBadgeClassName("checked_in")).toBe("bg-blue-100 text-blue-800");
+    expect(guestStatusesService.getStatusBadgeClassName("not_coming")).toBe("bg-red-100 text-red-800");
+  });
+
   // Latest выбирается по времени/id, а не по порядку записей в переданном массиве.
   it("finds latest statuses regardless of input order", () => {
     const statuses = [

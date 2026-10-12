@@ -451,22 +451,6 @@ export default function HouseMapView(props: HouseMapViewProps) {
     return "text-gray-700";
   };
 
-  const getStatusBadgeClassName = (status: GuestStatusValue): string => {
-    if (status === strCheckedIn) {
-      return "bg-blue-100 text-blue-800";
-    }
-
-    if (status === strArrived) {
-      return "bg-green-100 text-green-800";
-    }
-
-    if (status === strNotComingStatus) {
-      return "bg-red-100 text-red-800";
-    }
-
-    return "bg-gray-100 text-gray-700";
-  };
-
   const selectedMap =
     houseMaps.find(item => item.id === activeMapId) ?? null;
 
@@ -791,7 +775,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
         roomName,
         guestName,
         statusLabel: guestStatusesService.getStatusLabel(status),
-        statusBadgeClassName: getStatusBadgeClassName(status),
+        statusBadgeClassName: guestStatusesService.getStatusBadgeClassName(status),
         isSelectable: canSelectGuest(roomGuest),
         onChoose: () => {
           void onGuestSelected(roomGuest);

@@ -11,7 +11,6 @@ import type { GuestCardRow } from "@/components/retreats/GuestsCards";
 import type { GuestMenuAction } from "@/services/guestsService";
 import dateService from "@/services/dateService";
 import guestsService from "@/services/guestsService";
-import roomsService from "@/services/roomsService";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import { useRetreat } from "@/contexts/RetreatContext";
 
@@ -69,6 +68,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
     applyStatusAction,
     updateGuest,
     swapRooms,
+    getRoomDisplayNameById,
   } = useRetreat();
   const guests = snapshot?.guests ?? [];
   const rides = snapshot?.taxiRides ?? [];
@@ -289,9 +289,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
   const guestRows = guests.map((guest): GuestRow => {
     const room = guest.room_id === null ? undefined : roomById.get(guest.room_id);
     const house = room ? houseById.get(room.house_id) : undefined;
-    const roomName = room && house
-      ? roomsService.getRoomDisplayName(room, house)
-      : strRoomUnknown;
+    const roomName = getRoomDisplayNameById(guest.room_id) || strRoomUnknown;
     const taxiAssignment = taxiGuestByGuestId.get(guest.id);
 
     return {

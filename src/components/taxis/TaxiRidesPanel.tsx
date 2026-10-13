@@ -4,7 +4,6 @@ import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import type { Guest, TaxiGuest, TaxiRide } from "@/services/database";
 import dateService from "@/services/dateService";
-import roomsService from "@/services/roomsService";
 import ImportRides from "@/components/taxis/ImportRides";
 import { useRetreat } from "@/contexts/RetreatContext";
 
@@ -68,6 +67,7 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
     addTaxiGuest,
     moveTaxiGuest,
     deleteTaxiGuest,
+    getRoomDisplayNameById,
   } = useRetreat();
   const rides: TaxiRide[] = [...(snapshot?.taxiRides ?? [])].sort((left, right) => {
     const timeDifference = Date.parse(left.arrival_datetime) - Date.parse(right.arrival_datetime);
@@ -312,9 +312,7 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
       ? rooms.find(item => item.id === matchedGuest.room_id)
       : undefined;
     const house = room ? houses.find(item => item.id === room.house_id) : undefined;
-    const roomName = room && house
-      ? roomsService.getRoomDisplayName(room, house)
-      : strUnknown;
+    const roomName = getRoomDisplayNameById(matchedGuest?.room_id) || strUnknown;
     const houseId = house?.id ?? Number.MAX_SAFE_INTEGER;
     const onRemoveClick = () => {
       void onPassengerDeleteClick(passenger);

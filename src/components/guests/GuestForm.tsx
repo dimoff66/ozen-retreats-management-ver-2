@@ -3,14 +3,12 @@
 import { useState } from "react";
 import type { ChangeEvent, SyntheticEvent } from "react";
 import HouseMapView from "@/components/houseMaps/HouseMapView";
-import type { CreateGuest, Guest, House, Room } from "@/services/database";
-import roomsService from "@/services/roomsService";
+import { useRetreat } from "@/contexts/RetreatContext";
+import type { CreateGuest, Guest, Room } from "@/services/database";
 
 type GuestFormProps = {
   guest: Guest | null;
   retreatId: number;
-  houses: House[];
-  rooms: Room[];
   onSaveActionClick: (data: CreateGuest) => Promise<void>;
   onCancelActionClick: () => void;
 };
@@ -32,6 +30,7 @@ export default function GuestForm(props: GuestFormProps) {
 
   const isEditMode = props.guest !== null;
   const formTitle = isEditMode ? strEditTitle : strAddTitle;
+  const { getRoomDisplayNameById } = useRetreat();
 
   const [name, setName] = useState(props.guest?.name ?? "");
   const [isOrganizer, setIsOrganizer] = useState(props.guest?.is_organizer ?? false);
@@ -41,15 +40,12 @@ export default function GuestForm(props: GuestFormProps) {
   const [isRoomMapOpen, setIsRoomMapOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const selectedRoom = props.rooms.find(room => room.id === Number(roomId));
-  const selectedHouse = props.houses.find(house => house.id === selectedRoom?.house_id);
-  const roomLabel = selectedRoom && selectedHouse
-    ? roomsService.getRoomDisplayName(selectedRoom, selectedHouse)
-    : strNoRoom;
+  const selectedRoomId = roomId ? Number(roomId) : null;
+  const roomLabel = getRoomDisplayNameById(selectedRoomId) || strNoRoom;
   const roomSelectionTarget = {
     guestId: props.guest?.id ?? null,
     name: name.trim() || props.guest?.name || strNewGuest,
-    roomId: selectedRoom?.id ?? null,
+    roomId: selectedRoomId,
   };
 
   const onNameChange = (event: ChangeEvent<HTMLInputElement>) => {

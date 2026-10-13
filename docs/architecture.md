@@ -192,3 +192,5 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable-or-anon-key>
 После изменения `.env.local` перезапустите `npm run dev`. Не размещайте
 `service_role` или другой секретный ключ в переменной с префиксом
 `NEXT_PUBLIC_`.
+
+- Retreat-scoped компоненты получают отображаемое имя комнаты по `roomId` через `RetreatContext`; поиск `room + house` ради presentation string внутри компонента не допускается.

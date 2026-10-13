@@ -49,9 +49,11 @@ export default function GuestsCards<T extends GuestCardRow>(props: GuestsCardsPr
   props.guests.forEach((guest, index) => {
     const matchesSearch = normalizedSearchText.length > 0
       && guest.guest.name.toLocaleLowerCase().includes(normalizedSearchText);
+    
     const grouping = matchesSearch
       ? null
       : props.getGuestCardGroup?.(guest, index, props.guests) ?? null;
+    
     const groupLabel = matchesSearch
       ? `search '${searchText.trim()}'`
       : props.getGuestCardGroup

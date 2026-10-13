@@ -25,6 +25,7 @@ import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
 import retreatRoomsService from "@/services/retreatRoomsService";
 import retreatsService from "@/services/retreatsService";
+import roomsService from "@/services/roomsService";
 import retreatSnapshotService from "@/services/retreatSnapshotService";
 import taxiRidesService from "@/services/taxiRidesService";
 import type { RetreatSnapshot } from "@/services/retreatSnapshotService";
@@ -42,6 +43,7 @@ type RetreatContextValue = {
   getRetreatRooms: () => RetreatSnapshot["retreatRooms"];
   getHouses: () => RetreatSnapshot["houses"];
   getRooms: () => RetreatSnapshot["rooms"];
+  getRoomDisplayNameById: (roomId: number | null | undefined) => string;
   getHouseMaps: () => RetreatSnapshot["houseMaps"];
   isLoading: boolean;
   error: string;
@@ -215,6 +217,21 @@ export function RetreatProvider(props: RetreatProviderProps) {
     ));
   }, [currentUser.id, props.retreatId, runMutation]);
 
+  // Возвращает отображаемое имя комнаты из текущего snapshot без дополнительных запросов.
+  const getRoomDisplayNameById = useCallback((roomId: number | null | undefined): string => {
+    if (roomId === null || roomId === undefined) {
+      return "";
+    }
+
+    const room = snapshotRef.current?.rooms.find(item => item.id === roomId);
+    if (!room) {
+      return "";
+    }
+
+    const house = snapshotRef.current?.houses.find(item => item.id === room.house_id);
+    return house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
+  }, []);
+
   const saveRooms = useCallback(async (settings: RetreatRoomSetting[]) => {
     await runMutation(() => retreatRoomsService.saveRetreatRooms(props.retreatId, settings));
   }, [props.retreatId, runMutation]);
@@ -309,6 +326,7 @@ export function RetreatProvider(props: RetreatProviderProps) {
     getRetreatRooms: () => snapshot?.retreatRooms ?? [],
     getHouses: () => snapshot?.houses ?? [],
     getRooms: () => snapshot?.rooms ?? [],
+    getRoomDisplayNameById,
     getHouseMaps: () => snapshot?.houseMaps ?? [],
     isLoading,
     error,
@@ -338,6 +356,7 @@ export function RetreatProvider(props: RetreatProviderProps) {
     swapRooms,
     deleteGuest,
     applyStatusAction,
+    getRoomDisplayNameById,
     saveRooms,
     createTaxiRide,
     updateTaxiRide,

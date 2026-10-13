@@ -80,9 +80,10 @@ export default function HouseMapView(props: HouseMapViewProps) {
   const strNotComingStatus = "not_coming";
   const strConfirmNonBookedGuest = "This guest's status is {status}, not {bookedStatus}. Continue with the room swap?";
 
+  const isSelectionMode = props.openMode === "selection";
   const hasExternalRoomSelection = (props.initialSelectionMode ?? "room") === "room" && (props.roomSelectionTarget ?? null) !== null;
   const initialSelectionMode: SelectionMode =
-    (props.openMode ?? "normal") === "selection" && ((props.guest ?? null) || hasExternalRoomSelection) ? (props.initialSelectionMode ?? "room") : null;
+    isSelectionMode && (props.guest || hasExternalRoomSelection) ? (props.initialSelectionMode ?? "room") : null;
 
   const { currentUser: user } = useCurrentUser();
   const {
@@ -92,6 +93,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     applyStatusAction,
     updateGuest,
     swapRooms,
+    getRoomDisplayNameById,
   } = useRetreat();
 
   const houses = snapshot?.houses ?? [];
@@ -102,6 +104,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
   const statuses = snapshot?.latestStatuses ?? new Map<number, LatestGuestStatus>();
   const isSnapshotLoading = isLoading || !snapshot;
   const isLoadError = Boolean(retreatError);
+
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
   const [actionGuest, setActionGuest] = useState<Guest | null>(
@@ -112,23 +115,13 @@ export default function HouseMapView(props: HouseMapViewProps) {
   const [actionError, setActionError] = useState("");
   const [isSelectionPending, setIsSelectionPending] = useState(false);
 
-  const activeMapId = houseMaps.some(houseMap => houseMap.id === selectedMapId)
+  const activeMapId = houseMaps.some(_ => _.id === selectedMapId)
     ? selectedMapId
-    : houseMaps[0]?.id ?? null;
+    : houseMaps[0]?.id;
 
   if (!user) {
     return null;
   }
-
-  const getRoomName = (room: Room): string => {
-    const house = houses.find(item => item.id === room.house_id);
-
-    if (!house) {
-      return room.room_number;
-    }
-
-    return roomsService.getRoomDisplayName(room, house);
-  };
 
   const clearActions = () => {
     setActions([]);
@@ -176,25 +169,17 @@ export default function HouseMapView(props: HouseMapViewProps) {
 
   const getAvailableActions = (
     targetType: ActionTargetType,
-    room: Room,
     targetGuest: Guest | null
   ): MapAction[] => {
-    const availableActions: MapAction[] = [];
 
-    if (targetType === "room") {
-      if (user.role === "admin") {
-        availableActions.push({
-          id: "show_room_history",
-          label: strShowHistory,
-          onClickHandler: onShowHistoryActionClick,
-        });
-      }
+    const showRoomHistoryAction: MapAction = {
+      id: "show_room_history",
+      label: strShowHistory,
+      onClickHandler: onShowHistoryActionClick,
+    };
 
-      return availableActions;
-    }
-
-    if (!targetGuest) {
-      return availableActions;
+    if (targetType === "room" || !targetGuest) {
+      return [showRoomHistoryAction];
     }
 
     const guestStatus = statuses.get(targetGuest.id);
@@ -208,19 +193,14 @@ export default function HouseMapView(props: HouseMapViewProps) {
       }
     );
 
-    availableActions.push(...guestActions.map(guestAction => ({
-      id: guestAction.id,
-      label: guestAction.caption,
-      onClickHandler: guestAction.action,
-    })));
-
-    if (user.role === "admin") {
-      availableActions.push({
-        id: "show_guest_history",
-        label: strShowHistory,
-        onClickHandler: onShowHistoryActionClick,
-      });
-    }
+    const availableActions: MapAction[] = [
+      ...guestActions.map(_ => ({
+        id: _.id,
+        label: _.caption,
+        onClickHandler: _.action,
+      })), 
+      
+      showRoomHistoryAction];
 
     return availableActions;
   };
@@ -235,10 +215,10 @@ export default function HouseMapView(props: HouseMapViewProps) {
     }
   };
 
-  const selectionGuestId = actionGuest?.id ?? (props.roomSelectionTarget ?? null)?.guestId ?? null;
-  const selectionRoomId = actionGuest?.room_id ?? (props.roomSelectionTarget ?? null)?.roomId ?? null;
-  const selectionGuestName = actionGuest?.name ?? (props.roomSelectionTarget ?? null)?.name ?? "";
-  const hasRoomSelectionTarget = actionGuest !== null || (props.roomSelectionTarget ?? null) !== null;
+  const selectionGuestId = actionGuest?.id || props.roomSelectionTarget?.guestId || null;
+  const selectionRoomId = actionGuest?.room_id || props.roomSelectionTarget?.roomId;
+  const selectionGuestName = actionGuest?.name || props.roomSelectionTarget?.name || "";
+  const hasRoomSelectionTarget = Boolean(actionGuest || props.roomSelectionTarget);
   const selectableRooms = retreatRoomsService.getSelectableRooms(
     rooms,
     retreatRooms,
@@ -247,7 +227,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     selectionGuestId
   );
 
-  const selectableRoomIds = new Set(selectableRooms.map(room => room.id));
+  const selectableRoomIds = new Set(selectableRooms.map(_ => _.id));
 
   const canSelectRoom = (room: Room): boolean => {
     if (selectionMode !== "room" || !hasRoomSelectionTarget) {
@@ -283,7 +263,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     setActionError("");
 
     try {
-      if ((props.openMode ?? "normal") === "selection" && props.onRoomSelectActionClick) {
+      if (isSelectionMode && props.onRoomSelectActionClick) {
         await props.onRoomSelectActionClick(room);
         return;
       }
@@ -313,7 +293,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
       return;
     }
 
-    const targetStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
+    const targetStatus = statuses.get(targetGuest.id)?.status || strBooked;
     if (
       targetStatus !== strBooked
       && !window.confirm(strConfirmNonBookedGuest
@@ -327,7 +307,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     setActionError("");
 
     try {
-      if ((props.openMode ?? "normal") === "selection" && props.onGuestSwapActionClick) {
+      if (isSelectionMode && props.onGuestSwapActionClick) {
         await props.onGuestSwapActionClick(targetGuest);
         return;
       }
@@ -346,7 +326,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
       return;
     }
 
-    if ((props.openMode ?? "normal") === "selection" && props.onCancelActionClick) {
+    if (isSelectionMode && props.onCancelActionClick) {
       props.onCancelActionClick();
       return;
     }
@@ -370,7 +350,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     .sort((left, right) => left.house_id - right.house_id || left.id - right.id)
     .map(houseMap => {
       const house = houses.find(item => item.id === houseMap.house_id);
-      const label = house?.name ?? "";
+      const label = house?.name || '';
       const isSelected = houseMap.id === activeMapId;
 
       const onClickHandler = () => {
@@ -386,7 +366,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     });
 
   const mapRoomItems = roomPositions
-    .map((position: RoomPosition) => {
+    .map(position => {
       const room = rooms.find(item => item.id === position.room_id);
 
       if (!room || !selectedHouse) {
@@ -443,18 +423,16 @@ export default function HouseMapView(props: HouseMapViewProps) {
         }
 
         if (selectionMode === "room") {
-          void onRoomSelected(room);
+          onRoomSelected(room);
           return;
         }
 
         const roomActions = getAvailableActions(
-          "room",
-          room,
-          null
+          "room", null
         );
 
         setActions(roomActions);
-        setActionsTitle(getRoomName(room));
+        setActionsTitle(getRoomDisplayNameById(room.id));
       };
 
       const roomClassName = [
@@ -491,13 +469,12 @@ export default function HouseMapView(props: HouseMapViewProps) {
           }
 
           if (selectionMode === "guest") {
-            void onGuestSelected(roomGuest);
+            onGuestSelected(roomGuest);
             return;
           }
 
           const guestActions = getAvailableActions(
             "guest",
-            room,
             roomGuest
           );
 
@@ -545,13 +522,12 @@ export default function HouseMapView(props: HouseMapViewProps) {
     .filter(item => item !== null);
 
   const roomSelectionItems = roomsService.sortRooms(rooms, houses).map(room => {
-    const house = houses.find(item => item.id === room.house_id);
     const retreatRoom = retreatRooms.find(item => item.room_id === room.id);
     const roomGuests = guests.filter(item => item.room_id === room.id);
     const activeGuests = roomGuests.filter(
       roomGuest => statuses.get(roomGuest.id)?.status !== strNotComingStatus
     );
-    const maxGuests = retreatRoom?.max_guests ?? 0;
+    const maxGuests = retreatRoom?.max_guests || 0;
     const isRoomAvailable = room.is_available && retreatRoom !== undefined;
     const isFull = isRoomAvailable && activeGuests.length >= maxGuests;
     const canAddGuest = isRoomAvailable && !isFull;
@@ -560,7 +536,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
       : isFull
         ? "bg-green-600"
         : "bg-blue-600";
-    const roomName = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
+    const roomName = getRoomDisplayNameById(room.id);
 
     const onRoomClickHandler = () => {
       if (isSelectionPending) {
@@ -576,7 +552,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
         return;
       }
 
-      const roomActions = getAvailableActions("room", room, null);
+      const roomActions = getAvailableActions("room", null);
       setActions(roomActions);
       setActionsTitle(roomName);
     };
@@ -602,7 +578,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
           return;
         }
 
-        const guestActions = getAvailableActions("guest", room, roomGuest);
+        const guestActions = getAvailableActions("guest", roomGuest);
         setActions(guestActions);
         setActionsTitle(roomGuest.name);
       };
@@ -665,8 +641,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     .filter(house => house.rooms.some(room => room.isAvailableForRetreat));
 
   const guestSelectionRows = roomsService.sortRooms(rooms, houses).flatMap(room => {
-    const house = houses.find(item => item.id === room.house_id);
-    const roomName = house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
+    const roomName = getRoomDisplayNameById(room.id);
     const roomGuests = guests
       .filter(roomGuest => roomGuest.room_id === room.id)
       .sort((left, right) => left.name.localeCompare(right.name));
@@ -721,7 +696,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     <div className="relative flex h-full flex-col" aria-busy={isSelectionPending}>
       <div className="mb-4 flex shrink-0 items-center justify-between">
         <div>
-          {(props.showTitle ?? true) && <h2 className="text-xl font-bold">{strTitle}</h2>}
+          {(props.showTitle !== false) && <h2 className="text-xl font-bold">{strTitle}</h2>}
           {selectionText && <div className="mt-1 text-sm text-gray-600">{selectionText}</div>}
         </div>
         <div className="flex gap-2">

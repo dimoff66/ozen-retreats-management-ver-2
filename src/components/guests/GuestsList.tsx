@@ -16,7 +16,6 @@ import dateService from "@/services/dateService";
 import type { GuestAction } from "@/services/guestActionsService";
 import guestStatusesService from "@/services/guestStatusesService";
 import guestsService from "@/services/guestsService";
-import roomsService from "@/services/roomsService";
 
 type GuestsListProps = {
   showTitle?: boolean;
@@ -51,10 +50,9 @@ export default function GuestsList(props: GuestsListProps) {
     swapRooms,
     deleteGuest,
     applyStatusAction,
+    getRoomDisplayNameById,
   } = useRetreat();
 
-  const houses = snapshot?.houses ?? [];
-  const rooms: Room[] = snapshot?.rooms ?? [];
   const retreatRooms = snapshot?.retreatRooms ?? [];
   const guests = snapshot?.guests ?? [];
   const guestStatuses = new Map(
@@ -208,12 +206,7 @@ export default function GuestsList(props: GuestsListProps) {
   };
 
   const guestRows = guests.map(guest => {
-    const room = rooms.find(item => item.id === guest.room_id);
-    const house = houses.find(item => item.id === room?.house_id);
-
-    const roomName = room && house
-      ? roomsService.getRoomDisplayName(room, house)
-      : strNoRoom;
+    const roomName = getRoomDisplayNameById(guest.room_id) || strNoRoom;
 
     const name = guest.is_organizer
       ? `${guest.name} (${strOrganizer})`
@@ -319,7 +312,7 @@ export default function GuestsList(props: GuestsListProps) {
 
   return (
     <div className="project-guests-list">
-      {(props.showTitle ?? true) && <div className="project-section-heading"><h2>{strTitle}</h2></div>}
+      {props.showTitle && <div className="project-section-heading"><h2>{strTitle}</h2></div>}
       <ActionBar
         selectedItem={selectedGuest}
         onAddActionClick={onAddActionClick}
@@ -420,8 +413,6 @@ export default function GuestsList(props: GuestsListProps) {
         <GuestForm
           guest={editingGuest}
           retreatId={selectedRetreatId}
-          houses={houses}
-          rooms={rooms}
           onSaveActionClick={onSaveActionClick}
           onCancelActionClick={onCancelActionClick}
         />

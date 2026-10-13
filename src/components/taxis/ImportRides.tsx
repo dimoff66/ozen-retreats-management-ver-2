@@ -5,7 +5,6 @@ import type { ChangeEvent, ClipboardEvent, DragEvent } from "react";
 import { useRetreat } from "@/contexts/RetreatContext";
 import type { CreateTaxiRideBatch, Guest } from "@/services/database";
 import dateService from "@/services/dateService";
-import roomsService from "@/services/roomsService";
 import taxiRidesService from "@/services/taxiRidesService";
 
 type ImportRidesProps = {
@@ -135,7 +134,7 @@ export default function ImportRides(props: ImportRidesProps) {
   const strGuests = "guests";
   const strAlreadyAssigned = "This guest is already assigned to another imported taxi row.";
   const strSaveError = "Failed to import taxi rides.";
-  const { retreat, snapshot, refresh } = useRetreat();
+  const { retreat, snapshot, refresh, getRoomDisplayNameById } = useRetreat();
   const [text, setText] = useState("");
   const [groups, setGroups] = useState<ImportRideGroup[]>([]);
   const [selectedGroupNumber, setSelectedGroupNumber] = useState<number | null>(null);
@@ -150,8 +149,6 @@ export default function ImportRides(props: ImportRidesProps) {
   const [isExtractingText, setIsExtractingText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const guests = snapshot?.guests ?? [];
-  const rooms = snapshot?.rooms ?? [];
-  const houses = snapshot?.houses ?? [];
   const hasExistingRides = (snapshot?.taxiRides.length ?? 0) > 0;
 
   useEffect(() => {
@@ -211,14 +208,7 @@ export default function ImportRides(props: ImportRidesProps) {
   }, [selectedImage]);
 
   const getGuestRoomLabel = (guest: Guest): string => {
-    if (!guest.room_id) {
-      return "-";
-    }
-
-    const room = rooms.find(item => item.id === guest.room_id);
-    const house = room ? houses.find(item => item.id === room.house_id) : undefined;
-
-    return room && house ? roomsService.getRoomDisplayName(room, house) : "-";
+    return getRoomDisplayNameById(guest.room_id) || "-";
   };
 
   const guestMatchData: GuestMatchData[] = guests.map(guest => ({

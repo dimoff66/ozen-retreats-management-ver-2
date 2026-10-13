@@ -46,7 +46,7 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
   const strOccupiedRoomWarning = "This room already has assigned guests and cannot be made unavailable.";
   const strOccupiedHouseWarning = "Some rooms in this house already have assigned guests and cannot be made unavailable.";
 
-  const { snapshot, retreat, isLoading, error: retreatError, saveRooms } = useRetreat();
+  const { snapshot, retreat, isLoading, error: retreatError, saveRooms, getRoomDisplayNameById } = useRetreat();
   const houses = snapshot?.houses ?? [];
   const rooms: Room[] = roomsService.sortRooms(snapshot?.rooms ?? [], houses);
   const retreatRooms = snapshot?.retreatRooms ?? [];
@@ -154,7 +154,7 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
 
         return {
           id: room.id,
-          roomName: roomsService.getRoomDisplayName(room, house),
+          roomName: getRoomDisplayNameById(room.id),
           isAvailable,
           maxGuests,
           isGloballyAvailable,

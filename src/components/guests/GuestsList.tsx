@@ -40,27 +40,16 @@ export default function GuestsList(props: GuestsListProps) {
   const strGuestActions = "Guest actions";
   const strNoActions = "-";
   const { currentUser: user } = useCurrentUser();
-  const {
-    snapshot,
-    retreat,
-    isLoading,
-    error: retreatError,
-    createGuest,
-    updateGuest,
-    swapRooms,
-    deleteGuest,
-    applyStatusAction,
-    getRoomDisplayNameById,
-  } = useRetreat();
+  const retreatContext = useRetreat();
 
-  const retreatRooms = snapshot?.retreatRooms ?? [];
-  const guests = snapshot?.guests ?? [];
+  const retreatRooms = retreatContext.snapshot?.retreatRooms ?? [];
+  const guests = retreatContext.snapshot?.guests ?? [];
   const guestStatuses = new Map(
-    Array.from(snapshot?.latestStatuses ?? [], ([guestId, latestStatus]) => [guestId, latestStatus.status])
+    Array.from(retreatContext.snapshot?.latestStatuses ?? [], ([guestId, latestStatus]) => [guestId, latestStatus.status])
   );
-  const selectedRetreatId = retreat?.id ?? null;
-  const isSnapshotLoading = isLoading || !snapshot;
-  const isLoadError = Boolean(retreatError);
+  const selectedRetreatId = retreatContext.retreat?.id ?? null;
+  const isSnapshotLoading = retreatContext.isLoading || !retreatContext.snapshot;
+  const isLoadError = Boolean(retreatContext.error);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   const [mapGuest, setMapGuest] = useState<Guest | null>(null);
@@ -106,7 +95,7 @@ export default function GuestsList(props: GuestsListProps) {
     setActionError("");
 
     try {
-      await deleteGuest(guest.id);
+      await retreatContext.deleteGuest(guest.id);
       setSelectedGuest(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strLoadError);
@@ -124,9 +113,9 @@ export default function GuestsList(props: GuestsListProps) {
 
     try {
       if (editingGuest) {
-        await updateGuest(editingGuest.id, data);
+        await retreatContext.updateGuest(editingGuest.id, data);
       } else {
-        await createGuest(data);
+        await retreatContext.createGuest(data);
       }
 
       setIsFormOpen(false);
@@ -151,7 +140,7 @@ export default function GuestsList(props: GuestsListProps) {
 
     setActionError("");
 
-    await updateGuest(mapGuest.id, {
+    await retreatContext.updateGuest(mapGuest.id, {
       room_id: room.id,
     });
 
@@ -168,7 +157,7 @@ export default function GuestsList(props: GuestsListProps) {
 
     setActionError("");
 
-    await swapRooms(mapGuest.id, targetGuest.id);
+    await retreatContext.swapRooms(mapGuest.id, targetGuest.id);
 
     setIsMapOpen(false);
     setMapGuest(null);
@@ -199,14 +188,14 @@ export default function GuestsList(props: GuestsListProps) {
 
     try {
       const currentStatus = guestStatuses.get(guest.id) ?? "booked";
-      await applyStatusAction(guest.id, currentStatus, action, guest.room_id);
+      await retreatContext.applyStatusAction(guest.id, currentStatus, action, guest.room_id);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strLoadError);
     }
   };
 
   const guestRows = guests.map(guest => {
-    const roomName = getRoomDisplayNameById(guest.room_id) || strNoRoom;
+    const roomName = retreatContext.getRoomDisplayNameById(guest.room_id) || strNoRoom;
 
     const name = guest.is_organizer
       ? `${guest.name} (${strOrganizer})`

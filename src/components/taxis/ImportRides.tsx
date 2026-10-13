@@ -134,7 +134,7 @@ export default function ImportRides(props: ImportRidesProps) {
   const strGuests = "guests";
   const strAlreadyAssigned = "This guest is already assigned to another imported taxi row.";
   const strSaveError = "Failed to import taxi rides.";
-  const { retreat, snapshot, refresh, getRoomDisplayNameById } = useRetreat();
+  const retreatContext = useRetreat();
   const [text, setText] = useState("");
   const [groups, setGroups] = useState<ImportRideGroup[]>([]);
   const [selectedGroupNumber, setSelectedGroupNumber] = useState<number | null>(null);
@@ -148,8 +148,8 @@ export default function ImportRides(props: ImportRidesProps) {
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [isExtractingText, setIsExtractingText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const guests = snapshot?.guests ?? [];
-  const hasExistingRides = (snapshot?.taxiRides.length ?? 0) > 0;
+  const guests = retreatContext.snapshot?.guests ?? [];
+  const hasExistingRides = (retreatContext.snapshot?.taxiRides.length ?? 0) > 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -208,7 +208,7 @@ export default function ImportRides(props: ImportRidesProps) {
   }, [selectedImage]);
 
   const getGuestRoomLabel = (guest: Guest): string => {
-    return getRoomDisplayNameById(guest.room_id) || "-";
+    return retreatContext.getRoomDisplayNameById(guest.room_id) || "-";
   };
 
   const guestMatchData: GuestMatchData[] = guests.map(guest => ({
@@ -335,10 +335,11 @@ export default function ImportRides(props: ImportRidesProps) {
   };
 
   const onNextClick = () => {
-    if (!retreat) {
+    if (!retreatContext.retreat) {
       return;
     }
 
+    const retreatStartDate = retreatContext.retreat.start_date;
     const sourceLines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
 
     if (sourceLines.length === 0) {
@@ -480,7 +481,7 @@ export default function ImportRides(props: ImportRidesProps) {
     const nextGroups = groupNumbers.map(groupNumber => {
       const rows = matchedRows.filter(row => row.group === groupNumber);
       const approxTime = rows[0]?.approxTime ?? "00:00";
-      const localDate = new Date(`${retreat.start_date}T${approxTime}:00`);
+      const localDate = new Date(`${retreatStartDate}T${approxTime}:00`);
 
       return {
         group: groupNumber,
@@ -534,7 +535,7 @@ export default function ImportRides(props: ImportRidesProps) {
   };
 
   const onSaveClick = async () => {
-    if (!retreat || isSaving) {
+    if (!retreatContext.retreat || isSaving) {
       return;
     }
 
@@ -554,8 +555,8 @@ export default function ImportRides(props: ImportRidesProps) {
     setError("");
 
     try {
-      await taxiRidesService.createRides(retreat.id, rides);
-      await refresh();
+      await taxiRidesService.createRides(retreatContext.retreat.id, rides);
+      await retreatContext.refresh();
       props.onCloseActionClick();
     } catch {
       setError(strSaveError);
@@ -575,7 +576,7 @@ export default function ImportRides(props: ImportRidesProps) {
       group: group.group,
       number: `${strTaxi} ${group.group}`,
       time: group.approxTime,
-      date: retreat ? dateService.formatDate(retreat.start_date) : "",
+      date: retreatContext.retreat ? dateService.formatDate(retreatContext.retreat.start_date) : "",
       guestCount: `${group.rows.length} ${strGuests}`,
       isSelected: selectedGroup?.group === group.group,
       onSelect,

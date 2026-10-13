@@ -14,7 +14,13 @@ import type {
   CreateGuest,
   CreateTaxiGuest,
   CreateTaxiRide,
+  Guest,
+  House,
+  HouseMap,
   Retreat,
+  RetreatRoom,
+  Room,
+  TaxiGuest,
   TaxiRide,
   UpdateGuest,
   UpdateTaxiRide,
@@ -43,6 +49,13 @@ type RetreatContextValue = {
   getRetreatRooms: () => RetreatSnapshot["retreatRooms"];
   getHouses: () => RetreatSnapshot["houses"];
   getRooms: () => RetreatSnapshot["rooms"];
+  findGuest: (guestId: number | null | undefined) => Guest | undefined;
+  findHouse: (houseId: number | null | undefined) => House | undefined;
+  findHouseMap: (houseMapId: number | null | undefined) => HouseMap | undefined;
+  findRetreatRoom: (roomId: number | null | undefined) => RetreatRoom | undefined;
+  findRoom: (roomId: number | null | undefined) => Room | undefined;
+  findTaxiGuest: (guestId: number | null | undefined) => TaxiGuest | undefined;
+  findTaxiRide: (rideId: number | null | undefined) => TaxiRide | undefined;
   getRoomDisplayNameById: (roomId: number | null | undefined) => string;
   getHouseMaps: () => RetreatSnapshot["houseMaps"];
   isLoading: boolean;
@@ -217,20 +230,45 @@ export function RetreatProvider(props: RetreatProviderProps) {
     ));
   }, [currentUser.id, props.retreatId, runMutation]);
 
+  // Ищут сущности текущего snapshot по их рабочим идентификаторам без дополнительных запросов.
+  const findGuest = useCallback((guestId: number | null | undefined): Guest | undefined => {
+    return snapshotRef.current?.guests.find(item => item.id === guestId);
+  }, []);
+
+  const findHouse = useCallback((houseId: number | null | undefined): House | undefined => {
+    return snapshotRef.current?.houses.find(item => item.id === houseId);
+  }, []);
+
+  const findHouseMap = useCallback((houseMapId: number | null | undefined): HouseMap | undefined => {
+    return snapshotRef.current?.houseMaps.find(item => item.id === houseMapId);
+  }, []);
+
+  const findRetreatRoom = useCallback((roomId: number | null | undefined): RetreatRoom | undefined => {
+    return snapshotRef.current?.retreatRooms.find(item => item.room_id === roomId);
+  }, []);
+
+  const findRoom = useCallback((roomId: number | null | undefined): Room | undefined => {
+    return snapshotRef.current?.rooms.find(item => item.id === roomId);
+  }, []);
+
+  const findTaxiGuest = useCallback((guestId: number | null | undefined): TaxiGuest | undefined => {
+    return snapshotRef.current?.taxiGuests.find(item => item.guest_id === guestId);
+  }, []);
+
+  const findTaxiRide = useCallback((rideId: number | null | undefined): TaxiRide | undefined => {
+    return snapshotRef.current?.taxiRides.find(item => item.id === rideId);
+  }, []);
+
   // Возвращает отображаемое имя комнаты из текущего snapshot без дополнительных запросов.
   const getRoomDisplayNameById = useCallback((roomId: number | null | undefined): string => {
-    if (roomId === null || roomId === undefined) {
-      return "";
-    }
-
-    const room = snapshotRef.current?.rooms.find(item => item.id === roomId);
+    const room = findRoom(roomId);
     if (!room) {
       return "";
     }
 
-    const house = snapshotRef.current?.houses.find(item => item.id === room.house_id);
+    const house = findHouse(room.house_id);
     return house ? roomsService.getRoomDisplayName(room, house) : room.room_number;
-  }, []);
+  }, [findHouse, findRoom]);
 
   const saveRooms = useCallback(async (settings: RetreatRoomSetting[]) => {
     await runMutation(() => retreatRoomsService.saveRetreatRooms(props.retreatId, settings));
@@ -326,6 +364,13 @@ export function RetreatProvider(props: RetreatProviderProps) {
     getRetreatRooms: () => snapshot?.retreatRooms ?? [],
     getHouses: () => snapshot?.houses ?? [],
     getRooms: () => snapshot?.rooms ?? [],
+    findGuest,
+    findHouse,
+    findHouseMap,
+    findRetreatRoom,
+    findRoom,
+    findTaxiGuest,
+    findTaxiRide,
     getRoomDisplayNameById,
     getHouseMaps: () => snapshot?.houseMaps ?? [],
     isLoading,
@@ -356,6 +401,13 @@ export function RetreatProvider(props: RetreatProviderProps) {
     swapRooms,
     deleteGuest,
     applyStatusAction,
+    findGuest,
+    findHouse,
+    findHouseMap,
+    findRetreatRoom,
+    findRoom,
+    findTaxiGuest,
+    findTaxiRide,
     getRoomDisplayNameById,
     saveRooms,
     createTaxiRide,

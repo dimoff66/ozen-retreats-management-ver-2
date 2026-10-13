@@ -30,7 +30,7 @@ export default function GuestForm(props: GuestFormProps) {
 
   const isEditMode = props.guest !== null;
   const formTitle = isEditMode ? strEditTitle : strAddTitle;
-  const { getRoomDisplayNameById } = useRetreat();
+  const retreatContext = useRetreat();
 
   const [name, setName] = useState(props.guest?.name ?? "");
   const [isOrganizer, setIsOrganizer] = useState(props.guest?.is_organizer ?? false);
@@ -41,7 +41,7 @@ export default function GuestForm(props: GuestFormProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   const selectedRoomId = roomId ? Number(roomId) : null;
-  const roomLabel = getRoomDisplayNameById(selectedRoomId) || strNoRoom;
+  const roomLabel = retreatContext.getRoomDisplayNameById(selectedRoomId) || strNoRoom;
   const roomSelectionTarget = {
     guestId: props.guest?.id ?? null,
     name: name.trim() || props.guest?.name || strNewGuest,

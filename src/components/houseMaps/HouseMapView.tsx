@@ -86,24 +86,16 @@ export default function HouseMapView(props: HouseMapViewProps) {
     isSelectionMode && (props.guest || hasExternalRoomSelection) ? (props.initialSelectionMode ?? "room") : null;
 
   const { currentUser: user } = useCurrentUser();
-  const {
-    snapshot,
-    isLoading,
-    error: retreatError,
-    applyStatusAction,
-    updateGuest,
-    swapRooms,
-    getRoomDisplayNameById,
-  } = useRetreat();
+  const retreatContext = useRetreat();
 
-  const houses = snapshot?.houses ?? [];
-  const rooms = snapshot?.rooms ?? [];
-  const houseMaps = snapshot?.houseMaps ?? [];
-  const retreatRooms = snapshot?.retreatRooms ?? [];
-  const guests = snapshot?.guests ?? [];
-  const statuses = snapshot?.latestStatuses ?? new Map<number, LatestGuestStatus>();
-  const isSnapshotLoading = isLoading || !snapshot;
-  const isLoadError = Boolean(retreatError);
+  const houses = retreatContext.snapshot?.houses ?? [];
+  const rooms = retreatContext.snapshot?.rooms ?? [];
+  const houseMaps = retreatContext.snapshot?.houseMaps ?? [];
+  const retreatRooms = retreatContext.snapshot?.retreatRooms ?? [];
+  const guests = retreatContext.snapshot?.guests ?? [];
+  const statuses = retreatContext.snapshot?.latestStatuses ?? new Map<number, LatestGuestStatus>();
+  const isSnapshotLoading = retreatContext.isLoading || !retreatContext.snapshot;
+  const isLoadError = Boolean(retreatContext.error);
 
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
@@ -115,7 +107,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
   const [actionError, setActionError] = useState("");
   const [isSelectionPending, setIsSelectionPending] = useState(false);
 
-  const activeMapId = houseMaps.some(_ => _.id === selectedMapId)
+  const activeMapId = retreatContext.findHouseMap(selectedMapId)
     ? selectedMapId
     : houseMaps[0]?.id;
 
@@ -159,7 +151,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
 
     try {
       const currentStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
-      await applyStatusAction(
+      await retreatContext.applyStatusAction(
         targetGuest.id, currentStatus, action, targetGuest.room_id
       );
     } catch (error) {
@@ -272,7 +264,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
         throw new Error(strActionError);
       }
 
-      await updateGuest(actionGuest.id, { room_id: room.id });
+      await retreatContext.updateGuest(actionGuest.id, { room_id: room.id });
 
       finishSelection();
     } catch (error) {
@@ -312,7 +304,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
         return;
       }
 
-      await swapRooms(actionGuest.id, targetGuest.id);
+      await retreatContext.swapRooms(actionGuest.id, targetGuest.id);
 
       finishSelection();
     } catch (error) {
@@ -338,18 +330,15 @@ export default function HouseMapView(props: HouseMapViewProps) {
     return guestStatusesService.getStatusTextClassName(status);
   };
 
-  const selectedMap =
-    houseMaps.find(item => item.id === activeMapId) ?? null;
-
-  const selectedHouse =
-    houses.find(item => item.id === selectedMap?.house_id) ?? null;
+  const selectedMap = retreatContext.findHouseMap(activeMapId) ?? null;
+  const selectedHouse = retreatContext.findHouse(selectedMap?.house_id) ?? null;
 
   const roomPositions = houseMapsService.getRoomPositions(selectedMap);
 
   const mapTabs = [...houseMaps]
     .sort((left, right) => left.house_id - right.house_id || left.id - right.id)
     .map(houseMap => {
-      const house = houses.find(item => item.id === houseMap.house_id);
+      const house = retreatContext.findHouse(houseMap.house_id);
       const label = house?.name || '';
       const isSelected = houseMap.id === activeMapId;
 
@@ -367,15 +356,13 @@ export default function HouseMapView(props: HouseMapViewProps) {
 
   const mapRoomItems = roomPositions
     .map(position => {
-      const room = rooms.find(item => item.id === position.room_id);
+      const room = retreatContext.findRoom(position.room_id);
 
       if (!room || !selectedHouse) {
         return null;
       }
 
-      const retreatRoom = retreatRooms.find(
-        item => item.room_id === room.id
-      );
+      const retreatRoom = retreatContext.findRetreatRoom(room.id);
 
       const roomGuests = guests.filter(
         item => item.room_id === room.id
@@ -432,7 +419,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
         );
 
         setActions(roomActions);
-        setActionsTitle(getRoomDisplayNameById(room.id));
+        setActionsTitle(retreatContext.getRoomDisplayNameById(room.id));
       };
 
       const roomClassName = [
@@ -522,7 +509,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     .filter(item => item !== null);
 
   const roomSelectionItems = roomsService.sortRooms(rooms, houses).map(room => {
-    const retreatRoom = retreatRooms.find(item => item.room_id === room.id);
+    const retreatRoom = retreatContext.findRetreatRoom(room.id);
     const roomGuests = guests.filter(item => item.room_id === room.id);
     const activeGuests = roomGuests.filter(
       roomGuest => statuses.get(roomGuest.id)?.status !== strNotComingStatus
@@ -536,7 +523,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
       : isFull
         ? "bg-green-600"
         : "bg-blue-600";
-    const roomName = getRoomDisplayNameById(room.id);
+    const roomName = retreatContext.getRoomDisplayNameById(room.id);
 
     const onRoomClickHandler = () => {
       if (isSelectionPending) {
@@ -641,7 +628,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
     .filter(house => house.rooms.some(room => room.isAvailableForRetreat));
 
   const guestSelectionRows = roomsService.sortRooms(rooms, houses).flatMap(room => {
-    const roomName = getRoomDisplayNameById(room.id);
+    const roomName = retreatContext.getRoomDisplayNameById(room.id);
     const roomGuests = guests
       .filter(roomGuest => roomGuest.room_id === room.id)
       .sort((left, right) => left.name.localeCompare(right.name));
@@ -828,37 +815,37 @@ export default function HouseMapView(props: HouseMapViewProps) {
                         {house.roomGroups.map(roomGroup => (
                           <div key={`${house.id}-${roomGroup.prefix || "numeric"}`} className="flex flex-wrap gap-2">
                             {roomGroup.rooms.map(room => (
-                          <div key={room.id} className={`flex h-24 w-48 shrink-0 flex-col overflow-hidden rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={room.onRoomClickHandler}
-                                disabled={selectionMode === "room" && !room.isSelectable}
-                                className="text-left text-sm font-semibold text-gray-900 hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
-                              >
-                                {room.name}
-                              </button>
-                              <span className="text-xs font-medium text-gray-600">{room.occupancyText}</span>
-                            </div>
-                            <div className="mt-1 h-1 w-full rounded-full bg-gray-200">
-                              <div className={`h-full w-full rounded-full ${room.statusBarClassName}`} />
-                            </div>
-                            {room.guestItems.length > 0 && (
-                              <div className="mt-1 flex min-h-0 flex-1 flex-wrap content-start gap-1 overflow-y-auto">
-                                {room.guestItems.map(roomGuest => (
+                              <div key={room.id} className={`flex h-24 w-48 shrink-0 flex-col overflow-hidden rounded-lg border p-2 ${room.canAddGuest ? "border-blue-300 bg-blue-50" : room.statusBarClassName === "bg-green-600" ? "border-green-300 bg-green-50" : "border-gray-300 bg-gray-100"}`}>
+                                <div className="flex items-center gap-2">
                                   <button
-                                    key={roomGuest.id}
                                     type="button"
-                                    onClick={roomGuest.onClickHandler}
-                                    disabled={roomGuest.isDisabled}
-                                    className={roomGuest.className}
+                                    onClick={room.onRoomClickHandler}
+                                    disabled={selectionMode === "room" && !room.isSelectable}
+                                    className="text-left text-sm font-semibold text-gray-900 hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-50"
                                   >
-                                    {roomGuest.name}
+                                    {room.name}
                                   </button>
-                                ))}
+                                  <span className="text-xs font-medium text-gray-600">{room.occupancyText}</span>
+                                </div>
+                                <div className="mt-1 h-1 w-full rounded-full bg-gray-200">
+                                  <div className={`h-full w-full rounded-full ${room.statusBarClassName}`} />
+                                </div>
+                                {room.guestItems.length > 0 && (
+                                  <div className="mt-1 flex min-h-0 flex-1 flex-wrap content-start gap-1 overflow-y-auto">
+                                    {room.guestItems.map(roomGuest => (
+                                      <button
+                                        key={roomGuest.id}
+                                        type="button"
+                                        onClick={roomGuest.onClickHandler}
+                                        disabled={roomGuest.isDisabled}
+                                        className={roomGuest.className}
+                                      >
+                                        {roomGuest.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
                             ))}
                           </div>
                         ))}

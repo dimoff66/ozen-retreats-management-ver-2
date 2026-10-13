@@ -17,19 +17,6 @@ type RoomSetting = {
   maxGuests: number;
 };
 
-const prepareRoomSettings = (
-  rooms: Room[],
-  retreatRooms: { room_id: number; max_guests: number }[]
-): RoomSetting[] => rooms.map(room => {
-  const retreatRoom = retreatRooms.find(item => item.room_id === room.id);
-
-  return {
-    roomId: room.id,
-    isAvailable: room.is_available && retreatRoom !== undefined,
-    maxGuests: retreatRoom?.max_guests ?? 1,
-  };
-});
-
 export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
   const strTitle = "Retreat rooms";
   const strAvailable = "Available";
@@ -46,12 +33,11 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
   const strOccupiedRoomWarning = "This room already has assigned guests and cannot be made unavailable.";
   const strOccupiedHouseWarning = "Some rooms in this house already have assigned guests and cannot be made unavailable.";
 
-  const { snapshot, retreat, isLoading, error: retreatError, saveRooms, getRoomDisplayNameById } = useRetreat();
-  const houses = snapshot?.houses ?? [];
-  const rooms: Room[] = roomsService.sortRooms(snapshot?.rooms ?? [], houses);
-  const retreatRooms = snapshot?.retreatRooms ?? [];
-  const guests = snapshot?.guests ?? [];
-  const latestStatuses = snapshot?.latestStatuses ?? new Map();
+  const retreatContext = useRetreat();
+  const houses = retreatContext.snapshot?.houses ?? [];
+  const rooms: Room[] = roomsService.sortRooms(retreatContext.snapshot?.rooms ?? [], houses);
+  const guests = retreatContext.snapshot?.guests ?? [];
+  const latestStatuses = retreatContext.snapshot?.latestStatuses ?? new Map();
   const occupiedRoomIds = new Set(
     guests.flatMap(guest => {
       if (!guest.room_id) {
@@ -67,7 +53,15 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
   const [houseMaxGuests, setHouseMaxGuests] = useState<Record<number, number>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const settings = settingsOverride ?? prepareRoomSettings(rooms, retreatRooms);
+  const settings = settingsOverride ?? rooms.map(room => {
+    const retreatRoom = retreatContext.findRetreatRoom(room.id);
+
+    return {
+      roomId: room.id,
+      isAvailable: room.is_available && retreatRoom !== undefined,
+      maxGuests: retreatRoom?.max_guests ?? 1,
+    };
+  });
 
   const onSaveActionClick = async () => {
     setIsSaving(true);
@@ -75,7 +69,7 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
 
     try {
       const saveSettings = settings.map(setting => {
-        const room = rooms.find(item => item.id === setting.roomId);
+        const room = retreatContext.findRoom(setting.roomId);
         const isGloballyAvailable = room?.is_available ?? false;
 
         return {
@@ -85,7 +79,7 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
         };
       });
 
-      await saveRooms(saveSettings);
+      await retreatContext.saveRooms(saveSettings);
       setSettingsOverride(null);
     } catch {
       setError(strSaveError);
@@ -154,7 +148,7 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
 
         return {
           id: room.id,
-          roomName: getRoomDisplayNameById(room.id),
+          roomName: retreatContext.getRoomDisplayNameById(room.id),
           isAvailable,
           maxGuests,
           isGloballyAvailable,
@@ -257,14 +251,14 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
         <div className="project-room-settings-header">
           <div>
             <h2>{strTitle}</h2>
-            {retreat && <p>{retreat.title}</p>}
+            {retreatContext.retreat && <p>{retreatContext.retreat.title}</p>}
           </div>
         </div>
       )}
       <div>
-        {(isLoading || !snapshot) && <div className="project-room-settings-message">{strLoading}</div>}
-        {(error || retreatError) && <div className="project-room-settings-message project-room-settings-error">{error || strLoadError}</div>}
-        {!isLoading && snapshot && (
+        {(retreatContext.isLoading || !retreatContext.snapshot) && <div className="project-room-settings-message">{strLoading}</div>}
+        {(error || retreatContext.error) && <div className="project-room-settings-message project-room-settings-error">{error || strLoadError}</div>}
+        {!retreatContext.isLoading && retreatContext.snapshot && (
           <div className="project-room-house-list">
             {houseGroups.map(house => (
               <section key={house.id} className="project-room-house">

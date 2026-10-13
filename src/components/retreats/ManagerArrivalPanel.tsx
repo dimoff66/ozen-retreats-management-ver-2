@@ -60,25 +60,15 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
   const strSetArrived = "SET ARRIVED";
   const strCheckIn = "Check in";
   const { currentUser } = useCurrentUser();
-  const {
-    retreat,
-    snapshot,
-    isLoading,
-    error: retreatError,
-    applyStatusAction,
-    updateGuest,
-    swapRooms,
-    getRoomDisplayNameById,
-  } = useRetreat();
-  const guests = snapshot?.guests ?? [];
-  const rides = snapshot?.taxiRides ?? [];
-  const taxiGuests = snapshot?.taxiGuests ?? [];
-  const rooms = snapshot?.rooms ?? [];
-  const houses = snapshot?.houses ?? [];
+  const retreatContext = useRetreat();
+  const guests = retreatContext.snapshot?.guests ?? [];
+  const rides = retreatContext.snapshot?.taxiRides ?? [];
+  const taxiGuests = retreatContext.snapshot?.taxiGuests ?? [];
+  const houses = retreatContext.snapshot?.houses ?? [];
   const statuses = new Map(
-    Array.from(snapshot?.latestStatuses ?? [], ([guestId, status]) => [guestId, status.status])
+    Array.from(retreatContext.snapshot?.latestStatuses ?? [], ([guestId, status]) => [guestId, status.status])
   );
-  const isSnapshotLoading = isLoading || !snapshot;
+  const isSnapshotLoading = retreatContext.isLoading || !retreatContext.snapshot;
   const [selectedRideId, setSelectedRideId] = useState<number | null>(null);
   const [pendingGuestIds, setPendingGuestIds] = useState<Set<number>>(new Set());
   const [mapGuest, setMapGuest] = useState<Guest | null>(null);
@@ -90,8 +80,8 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
     return timeDifference || left.id - right.id;
   });
   const systemNow = new Date();
-  const retreatClock = retreat
-    ? new Date(`${retreat.start_date}T${String(systemNow.getHours()).padStart(2, "0")}:${String(systemNow.getMinutes()).padStart(2, "0")}:${String(systemNow.getSeconds()).padStart(2, "0")}`)
+  const retreatClock = retreatContext.retreat
+    ? new Date(`${retreatContext.retreat.start_date}T${String(systemNow.getHours()).padStart(2, "0")}:${String(systemNow.getMinutes()).padStart(2, "0")}:${String(systemNow.getSeconds()).padStart(2, "0")}`)
     : null;
   const nearestRideId = retreatClock && sortedRides.length > 0
     ? sortedRides.reduce((nearestRide, ride) => {
@@ -127,7 +117,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
     setError("");
 
     try {
-      await applyStatusAction(
+      await retreatContext.applyStatusAction(
         guestRow.guest.id,
         guestRow.status,
         action,
@@ -164,7 +154,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
       throw new Error(strStatusError);
     }
 
-    await updateGuest(mapGuest.id, { room_id: room.id });
+    await retreatContext.updateGuest(mapGuest.id, { room_id: room.id });
     setMapGuest(null);
   };
 
@@ -173,7 +163,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
       throw new Error(strStatusError);
     }
 
-    await swapRooms(mapGuest.id, targetGuest.id);
+    await retreatContext.swapRooms(mapGuest.id, targetGuest.id);
     setMapGuest(null);
   };
 
@@ -274,23 +264,18 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
       onChange,
     };
   });
-  const roomById = new Map(rooms.map(room => [room.id, room]));
-  const houseById = new Map(houses.map(house => [house.id, house]));
   const taxiNumberById = new Map(meetingTaxiRides.map(taxiRide => [
     taxiRide.ride.id,
     `${strTaxi} ${taxiRide.number}`,
   ]));
-  const taxiGuestByGuestId = new Map(taxiGuests.flatMap(taxiGuest => (
-    taxiGuest.guest_id === null ? [] : [[taxiGuest.guest_id, taxiGuest] as const]
-  )));
   const sortedHouseIds = [...houses].sort((left, right) => left.id - right.id).map(house => house.id);
   const houseOrderById = new Map(sortedHouseIds.map((houseId, index) => [houseId, index]));
   const meetingGroupStride = houses.length + 1;
   const guestRows = guests.map((guest): GuestRow => {
-    const room = guest.room_id === null ? undefined : roomById.get(guest.room_id);
-    const house = room ? houseById.get(room.house_id) : undefined;
-    const roomName = getRoomDisplayNameById(guest.room_id) || strRoomUnknown;
-    const taxiAssignment = taxiGuestByGuestId.get(guest.id);
+    const room = retreatContext.findRoom(guest.room_id);
+    const house = retreatContext.findHouse(room?.house_id);
+    const roomName = retreatContext.getRoomDisplayNameById(guest.room_id) || strRoomUnknown;
+    const taxiAssignment = retreatContext.findTaxiGuest(guest.id);
 
     return {
       guest,
@@ -411,7 +396,7 @@ export default function ManagerArrivalPanel(props: ManagerArrivalPanelProps) {
     <section>
       {(props.showTitle ?? true) && <h2 className="mb-4 text-xl font-bold">{strTitle}</h2>}
       {error && <p role="alert" className="mb-4 text-red-600">{error}</p>}
-      {retreatError && <p role="alert" className="mb-4 text-red-600">{strLoadError}</p>}
+      {retreatContext.error && <p role="alert" className="mb-4 text-red-600">{strLoadError}</p>}
       {isSnapshotLoading && <p>{strLoading}</p>}
       {!isSnapshotLoading && props.mode === "meeting" && (
         <>

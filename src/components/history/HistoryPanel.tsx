@@ -25,10 +25,9 @@ export default function HistoryPanel(props: HistoryPanelProps) {
   const strUnknown = "-";
   const [searchQuery, setSearchQuery] = useState("");
   const { users } = useCurrentUser();
-  const { snapshot, isLoading, error: retreatError } = useRetreat();
-  const statuses = snapshot?.statuses ?? [];
-  const guests = snapshot?.guests ?? [];
-  const error = retreatError ? strLoadError : "";
+  const retreatContext = useRetreat();
+  const statuses = retreatContext.snapshot?.statuses ?? [];
+  const error = retreatContext.error ? strLoadError : "";
 
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -37,7 +36,7 @@ export default function HistoryPanel(props: HistoryPanelProps) {
   const previousStatuses = getPreviousGuestStatuses(statuses);
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
   const historyRows = statuses.map(status => {
-    const guest = guests.find(item => item.id === status.guest_id);
+    const guest = retreatContext.findGuest(status.guest_id);
     const user = users.find(item => item.id === status.updated_by);
     const activityParts = getGuestStatusHistoryMessage(
       status,
@@ -55,7 +54,7 @@ export default function HistoryPanel(props: HistoryPanelProps) {
       searchableText,
     };
   }).filter(row => row.searchableText.toLocaleLowerCase().includes(normalizedSearch));
-  const isSnapshotLoading = isLoading || !snapshot;
+  const isSnapshotLoading = retreatContext.isLoading || !retreatContext.snapshot;
   const isEmpty = !isSnapshotLoading && !error && historyRows.length === 0;
   const hasHistory = !isSnapshotLoading && !error && historyRows.length > 0;
 

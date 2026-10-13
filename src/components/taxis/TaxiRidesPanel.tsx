@@ -57,31 +57,18 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
   const strSavePassengerError = "Failed to add taxi passenger.";
   const strRemovePassengerError = "Failed to remove taxi passenger.";
   const strArrivalRequired = "Choose the arrival date and time.";
-  const {
-    snapshot,
-    isLoading,
-    error: retreatError,
-    createTaxiRide,
-    updateTaxiRide,
-    deleteTaxiRide,
-    addTaxiGuest,
-    moveTaxiGuest,
-    deleteTaxiGuest,
-    getRoomDisplayNameById,
-  } = useRetreat();
-  const rides: TaxiRide[] = [...(snapshot?.taxiRides ?? [])].sort((left, right) => {
+  const retreatContext = useRetreat();
+  const rides: TaxiRide[] = [...(retreatContext.snapshot?.taxiRides ?? [])].sort((left, right) => {
     const timeDifference = Date.parse(left.arrival_datetime) - Date.parse(right.arrival_datetime);
 
     return timeDifference || left.id - right.id;
   });
-  const guests = snapshot?.guests ?? [];
-  const houses = snapshot?.houses ?? [];
-  const rooms = snapshot?.rooms ?? [];
-  const taxiGuests = snapshot?.taxiGuests ?? [];
+  const guests = retreatContext.snapshot?.guests ?? [];
+  const taxiGuests = retreatContext.snapshot?.taxiGuests ?? [];
   const [selectedRideId, setSelectedRideId] = useState<number | null>(null);
   const selectedRide = rides.find(ride => ride.id === selectedRideId)
     ?? (selectedRideId === null ? rides[0] ?? null : null);
-  const isSnapshotLoading = isLoading || !snapshot;
+  const isSnapshotLoading = retreatContext.isLoading || !retreatContext.snapshot;
   const [rideBeingEdited, setRideBeingEdited] = useState<TaxiRide | null>(null);
   const [arrivalDateTime, setArrivalDateTime] = useState("");
   const [driverName, setDriverName] = useState("");
@@ -119,11 +106,11 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
 
     try {
       const ride = rideBeingEdited
-        ? await updateTaxiRide(rideBeingEdited.id, {
+        ? await retreatContext.updateTaxiRide(rideBeingEdited.id, {
             arrival_datetime: new Date(arrivalDateTime).toISOString(),
             driver_name: driverName.trim() || null,
           })
-        : await createTaxiRide({
+        : await retreatContext.createTaxiRide({
             arrival_datetime: new Date(arrivalDateTime).toISOString(),
             driver_name: driverName.trim() || null,
           });
@@ -175,7 +162,7 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
     setError("");
 
     try {
-      await deleteTaxiRide(rideBeingEdited.id);
+      await retreatContext.deleteTaxiRide(rideBeingEdited.id);
       setSelectedRideId(current => current === rideBeingEdited.id ? null : current);
       setRideBeingEdited(null);
       setIsRideModalOpen(false);
@@ -203,7 +190,7 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
     setError("");
 
     try {
-      await addTaxiGuest({
+      await retreatContext.addTaxiGuest({
         ride_id: selectedRide.id,
         guest_id: null,
         unbooked_guest_name: name,
@@ -219,10 +206,10 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
       return;
     }
 
-    const existingAssignment = taxiGuests.find(passenger => passenger.guest_id === guest.id);
+    const existingAssignment = retreatContext.findTaxiGuest(guest.id);
 
     if (existingAssignment) {
-      const assignedRide = rides.find(ride => ride.id === existingAssignment.ride_id);
+      const assignedRide = retreatContext.findTaxiRide(existingAssignment.ride_id);
       const assignedRideNumber = rides.findIndex(ride => ride.id === assignedRide?.id) + 1;
 
       if (!window.confirm(strMoveGuestConfirm.replace("other taxi", `${strRideNumber} ${assignedRideNumber}`))) {
@@ -230,14 +217,14 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
       }
 
       try {
-        await moveTaxiGuest(existingAssignment.id, selectedRide.id);
+        await retreatContext.moveTaxiGuest(existingAssignment.id, selectedRide.id);
       } catch {
         setError(strSavePassengerError);
         return;
       }
     } else {
       try {
-        await addTaxiGuest({
+        await retreatContext.addTaxiGuest({
           ride_id: selectedRide.id,
           guest_id: guest.id,
           unbooked_guest_name: null,
@@ -256,7 +243,7 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
     setError("");
 
     try {
-      await deleteTaxiGuest(passenger.id);
+      await retreatContext.deleteTaxiGuest(passenger.id);
     } catch {
       setError(strRemovePassengerError);
     }
@@ -270,14 +257,14 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
         return [];
       }
 
-      const guest = guests.find(item => item.id === passenger.guest_id);
-      const room = rooms.find(item => item.id === guest?.room_id);
-      const house = houses.find(item => item.id === room?.house_id);
+      const guest = retreatContext.findGuest(passenger.guest_id);
+      const room = retreatContext.findRoom(guest?.room_id);
+      const house = retreatContext.findHouse(room?.house_id);
 
       return house ? [house.id] : [];
     }))).sort((left, right) => left - right);
     const assignedHouseNames = assignedHouseIds.flatMap(houseId => {
-      const house = houses.find(item => item.id === houseId);
+      const house = retreatContext.findHouse(houseId);
 
       return house ? [house.name] : [];
     });
@@ -306,13 +293,11 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
     ? taxiGuests.filter(passenger => passenger.ride_id === selectedRide.id)
     : [];
   const passengerRows = selectedTaxiGuests.map(passenger => {
-    const matchedGuest = guests.find(guest => guest.id === passenger.guest_id);
+    const matchedGuest = retreatContext.findGuest(passenger.guest_id);
     const name = matchedGuest?.name ?? passenger.unbooked_guest_name ?? strGuest;
-    const room = matchedGuest?.room_id
-      ? rooms.find(item => item.id === matchedGuest.room_id)
-      : undefined;
-    const house = room ? houses.find(item => item.id === room.house_id) : undefined;
-    const roomName = getRoomDisplayNameById(matchedGuest?.room_id) || strUnknown;
+    const room = retreatContext.findRoom(matchedGuest?.room_id);
+    const house = retreatContext.findHouse(room?.house_id);
+    const roomName = retreatContext.getRoomDisplayNameById(matchedGuest?.room_id) || strUnknown;
     const houseId = house?.id ?? Number.MAX_SAFE_INTEGER;
     const onRemoveClick = () => {
       void onPassengerDeleteClick(passenger);
@@ -336,7 +321,7 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
     .filter(guest => !selectedGuestIds.includes(guest.id))
     .filter(guest => guest.name.toLocaleLowerCase().includes(normalizedGuestSearch))
     .map(guest => {
-      const assignment = taxiGuests.find(passenger => passenger.guest_id === guest.id);
+      const assignment = retreatContext.findTaxiGuest(guest.id);
       const assignedRideIndex = assignment
         ? rides.findIndex(ride => ride.id === assignment.ride_id)
         : -1;
@@ -359,7 +344,7 @@ export default function TaxiRidesPanel(props: TaxiRidesPanelProps) {
     <section className="project-taxi-screen">
       {(props.showTitle ?? true) && <div className="project-section-toolbar"><div><h2>{strTitle}</h2></div></div>}
       {error && <p role="alert" className="project-state-message project-state-error">{error}</p>}
-      {retreatError && <p role="alert" className="project-state-message project-state-error">{retreatError}</p>}
+      {retreatContext.error && <p role="alert" className="project-state-message project-state-error">{retreatContext.error}</p>}
       {isSnapshotLoading && <p className="project-state-message">{strLoading}</p>}
       {!isSnapshotLoading && (
         <>

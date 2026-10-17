@@ -49,13 +49,13 @@ type RetreatContextValue = {
   getRetreatRooms: () => RetreatSnapshot["retreatRooms"];
   getHouses: () => RetreatSnapshot["houses"];
   getRooms: () => RetreatSnapshot["rooms"];
-  findGuest: (guestId: number | null | undefined) => Guest | undefined;
-  findHouse: (houseId: number | null | undefined) => House | undefined;
-  findHouseMap: (houseMapId: number | null | undefined) => HouseMap | undefined;
-  findRetreatRoom: (roomId: number | null | undefined) => RetreatRoom | undefined;
-  findRoom: (roomId: number | null | undefined) => Room | undefined;
-  findTaxiGuest: (guestId: number | null | undefined) => TaxiGuest | undefined;
-  findTaxiRide: (rideId: number | null | undefined) => TaxiRide | undefined;
+  findGuest: (guestId: number | null | undefined) => Guest | null;
+  findHouse: (houseId: number | null | undefined) => House | null;
+  findHouseMap: (houseMapId: number | null | undefined) => HouseMap | null;
+  findRetreatRoom: (roomId: number | null | undefined) => RetreatRoom | null;
+  findRoom: (roomId: number | null | undefined) => Room | null;
+  findTaxiGuest: (guestId: number | null | undefined) => TaxiGuest | null;
+  findTaxiRide: (rideId: number | null | undefined) => TaxiRide | null;
   getRoomDisplayNameById: (roomId: number | null | undefined) => string;
   getHouseMaps: () => RetreatSnapshot["houseMaps"];
   isLoading: boolean;
@@ -231,32 +231,32 @@ export function RetreatProvider(props: RetreatProviderProps) {
   }, [currentUser.id, props.retreatId, runMutation]);
 
   // Ищут сущности текущего snapshot по их рабочим идентификаторам без дополнительных запросов.
-  const findGuest = useCallback((guestId: number | null | undefined): Guest | undefined => {
-    return snapshotRef.current?.guests.find(item => item.id === guestId);
+  const findGuest = useCallback((guestId: number | null | undefined): Guest | null => {
+    return snapshotRef.current?.guests.find(item => item.id === guestId) ?? null;
   }, []);
 
-  const findHouse = useCallback((houseId: number | null | undefined): House | undefined => {
-    return snapshotRef.current?.houses.find(item => item.id === houseId);
+  const findHouse = useCallback((houseId: number | null | undefined): House | null => {
+    return snapshotRef.current?.houses.find(item => item.id === houseId) ?? null;
   }, []);
 
-  const findHouseMap = useCallback((houseMapId: number | null | undefined): HouseMap | undefined => {
-    return snapshotRef.current?.houseMaps.find(item => item.id === houseMapId);
+  const findHouseMap = useCallback((houseMapId: number | null | undefined): HouseMap | null => {
+    return snapshotRef.current?.houseMaps.find(item => item.id === houseMapId) ?? null;
   }, []);
 
-  const findRetreatRoom = useCallback((roomId: number | null | undefined): RetreatRoom | undefined => {
-    return snapshotRef.current?.retreatRooms.find(item => item.room_id === roomId);
+  const findRetreatRoom = useCallback((roomId: number | null | undefined): RetreatRoom | null => {
+    return snapshotRef.current?.retreatRooms.find(item => item.room_id === roomId) ?? null;
   }, []);
 
-  const findRoom = useCallback((roomId: number | null | undefined): Room | undefined => {
-    return snapshotRef.current?.rooms.find(item => item.id === roomId);
+  const findRoom = useCallback((roomId: number | null | undefined): Room | null => {
+    return snapshotRef.current?.rooms.find(item => item.id === roomId) ?? null;
   }, []);
 
-  const findTaxiGuest = useCallback((guestId: number | null | undefined): TaxiGuest | undefined => {
-    return snapshotRef.current?.taxiGuests.find(item => item.guest_id === guestId);
+  const findTaxiGuest = useCallback((guestId: number | null | undefined): TaxiGuest | null => {
+    return snapshotRef.current?.taxiGuests.find(item => item.guest_id === guestId) ?? null;
   }, []);
 
-  const findTaxiRide = useCallback((rideId: number | null | undefined): TaxiRide | undefined => {
-    return snapshotRef.current?.taxiRides.find(item => item.id === rideId);
+  const findTaxiRide = useCallback((rideId: number | null | undefined): TaxiRide | null => {
+    return snapshotRef.current?.taxiRides.find(item => item.id === rideId) ?? null;
   }, []);
 
   // Возвращает отображаемое имя комнаты из текущего snapshot без дополнительных запросов.

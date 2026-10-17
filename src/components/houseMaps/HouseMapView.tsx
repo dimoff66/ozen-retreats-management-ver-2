@@ -54,66 +54,163 @@ type HouseMapViewProps = {
 };
 
 export default function HouseMapView(props: HouseMapViewProps) {
-  const strTitle = "House map";
-  const strSelectRoom = "Select a room for";
-  const strSelectGuest = "Select a guest to swap with";
-  const strChoose = "Choose";
-  const strCancel = "Cancel";
-  const strCancelSelection = "Cancel selection";
-  const strSelecting = "Updating room assignment...";
-  const strLoading = "Loading...";
-  const strLoadError = "Failed to load house maps.";
-  const strActionError = "Failed to perform action.";
-  const strNoMaps = "No house maps available.";
-  const strNoRooms = "No rooms available.";
-  const strNoGuests = "No guests assigned to rooms.";
-  const strRooms = "Rooms";
-  const strGuests = "Guests";
-  const strColumnRoom = "Room";
-  const strColumnName = "Guest";
-  const strColumnStatus = "Status";
-  const strNoBackground = "No map image.";
-  const strOrganizer = "organizer";
-  const strShowHistory = "Show history";
-  const strCloseActions = "Close";
-  const strBooked = "booked";
-  const strNotComingStatus = "not_coming";
-  const strConfirmNonBookedGuest = "This guest's status is {status}, not {bookedStatus}. Continue with the room swap?";
 
-  const isSelectionMode = props.openMode === "selection";
-  const hasExternalRoomSelection = (props.initialSelectionMode ?? "room") === "room" && (props.roomSelectionTarget ?? null) !== null;
-  const initialSelectionMode: SelectionMode =
-    isSelectionMode && (props.guest || hasExternalRoomSelection) ? (props.initialSelectionMode ?? "room") : null;
-
+  /////////////////////////////////////////////////////////////////
+  // STRINGS
+  const strTitle            = "House map";
+  const strSelectRoom       = "Select a room for";
+  const strSelectGuest      = "Select a guest to swap with";
+  const strChoose           = "Choose";
+  const strCancel           = "Cancel";
+  const strCancelSelection  = "Cancel selection";
+  const strSelecting        = "Updating room assignment...";
+  const strLoading          = "Loading...";
+  const strLoadError        = "Failed to load house maps.";
+  const strActionError      = "Failed to perform action.";
+  const strNoMaps           = "No house maps available.";
+  const strNoRooms          = "No rooms available.";
+  const strNoGuests         = "No guests assigned to rooms.";
+  const strRooms            = "Rooms";
+  const strGuests           = "Guests";
+  const strColumnRoom       = "Room";
+  const strColumnName       = "Guest";
+  const strColumnStatus     = "Status";
+  const strNoBackground     = "No map image.";
+  const strOrganizer        = "organizer";
+  const strShowHistory      = "Show history";
+  const strCloseActions     = "Close";
+  const strBooked           = "booked";
+  const strNotComingStatus  = "not_coming";
+  const strConfirmNonBookedGuest = 
+    "This guest's status is {status}, not {bookedStatus}. Continue with the room swap?";
+  
   const { currentUser: user } = useCurrentUser();
+
   const retreatContext = useRetreat();
 
-  const houses = retreatContext.snapshot?.houses ?? [];
-  const rooms = retreatContext.snapshot?.rooms ?? [];
-  const houseMaps = retreatContext.snapshot?.houseMaps ?? [];
-  const retreatRooms = retreatContext.snapshot?.retreatRooms ?? [];
-  const guests = retreatContext.snapshot?.guests ?? [];
-  const statuses = retreatContext.snapshot?.latestStatuses ?? new Map<number, LatestGuestStatus>();
+  const houses            = retreatContext.getHouses();
+  const rooms             = retreatContext.getRooms();
+  const houseMaps         = retreatContext.getHouseMaps();
+  const retreatRooms      = retreatContext.getRetreatRooms();
+  const guests            = retreatContext.getGuests();
+  const statuses          = retreatContext.getLatestStatuses();
   const isSnapshotLoading = retreatContext.isLoading || !retreatContext.snapshot;
-  const isLoadError = Boolean(retreatContext.error);
+  const isLoadError       = Boolean(retreatContext.error);
 
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
-  const [selectionMode, setSelectionMode] = useState<SelectionMode>(initialSelectionMode);
-  const [actionGuest, setActionGuest] = useState<Guest | null>(
-    initialSelectionMode ? (props.guest ?? null) : null
-  );
-  const [actions, setActions] = useState<MapAction[]>([]);
-  const [actionsTitle, setActionsTitle] = useState("");
-  const [actionError, setActionError] = useState("");
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>(props.initialSelectionMode || null);
+  const [actionGuest, setActionGuest]     = useState<Guest | null>(props.guest || null);
+  const [actions, setActions]             = useState<MapAction[]>([]);
+  const [actionsTitle, setActionsTitle]   = useState("");
+  const [actionError, setActionError]     = useState("");
   const [isSelectionPending, setIsSelectionPending] = useState(false);
-
-  const activeMapId = retreatContext.findHouseMap(selectedMapId)
-    ? selectedMapId
-    : houseMaps[0]?.id;
 
   if (!user) {
     return null;
   }
+
+  const isSelectionMode = Boolean(props.initialSelectionMode);
+  const activeMapId     = retreatContext.findHouseMap(selectedMapId)
+    ? selectedMapId
+    : houseMaps[0]?.id;
+
+  const hasRoomSelectionTarget  = Boolean(actionGuest || props.roomSelectionTarget);
+
+  const selectionGuestId        = actionGuest?.id || props.roomSelectionTarget?.guestId || null;
+  const selectionRoomId         = actionGuest?.room_id || props.roomSelectionTarget?.roomId;
+  const selectionGuestName      = actionGuest?.name || props.roomSelectionTarget?.name || "";
+  
+  const selectableRooms         = retreatRoomsService.getSelectableRooms(
+    rooms,
+    retreatRooms,
+    guests,
+    statuses,
+    selectionGuestId
+  );
+
+  const selectableRoomIds = new Set(selectableRooms.map(_ => _.id));
+
+  const selectedMap   = retreatContext.findHouseMap(activeMapId);
+  const selectedHouse = retreatContext.findHouse(selectedMap?.house_id);
+
+  const roomPositions = houseMapsService.getRoomPositions(selectedMap);
+
+  const getStatus = (guestId: number) => {
+    return statuses.get(guestId)?.status || strBooked;
+  };
+
+  const getGuestClassName = (status: GuestStatusValue): string => {
+    return guestStatusesService.getStatusTextClassName(status);
+  };
+
+  const canSelectRoom = (room: Room): boolean => {
+    if (selectionMode !== "room" || !hasRoomSelectionTarget) {
+      return false;
+    }
+
+    if (selectionRoomId === room.id) {
+      return false;
+    }
+
+    return selectableRoomIds.has(room.id);
+  };
+
+  ////////////////////////////////////////////////////////////////
+  const canSelectGuest = (targetGuest: Guest): boolean => {
+    if (selectionMode !== "guest" || !actionGuest) {
+      return false;
+    }
+
+    const actionGuestStatus = getStatus(actionGuest.id)
+    const targetGuestStatus = getStatus(targetGuest.id);
+
+    return guestsService.canSwapGuests(
+      actionGuest, targetGuest, actionGuestStatus, targetGuestStatus
+    );
+  };
+
+
+  
+
+  ////////////////////////////////////////////////////////////////
+  // ACTIONS MANAGEMENT
+  const getAvailableActions = (
+    targetType: ActionTargetType,
+    targetGuest: Guest | null
+  ): MapAction[] => {
+
+    const showRoomHistoryAction: MapAction = {
+      id: "show_room_history",
+      label: strShowHistory,
+      onClickHandler: onShowHistoryActionClick,
+    };
+
+    if (targetType === "room" || !targetGuest) {
+      return [showRoomHistoryAction];
+    }
+
+    const guestStatus = statuses.get(targetGuest.id);
+    const status: GuestStatusValue = guestStatus?.status || strBooked;
+    const guestActions = guestsService.getGuestMenuActions(
+      targetGuest,
+      user.role,
+      status,
+      (selectedGuest, action) => {
+        onGuestMenuAction(selectedGuest, action);
+      }
+    );
+
+    const availableActions: MapAction[] = [
+      ...guestActions.map(_ => ({
+        id: _.id,
+        label: _.caption,
+        onClickHandler: _.action,
+      })), 
+      
+      showRoomHistoryAction];
+
+    return availableActions;
+  };
 
   const clearActions = () => {
     setActions([]);
@@ -138,6 +235,11 @@ export default function HouseMapView(props: HouseMapViewProps) {
     setActionGuest(targetGuest);
     setSelectionMode("guest");
   };
+  //
+  /////////////////////////////////////////////////////////
+
+  ///////////////////////////////////////////////////////
+  // HANDLERS
 
   const onShowHistoryActionClick = () => {
     return;
@@ -150,51 +252,16 @@ export default function HouseMapView(props: HouseMapViewProps) {
     setActionError("");
 
     try {
-      const currentStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
+      const currentStatus = getStatus(targetGuest.id);
       await retreatContext.applyStatusAction(
-        targetGuest.id, currentStatus, action, targetGuest.room_id
+        targetGuest.id, 
+        currentStatus, 
+        action, 
+        targetGuest.room_id
       );
     } catch (error) {
       setActionError(error instanceof Error ? error.message : strActionError);
     }
-  };
-
-  const getAvailableActions = (
-    targetType: ActionTargetType,
-    targetGuest: Guest | null
-  ): MapAction[] => {
-
-    const showRoomHistoryAction: MapAction = {
-      id: "show_room_history",
-      label: strShowHistory,
-      onClickHandler: onShowHistoryActionClick,
-    };
-
-    if (targetType === "room" || !targetGuest) {
-      return [showRoomHistoryAction];
-    }
-
-    const guestStatus = statuses.get(targetGuest.id);
-    const status: GuestStatusValue = guestStatus?.status ?? strBooked;
-    const guestActions = guestsService.getGuestMenuActions(
-      targetGuest,
-      user.role,
-      status,
-      (selectedGuest, action) => {
-        onGuestMenuAction(selectedGuest, action);
-      }
-    );
-
-    const availableActions: MapAction[] = [
-      ...guestActions.map(_ => ({
-        id: _.id,
-        label: _.caption,
-        onClickHandler: _.action,
-      })), 
-      
-      showRoomHistoryAction];
-
-    return availableActions;
   };
 
   const onGuestMenuAction = (targetGuest: Guest, action: GuestAction) => {
@@ -205,45 +272,6 @@ export default function HouseMapView(props: HouseMapViewProps) {
     } else if (guestStatusesService.isStatusAction(action)) {
       void onGuestStatusAction(targetGuest, action);
     }
-  };
-
-  const selectionGuestId = actionGuest?.id || props.roomSelectionTarget?.guestId || null;
-  const selectionRoomId = actionGuest?.room_id || props.roomSelectionTarget?.roomId;
-  const selectionGuestName = actionGuest?.name || props.roomSelectionTarget?.name || "";
-  const hasRoomSelectionTarget = Boolean(actionGuest || props.roomSelectionTarget);
-  const selectableRooms = retreatRoomsService.getSelectableRooms(
-    rooms,
-    retreatRooms,
-    guests,
-    statuses,
-    selectionGuestId
-  );
-
-  const selectableRoomIds = new Set(selectableRooms.map(_ => _.id));
-
-  const canSelectRoom = (room: Room): boolean => {
-    if (selectionMode !== "room" || !hasRoomSelectionTarget) {
-      return false;
-    }
-
-    if (selectionRoomId === room.id) {
-      return false;
-    }
-
-    return selectableRoomIds.has(room.id);
-  };
-
-  const canSelectGuest = (targetGuest: Guest): boolean => {
-    if (selectionMode !== "guest" || !actionGuest) {
-      return false;
-    }
-
-    const actionGuestStatus = statuses.get(actionGuest.id)?.status ?? strBooked;
-    const targetGuestStatus = statuses.get(targetGuest.id)?.status ?? strBooked;
-
-    return guestsService.canSwapGuests(
-      actionGuest, targetGuest, actionGuestStatus, targetGuestStatus
-    );
   };
 
   const onRoomSelected = async (room: Room) => {
@@ -278,14 +306,14 @@ export default function HouseMapView(props: HouseMapViewProps) {
       return;
     }
 
-    const firstRoomId = actionGuest.room_id;
-    const secondRoomId = targetGuest.room_id;
+    const firstRoomId   = actionGuest.room_id;
+    const secondRoomId  = targetGuest.room_id;
 
     if (!firstRoomId || !secondRoomId) {
       return;
     }
 
-    const targetStatus = statuses.get(targetGuest.id)?.status || strBooked;
+    const targetStatus = getStatus(targetGuest.id);
     if (
       targetStatus !== strBooked
       && !window.confirm(strConfirmNonBookedGuest
@@ -326,21 +354,11 @@ export default function HouseMapView(props: HouseMapViewProps) {
     finishSelection();
   };
 
-  const getGuestClassName = (status: GuestStatusValue): string => {
-    return guestStatusesService.getStatusTextClassName(status);
-  };
-
-  const selectedMap = retreatContext.findHouseMap(activeMapId) ?? null;
-  const selectedHouse = retreatContext.findHouse(selectedMap?.house_id) ?? null;
-
-  const roomPositions = houseMapsService.getRoomPositions(selectedMap);
-
   const mapTabs = [...houseMaps]
     .sort((left, right) => left.house_id - right.house_id || left.id - right.id)
     .map(houseMap => {
-      const house = retreatContext.findHouse(houseMap.house_id);
-      const label = house?.name || '';
-      const isSelected = houseMap.id === activeMapId;
+      const label       = retreatContext.findHouse(houseMap.house_id)!.name;
+      const isSelected  = houseMap.id === activeMapId;
 
       const onClickHandler = () => {
         setSelectedMapId(houseMap.id);
@@ -362,15 +380,11 @@ export default function HouseMapView(props: HouseMapViewProps) {
         return null;
       }
 
-      const retreatRoom = retreatContext.findRetreatRoom(room.id);
-
-      const roomGuests = guests.filter(
-        item => item.room_id === room.id
-      );
+      const retreatRoom   = retreatContext.findRetreatRoom(room.id);
+      const roomGuests    = guests.filter(item => item.room_id === room.id);
 
       const activeGuests = roomGuests.filter(roomGuest => {
         const status = statuses.get(roomGuest.id);
-
         return status?.status !== strNotComingStatus;
       });
 
@@ -384,11 +398,12 @@ export default function HouseMapView(props: HouseMapViewProps) {
         retreatRoom !== undefined &&
         activeGuests.length >= maxGuests;
 
-      const isRoomSelectable = canSelectRoom(room);
-      const canAddGuest = room.is_available && retreatRoom !== undefined && !isFull;
+      const isRoomSelectable  = canSelectRoom(room);
+      const canAddGuest       = room.is_available && retreatRoom && !isFull
       const isRoomInteractive = selectionMode === "room"
         ? isRoomSelectable
         : selectionMode === null && canAddGuest;
+
       const statusBarClassName = canAddGuest
         ? "bg-blue-600"
         : isFull
@@ -506,13 +521,13 @@ export default function HouseMapView(props: HouseMapViewProps) {
         guestItems,
       };
     })
-    .filter(item => item !== null);
+    .filter(Boolean);
 
   const roomSelectionItems = roomsService.sortRooms(rooms, houses).map(room => {
     const retreatRoom = retreatContext.findRetreatRoom(room.id);
     const roomGuests = guests.filter(item => item.room_id === room.id);
     const activeGuests = roomGuests.filter(
-      roomGuest => statuses.get(roomGuest.id)?.status !== strNotComingStatus
+      roomGuest => getStatus(roomGuest.id) !== strNotComingStatus
     );
     const maxGuests = retreatRoom?.max_guests || 0;
     const isRoomAvailable = room.is_available && retreatRoom !== undefined;
@@ -721,7 +736,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
                     ) : (
                       <div className="flex min-h-[500px] items-center justify-center text-gray-500">{strNoBackground}</div>
                     )}
-                    {mapRoomItems.map(room => (
+                    {mapRoomItems.map(room => room!).map(room => (
                       <div
                         key={room.id}
                         style={room.style}

@@ -139,6 +139,7 @@ export default function UsersList() {
           role: data.role,
           retreat_id: data.retreat_id,
           link_code: data.link_code,
+          hide_maps: data.hide_maps,
         };
         savedUser = await usersService.createUser(createData);
       }

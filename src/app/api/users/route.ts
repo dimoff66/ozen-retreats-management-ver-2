@@ -55,6 +55,7 @@ function getUserFields(value: unknown): Omit<StoredUserCreate, "password"> | nul
     : Number(record.retreat_id);
   const linkCodeValue = typeof record.link_code === "string" ? record.link_code.trim() : "";
   const linkCode = linkCodeValue || null;
+  const hideMaps = record.hide_maps === true;
 
   if (
     !name ||
@@ -72,6 +73,7 @@ function getUserFields(value: unknown): Omit<StoredUserCreate, "password"> | nul
     role,
     retreat_id: retreatId,
     link_code: linkCode,
+    hide_maps: hideMaps,
   };
 }
 
@@ -200,6 +202,14 @@ export async function PATCH(request: Request) {
       }
 
       changes.link_code = linkCode;
+    }
+
+    if (input.hide_maps !== undefined) {
+      if (typeof input.hide_maps !== "boolean") {
+        return NextResponse.json({ error: "Invalid hide maps value." }, { status: 400 });
+      }
+
+      changes.hide_maps = input.hide_maps;
     }
 
     if (input.password !== undefined) {

@@ -14,7 +14,6 @@ import guestsService from "./guestsService";
 import houseMapsService from "./houseMapsService";
 import housesService from "./housesService";
 import retreatRoomsService from "./retreatRoomsService";
-import retreatsService from "./retreatsService";
 import roomsService from "./roomsService";
 import taxiRidesService from "./taxiRidesService";
 import type { LatestGuestStatus } from "./guestStatusesService";
@@ -34,12 +33,8 @@ export type RetreatSnapshot = {
 
 const retreatSnapshotService = {
   // Загружает согласованный набор данных рабочей области ретрита одним вызовом сервиса.
-  getSnapshot: async (retreatId: number): Promise<RetreatSnapshot> => {
-    const retreat = await retreatsService.getRetreatById(retreatId);
-
-    if (!retreat) {
-      throw new Error("Retreat no longer exists.");
-    }
+  getSnapshot: async (retreat: Retreat): Promise<RetreatSnapshot> => {
+    const retreatId = retreat.id;
 
     const [
       guests,

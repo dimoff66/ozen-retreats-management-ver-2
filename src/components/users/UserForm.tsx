@@ -11,6 +11,7 @@ export type UserFormData = {
   role: string;
   retreat_id: number | null;
   link_code: string | null;
+  hide_maps: boolean;
 };
 
 type UserFormProps = {
@@ -32,6 +33,7 @@ export default function UserForm(props: UserFormProps) {
   const strShowPassword = "Show password";
   const strLinkCode = "Link code";
   const strLinkCodeNote = "Permanent passwordless login code. Leave blank to disable the login link.";
+  const strHideMaps = "Hide maps";
   const strRole = "Role";
   const strRetreat = "Retreat";
   const strNoRetreat = "No retreat";
@@ -44,6 +46,7 @@ export default function UserForm(props: UserFormProps) {
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [linkCode, setLinkCode] = useState(props.user?.link_code ?? "");
+  const [hideMaps, setHideMaps] = useState(props.user?.hide_maps ?? false);
   const [role, setRole] = useState(props.user?.role ?? props.roles[0]?.role_name ?? "");
   const [retreatId, setRetreatId] = useState(props.user?.retreat_id?.toString() ?? "");
   const [isSaving, setIsSaving] = useState(false);
@@ -69,6 +72,10 @@ export default function UserForm(props: UserFormProps) {
     setLinkCode(event.target.value);
   };
 
+  const onHideMapsChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setHideMaps(event.target.checked);
+  };
+
   const onRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextRole = event.target.value;
     setRole(nextRole);
@@ -91,6 +98,7 @@ export default function UserForm(props: UserFormProps) {
       role,
       retreat_id: role === "organizer" && retreatId ? Number(retreatId) : null,
       link_code: linkCode.trim() || null,
+      hide_maps: hideMaps,
     };
 
     if (password) {
@@ -120,6 +128,7 @@ export default function UserForm(props: UserFormProps) {
             {props.user && <p className="project-field-note">{strPasswordOptional}</p>}
           </div>
           <label htmlFor="user-link-code" className="project-form-field"><span>{strLinkCode}</span><input id="user-link-code" value={linkCode} onChange={onLinkCodeChange} maxLength={255} autoComplete="off" /><small className="project-field-note">{strLinkCodeNote}</small></label>
+          <label className="project-checkbox-field"><input type="checkbox" checked={hideMaps} onChange={onHideMapsChange} /><span>{strHideMaps}</span></label>
           <label htmlFor="user-role" className="project-form-field"><span>{strRole}</span><select id="user-role" value={role} onChange={onRoleChange} required>{props.roles.map(item => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}</select></label>
           {role === "organizer" && (
             <label htmlFor="user-retreat" className="project-form-field"><span>{strRetreat}</span><select id="user-retreat" value={retreatId} onChange={onRetreatChange}><option value="">{strNoRetreat}</option>{props.retreats.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>

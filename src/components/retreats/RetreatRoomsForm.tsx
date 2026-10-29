@@ -58,7 +58,7 @@ export default function RetreatRoomsForm(props: RetreatRoomsFormProps) {
 
     return {
       roomId: room.id,
-      isAvailable: room.is_available && retreatRoom !== undefined,
+      isAvailable: room.is_available && Boolean(retreatRoom),
       maxGuests: retreatRoom?.max_guests ?? 1,
     };
   });

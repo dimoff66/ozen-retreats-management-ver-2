@@ -14,6 +14,7 @@ export type User = {
   role: string;
   retreat_id: number | null;
   created_at: string;
+  hide_maps: boolean;
 };
 
 export type ManagedUser = User & {
@@ -54,7 +55,7 @@ export type Retreat = {
   end_date: string;
   is_active: boolean;
   created_at: string;
-  version?: number;
+  version: number;
 };
 
 export type RetreatRoom = {
@@ -113,6 +114,7 @@ export type CreateUser = {
   role: string;
   retreat_id?: number | null;
   link_code?: string | null;
+  hide_maps?: boolean;
 };
 
 export type UpdateUser = Partial<CreateUser>;
@@ -225,7 +227,7 @@ export type CreateTaxiRideBatch = {
 |--------------------------------------------------------------------------
 */
 
-const USER_PUBLIC_COLUMNS = "id,name,login,role,retreat_id,created_at";
+const USER_PUBLIC_COLUMNS = "id,name,login,role,retreat_id,created_at,hide_maps";
 
 function throwDatabaseError(
   operation: string,

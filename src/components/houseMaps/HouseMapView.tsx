@@ -110,6 +110,8 @@ export default function HouseMapView(props: HouseMapViewProps) {
   }
 
   const isSelectionMode = Boolean(props.initialSelectionMode);
+  const showMaps = !user.hide_maps;
+  const showRoomSelectionList = user.hide_maps || (props.showRoomSelectionList ?? true);
   const activeMapId     = retreatContext.findHouseMap(selectedMapId)
     ? selectedMapId
     : houseMaps[0]?.id;
@@ -395,7 +397,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
         : "";
 
       const isFull =
-        retreatRoom !== undefined &&
+        Boolean(retreatRoom) &&
         activeGuests.length >= maxGuests;
 
       const isRoomSelectable  = canSelectRoom(room);
@@ -530,7 +532,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
       roomGuest => getStatus(roomGuest.id) !== strNotComingStatus
     );
     const maxGuests = retreatRoom?.max_guests || 0;
-    const isRoomAvailable = room.is_available && retreatRoom !== undefined;
+    const isRoomAvailable = room.is_available && Boolean(retreatRoom);
     const isFull = isRoomAvailable && activeGuests.length >= maxGuests;
     const canAddGuest = isRoomAvailable && !isFull;
     const statusBarClassName = !isRoomAvailable
@@ -719,7 +721,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
       {isLoadError && <div>{strLoadError}</div>}
       {!isSnapshotLoading && !isLoadError && (houseMaps.length > 0 || rooms.length > 0) && (
         <>
-          {mapTabs.length > 0 ? (
+          {showMaps && (mapTabs.length > 0 ? (
             <>
               <div className="mb-4 flex shrink-0 flex-wrap gap-2">
                 {mapTabs.map(tab => (
@@ -776,7 +778,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
                 </div>
               )}
             </>
-          ) : <div className="mb-6 text-gray-500">{strNoMaps}</div>}
+          ) : <div className="mb-6 text-gray-500">{strNoMaps}</div>)}
           {selectionMode === "guest" ? (
             <section className="min-h-0 flex-1 overflow-auto">
               <h3 className="mb-3 text-lg font-semibold">{strGuests}</h3>
@@ -818,7 +820,7 @@ export default function HouseMapView(props: HouseMapViewProps) {
                 </div>
               )}
             </section>
-          ) : (props.showRoomSelectionList ?? true) && (
+          ) : showRoomSelectionList && (
             <section className="min-h-0 flex-1 overflow-auto">
               <h3 className="mb-3 text-lg font-semibold">{strRooms}</h3>
               {roomSelectionGroups.length === 0 ? <div className="text-gray-500">{strNoRooms}</div> : (

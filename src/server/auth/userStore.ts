@@ -15,6 +15,7 @@ export type StoredUserCreate = {
   role: string;
   retreat_id: number | null;
   link_code: string | null;
+  hide_maps: boolean;
 };
 
 export type StoredUserUpdate = Partial<StoredUserCreate>;
@@ -27,6 +28,7 @@ export function toPublicUser(user: StoredUser): User {
     role: user.role,
     retreat_id: user.retreat_id,
     created_at: user.created_at,
+    hide_maps: user.hide_maps,
   };
 }
 
@@ -37,9 +39,9 @@ export function toManagedUser(user: StoredUser): ManagedUser {
   };
 }
 
-const PUBLIC_USER_COLUMNS = "id,name,login,role,retreat_id,created_at";
-const ADMIN_USER_COLUMNS = "id,name,login,role,retreat_id,created_at,link_code";
-const PRIVATE_USER_COLUMNS = "id,name,login,password,role,retreat_id,created_at,link_code";
+const PUBLIC_USER_COLUMNS = "id,name,login,role,retreat_id,created_at,hide_maps";
+const ADMIN_USER_COLUMNS = "id,name,login,role,retreat_id,created_at,link_code,hide_maps";
+const PRIVATE_USER_COLUMNS = "id,name,login,password,role,retreat_id,created_at,link_code,hide_maps";
 
 function useMariaDb(): boolean {
   return process.env.MARIADB_API_ENABLED === "true";
@@ -73,6 +75,7 @@ function toUser(row: Record<string, unknown>): User {
     role: String(row.role),
     retreat_id: row.retreat_id === null ? null : Number(row.retreat_id),
     created_at: String(row.created_at),
+    hide_maps: Boolean(row.hide_maps),
   };
 }
 
@@ -222,8 +225,8 @@ const authUserStore = {
   create: async (user: StoredUserCreate): Promise<StoredUser> => {
     if (useMariaDb()) {
       const [result] = await getMariaDbPool().execute<ResultSetHeader>(
-        "insert into `users` (name, login, password, role, retreat_id, link_code) values (?, ?, ?, ?, ?, ?)",
-        [user.name, user.login, user.password, user.role, user.retreat_id, user.link_code]
+        "insert into `users` (name, login, password, role, retreat_id, link_code, hide_maps) values (?, ?, ?, ?, ?, ?, ?)",
+        [user.name, user.login, user.password, user.role, user.retreat_id, user.link_code, user.hide_maps]
       );
       const storedUser = await getMariaStoredUserById(result.insertId);
 
@@ -252,7 +255,7 @@ const authUserStore = {
       const entries = Object.entries(changes).filter(([, value]) => value !== undefined);
 
       if (entries.length > 0) {
-        const allowedColumns = new Set(["name", "login", "password", "role", "retreat_id", "link_code"]);
+        const allowedColumns = new Set(["name", "login", "password", "role", "retreat_id", "link_code", "hide_maps"]);
         const filteredEntries = entries.filter(([key]) => allowedColumns.has(key));
         const assignments = filteredEntries.map(([key]) => `\`${key}\` = ?`).join(", ");
         const values = filteredEntries.map(([, value]) => value);

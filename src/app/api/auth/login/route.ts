@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         role: user.role,
         retreat_id: user.retreat_id,
         created_at: user.created_at,
+        hide_maps: user.hide_maps,
       },
     });
 

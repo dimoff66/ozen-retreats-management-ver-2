@@ -49,6 +49,7 @@ function toPublicUser(user: StoredUserRow): User {
     role: user.role,
     retreat_id: user.retreat_id,
     created_at: user.created_at,
+    hide_maps: user.hide_maps,
   };
 }
 
@@ -56,6 +57,7 @@ const booleanColumns = new Set([
   "is_active",
   "is_available",
   "is_organizer",
+  "hide_maps",
 ]);
 
 function normalizeReadValue(key: string, value: unknown): unknown {
@@ -273,7 +275,7 @@ async function updateByIdWithConnection<T>(
   return row;
 }
 
-const userColumns = ["name", "login", "password", "role", "retreat_id"] as const;
+const userColumns = ["name", "login", "password", "role", "retreat_id", "hide_maps"] as const;
 const houseColumns = ["name", "parent_id"] as const;
 const roomColumns = ["room_number", "house_id", "is_available"] as const;
 const houseMapColumns = ["house_id", "bg_image_url", "room_positions"] as const;

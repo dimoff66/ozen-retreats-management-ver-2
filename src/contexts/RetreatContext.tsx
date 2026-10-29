@@ -89,8 +89,7 @@ type RetreatProviderProps = {
 };
 
 const RetreatContext = createContext<RetreatContextValue | null>(null);
-const POLL_INTERVAL_MS = 5_000;
-const FULL_REFRESH_INTERVAL_MS = 120_000;
+const POLL_INTERVAL_MS = 10_000;
 
 export function RetreatProvider(props: RetreatProviderProps) {
   const { currentUser } = useCurrentUser();
@@ -100,14 +99,12 @@ export function RetreatProvider(props: RetreatProviderProps) {
   const requestIdRef = useRef(0);
   const isPollingRef = useRef(false);
   const snapshotRef = useRef(snapshot);
-  const lastFullRefreshRef = useRef(0);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
 
   const loadSnapshot = useCallback(async (
-    force = false,
     throwOnError = false,
     background = false
   ) => {
@@ -133,20 +130,17 @@ export function RetreatProvider(props: RetreatProviderProps) {
       }
 
       const currentSnapshot = snapshotRef.current;
-      if (
-        !force
-        && currentSnapshot?.retreat.id === props.retreatId
-        && typeof retreat.version === "number"
-        && typeof currentSnapshot.retreat.version === "number"
-        && retreat.version === currentSnapshot.retreat.version
-        && Date.now() - lastFullRefreshRef.current < FULL_REFRESH_INTERVAL_MS
-      ) {
+      const shouldLoadSnapshot = !currentSnapshot
+        || currentSnapshot.retreat.id !== props.retreatId
+        || retreat.version > currentSnapshot.retreat.version;
+
+      if (!shouldLoadSnapshot) {
         setError("");
         setIsLoading(false);
         return;
       }
 
-      const nextSnapshot = await retreatSnapshotService.getSnapshot(props.retreatId);
+      const nextSnapshot = await retreatSnapshotService.getSnapshot(retreat);
 
       if (background && document.visibilityState !== "visible") {
         return;
@@ -156,17 +150,8 @@ export function RetreatProvider(props: RetreatProviderProps) {
         return;
       }
 
-      lastFullRefreshRef.current = Date.now();
-      if (
-        !currentSnapshot
-        || currentSnapshot.retreat.id !== props.retreatId
-        || JSON.stringify(currentSnapshot) !== JSON.stringify(nextSnapshot)
-      ) {
-        snapshotRef.current = nextSnapshot;
-        setSnapshot(nextSnapshot);
-        console.log("refreshed", new Date().toLocaleString());
-      }
-
+      snapshotRef.current = nextSnapshot;
+      setSnapshot(nextSnapshot);
       setError("");
     } catch (loadError) {
       if (requestId === requestIdRef.current) {
@@ -186,7 +171,7 @@ export function RetreatProvider(props: RetreatProviderProps) {
 
   const refresh = useCallback(async () => {
     setIsLoading(snapshotRef.current === null);
-    await loadSnapshot(true, true);
+    await loadSnapshot(true);
   }, [loadSnapshot]);
 
   const runMutation = useCallback(async <T,>(mutation: () => Promise<T>): Promise<T> => {
@@ -319,7 +304,7 @@ export function RetreatProvider(props: RetreatProviderProps) {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setIsLoading(true);
-      void loadSnapshot(true);
+      void loadSnapshot();
     }, 0);
 
     return () => {
@@ -335,7 +320,7 @@ export function RetreatProvider(props: RetreatProviderProps) {
       }
 
       isPollingRef.current = true;
-      void loadSnapshot(false, false, true).finally(() => {
+      void loadSnapshot(false, true).finally(() => {
         isPollingRef.current = false;
       });
     };

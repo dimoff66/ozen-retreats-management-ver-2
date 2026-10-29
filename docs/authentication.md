@@ -80,3 +80,15 @@ login link, while an already-issued seven-day session remains valid.
 
 Apply `supabase/migrations/202610110001_add_user_link_code.sql` for Supabase or
 `mariadb/migrations/202610110001_add_user_link_code.sql` for MariaDB.
+
+
+## Map visibility per user
+
+`users.hide_maps` is an administrator-managed boolean setting. When enabled,
+`HouseMapView` suppresses graphical house maps for that user and keeps the list
+view available for room and guest selection. The flag is part of the public
+current-user DTO; it does not expose credentials.
+
+Apply `supabase/migrations/202610290001_retreat_version_and_hide_maps.sql` for
+Supabase or `mariadb/migrations/202610290001_retreat_version_and_hide_maps.sql`
+for MariaDB before deploying code that reads this field.
